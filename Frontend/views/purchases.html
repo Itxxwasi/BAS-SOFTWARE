@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purchase Entry - Bilal Accounting System (BAS)</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Desktop Style -->
+    <link href="/css/desktop-style.css" rel="stylesheet">
+    <link href="/css/sidebar.css" rel="stylesheet">
+    <style>
+        /* Two-column layout for purchase entry */
+        .purchase-layout {
+            display: flex;
+            gap: 15px;
+        }
+
+        .purchase-left {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .purchase-right {
+            width: 300px;
+            flex-shrink: 0;
+        }
+
+        .totals-panel {
+            background: var(--form-beige);
+            padding: 15px;
+            border-radius: 4px;
+            position: sticky;
+            top: 70px;
+        }
+
+        .totals-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            align-items: center;
+        }
+
+        .totals-row label {
+            font-size: 13px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .totals-row input {
+            width: 120px;
+            padding: 5px 8px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            font-size: 13px;
+            text-align: right;
+        }
+
+        .totals-row.grand-total {
+            border-top: 2px solid var(--primary-blue);
+            border-bottom: 2px solid var(--primary-blue);
+            padding-top: 10px;
+            margin-top: 10px;
+            padding-bottom: 10px;
+        }
+
+        .totals-row.grand-total input {
+            background: var(--calc-blue);
+            font-weight: bold;
+            font-size: 15px;
+        }
+
+        .item-entry-section {
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border-gray);
+        }
+
+        .items-table-container {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        @media (max-width: 1200px) {
+            .purchase-layout {
+                flex-direction: column;
+            }
+
+            .purchase-right {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Page Header -->
+    <div class="page-header">
+        <div style="flex: 1;">
+            <i class="fas fa-truck me-2"></i>
+            Purchase Entry
+        </div>
+        <div style="flex: 1; text-align: center;">
+            <a href="/main.html" class="btn btn-outline-light btn-sm me-3" style="border-radius: 20px;">
+                <i class="fas fa-home me-1"></i> Home Page
+            </a>
+        </div>
+        <div class="user-info" style="flex: 1; justify-content: flex-end;">
+            <div class="user-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <span id="userName">User</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="desktop-container">
+        <div class="content-wrapper">
+            <!-- Form Section -->
+            <div class="form-section">
+                <form id="purchaseForm">
+                    <input type="hidden" id="purchaseId">
+
+                    <div class="purchase-layout">
+                        <!-- Left Section -->
+                        <div class="purchase-left">
+                            <!-- Row 1: Invoice, Supplier, Bill No -->
+                            <div class="form-row">
+                                <div class="form-field w-150" style="display: none;">
+                                    <label>Invoice No</label>
+                                    <input type="text" id="invoiceNo" readonly>
+                                </div>
+                                <div class="form-field flex-2">
+                                    <label class="required">Supplier</label>
+                                    <div class="input-group">
+                                        <select id="supplier" required>
+                                            <option value="">-- Select Supplier --</option>
+                                        </select>
+                                        <button type="button" class="btn-add-new" onclick="openSupplierModal()">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                        <button type="button" class="btn-add-new" style="background: #007BFF;"
+                                            onclick="showSupplierList()">
+                                            <i class="fas fa-list"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="form-field w-200">
+                                    <label>Bill No</label>
+                                    <input type="text" id="billNo">
+                                </div>
+                            </div>
+
+                            <!-- Row 2: Date, Remarks -->
+                            <div class="form-row">
+                                <div class="form-field w-150">
+                                    <label class="required">Date</label>
+                                    <input type="date" id="purchaseDate" required>
+                                </div>
+                                <div class="form-field flex-2">
+                                    <label>Remarks</label>
+                                    <input type="text" id="remarks">
+                                </div>
+                            </div>
+
+                            <!-- Item Entry Section -->
+                            <div class="item-entry-section">
+                                <div class="form-row">
+                                    <div class="form-field w-150">
+                                        <label>Code</label>
+                                        <input type="text" id="itemCode">
+                                    </div>
+                                    <div class="form-field flex-2">
+                                        <label>Name</label>
+                                        <div class="input-group">
+                                            <select id="itemSelect">
+                                                <option value="">-- Select Item --</option>
+                                            </select>
+                                            <button type="button" class="btn-add-new" onclick="openItemModal()">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                            <button type="button" class="btn-add-new" style="background: #007BFF;"
+                                                onclick="showItemList()">
+                                                <i class="fas fa-list"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-field w-100">
+                                        <label>Pack</label>
+                                        <input type="number" id="pack" value="1">
+                                    </div>
+                                    <div class="form-field w-150">
+                                        <label>Store</label>
+                                        <select id="store">
+                                            <option value="Shop" selected>Shop</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-field w-100 calc-field-light">
+                                        <label>Stock</label>
+                                        <input type="number" id="stock" readonly>
+                                    </div>
+                                    <div class="form-field w-100">
+                                        <label>Tax %</label>
+                                        <input type="number" id="taxPercent" step="0.01" value="0">
+                                    </div>
+                                    <div class="form-field w-100 calc-field-light">
+                                        <label>Rs</label>
+                                        <input type="number" id="taxRs" readonly>
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-field w-150">
+                                        <label>Cost Price</label>
+                                        <input type="number" id="costPrice" step="0.01">
+                                    </div>
+                                    <div class="form-field w-150 calc-field-light">
+                                        <label>Total</label>
+                                        <input type="number" id="itemTotal" readonly>
+                                    </div>
+                                    <div class="form-field w-100">
+                                        <label>Disc %</label>
+                                        <input type="number" id="discPercent" step="0.01" value="0">
+                                    </div>
+                                    <div class="form-field w-100 calc-field-light">
+                                        <label>Disc Rs</label>
+                                        <input type="number" id="discRs" readonly>
+                                    </div>
+                                    <div class="form-field w-150 calc-field-light">
+                                        <label>NetTotal</label>
+                                        <input type="number" id="itemNetTotal" readonly>
+                                    </div>
+                                    <div class="form-field w-150">
+                                        <label>Sale Price</label>
+                                        <input type="number" id="salePrice" step="0.01">
+                                    </div>
+                                    <div class="form-field flex-1">
+                                        <label>&nbsp;</label>
+                                        <button type="button" class="btn btn-primary" onclick="addItemToPurchase()"
+                                            style="width: 100%;">
+                                            <i class="fas fa-plus"></i> Add
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Items Table -->
+                            <div class="items-table-container">
+                                <table class="data-table" id="purchaseItemsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Sr</th>
+                                            <th>Code</th>
+                                            <th>Name</th>
+                                            <th>Pack</th>
+                                            <th class="text-right">Pur.Price</th>
+                                            <th class="text-right">Sub</th>
+                                            <th class="text-right">Tax%</th>
+                                            <th class="text-right">Tax Rs</th>
+                                            <th class="text-right">Total</th>
+                                            <th class="text-right">Disc%</th>
+                                            <th class="text-right">Disc Rs</th>
+                                            <th class="text-right">Net Total</th>
+                                            <th class="text-center">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="purchaseItemsBody">
+                                        <!-- Items will be added here -->
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="total-row">
+                                            <td colspan="5" class="text-right"><strong>Total</strong></td>
+                                            <td class="text-right" id="footerSub">0.00</td>
+                                            <td></td>
+                                            <td class="text-right" id="footerTaxRs">0.00</td>
+                                            <td class="text-right" id="footerTotal">0.00</td>
+                                            <td></td>
+                                            <td class="text-right" id="footerDiscRs">0.00</td>
+                                            <td class="text-right" id="footerNetTotal">0.00</td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Right Section - Totals -->
+                        <div class="purchase-right">
+                            <div class="totals-panel">
+                                <div class="totals-row">
+                                    <label>Total:</label>
+                                    <input type="number" id="totalAmount" readonly>
+                                </div>
+                                <div class="totals-row">
+                                    <label>Discount %:</label>
+                                    <input type="number" id="discountPercent" step="0.01" value="0">
+                                </div>
+                                <div class="totals-row">
+                                    <label>Discount Rs:</label>
+                                    <input type="number" id="discountRs" step="0.01" value="0">
+                                </div>
+                                <div class="totals-row">
+                                    <label>Tax %:</label>
+                                    <input type="number" id="totalTaxPercent" step="0.01" value="0">
+                                </div>
+                                <div class="totals-row">
+                                    <label>Tax Rs:</label>
+                                    <input type="number" id="totalTaxRs" readonly>
+                                </div>
+                                <div class="totals-row">
+                                    <label>Misc:</label>
+                                    <input type="number" id="misc" step="0.01" value="0">
+                                </div>
+                                <div class="totals-row">
+                                    <label>Freight:</label>
+                                    <input type="number" id="freight" step="0.01" value="0">
+                                </div>
+                                <div class="totals-row grand-total">
+                                    <label>Net Total:</label>
+                                    <input type="number" id="netTotal" readonly>
+                                </div>
+                                <div class="totals-row">
+                                    <label>Paid:</label>
+                                    <input type="number" id="paid" step="0.01" value="0">
+                                </div>
+                                <div class="totals-row">
+                                    <label>Inv Balance:</label>
+                                    <input type="number" id="invBalance" readonly>
+                                </div>
+                                <div class="totals-row">
+                                    <label>Pre Balance:</label>
+                                    <input type="number" id="preBalance" readonly>
+                                </div>
+                                <div class="totals-row grand-total">
+                                    <label>New Balance:</label>
+                                    <input type="number" id="newBalance" readonly>
+                                </div>
+                                <div class="totals-row">
+                                    <label>Pay Mode:</label>
+                                    <select id="paymentMode" style="width: 120px;">
+                                        <option value="cash">Cash</option>
+                                        <option value="credit">Credit</option>
+                                        <option value="bank">Bank</option>
+                                    </select>
+                                </div>
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-sm btn-secondary w-100"
+                                        onclick="searchInvoice()">
+                                        Search Invoice / Alt+X
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- List Modal (Popup) -->
+    <div class="list-modal-overlay" id="listModalOverlay" onclick="hideList()"></div>
+    <div class="list-modal" id="listModal">
+        <div class="list-modal-header">
+            <h3><i class="fas fa-list me-2"></i>Purchases List</h3>
+            <button class="list-modal-close" onclick="hideList()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="list-modal-filters">
+            <input type="text" class="search-input" id="searchInput" placeholder="Search purchases..."
+                style="max-width: 250px;">
+            <input type="date" class="form-control form-control-sm" id="startDate" style="max-width: 150px;">
+            <input type="date" class="form-control form-control-sm" id="endDate" style="max-width: 150px;">
+            <select class="form-select form-select-sm" id="statusFilter" style="max-width: 150px;">
+                <option value="">All Status</option>
+                <option value="draft">Draft</option>
+                <option value="received">Received</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="resetFilters()">
+                <i class="fas fa-redo"></i> Reset
+            </button>
+        </div>
+
+        <div class="list-modal-content">
+            <table class="data-table" id="purchasesTable">
+                <thead>
+                    <tr>
+                        <th>Edit</th>
+                        <th>Invoice #</th>
+                        <th>Bill #</th>
+                        <th>Date</th>
+                        <th>Supplier</th>
+                        <th>Items</th>
+                        <th class="text-right">Total</th>
+                        <th class="text-center">Payment</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="purchasesTableBody">
+                    <!-- Will be populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="list-modal-footer">
+            <div id="pagination"></div>
+        </div>
+    </div>
+
+    <!-- Action Bar -->
+    <div class="action-bar">
+        <button class="btn btn-danger" onclick="holdInvoice()" style="background: #DC3545;">
+            <i class="fas fa-pause"></i> Hold Inv
+        </button>
+        <button class="btn btn-success" onclick="savePurchase('received')" data-action="save">
+            <i class="fas fa-save"></i> Save
+        </button>
+        <button class="btn btn-warning" onclick="showUnpostedList()">
+            <i class="fas fa-clock"></i> Unposted List
+        </button>
+        <button class="btn btn-primary" onclick="showPurchasesList()">
+            <i class="fas fa-list"></i> List
+        </button>
+        <button class="btn btn-secondary" onclick="applyDiscount()">
+            <i class="fas fa-percent"></i> Apply Discount
+        </button>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/pageAccess.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/desktop-ui.js?v=4"></script>
+    <script src="/js/purchases.js?v=6"></script>
+</body>
+
+</html>

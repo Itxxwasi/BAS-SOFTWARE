@@ -1,0 +1,224 @@
+
+=== CREATE SALE CALLED ===
+Time: 2025-12-13T22:26:59.226Z
+
+=== SALE REQUEST DEBUG ===
+Time: 2025-12-13T22:26:59.228Z
+Party field value: 693db04702292c940b675e1f
+Party field type: string
+Full request body:
+{
+  "invoiceNumber": "INV-001",
+  "date": "2025-12-13",
+  "party": "693db04702292c940b675e1f",
+  "items": [
+    {
+      "item": "693d93d80df3d90a6e79d910",
+      "quantity": 1,
+      "rate": 300,
+      "amount": 300,
+      "taxAmount": 0
+    }
+  ],
+  "subtotal": 300,
+  "discountAmount": 0,
+  "taxAmount": 0,
+  "totalAmount": 300,
+  "grandTotal": 300,
+  "paidAmount": 0,
+  "balanceAmount": 300,
+  "paymentStatus": "pending",
+  "notes": "",
+  "createdBy": "693d5f270b12208a98520c14",
+  "status": "final"
+}
+========================
+
+=== CREATE SALE CALLED ===
+Time: 2025-12-13T22:30:16.594Z
+
+=== SALE REQUEST DEBUG ===
+Time: 2025-12-13T22:30:16.596Z
+Party field value: 693db04702292c940b675e1f
+Party field type: string
+Full request body:
+{
+  "invoiceNumber": "",
+  "date": "2025-12-13",
+  "party": "693db04702292c940b675e1f",
+  "items": [
+    {
+      "item": "693d93d80df3d90a6e79d910",
+      "quantity": 5,
+      "rate": 300,
+      "amount": 1500,
+      "taxAmount": 0
+    }
+  ],
+  "subtotal": 1500,
+  "discountAmount": 0,
+  "taxAmount": 0,
+  "totalAmount": 1500,
+  "grandTotal": 1500,
+  "paidAmount": 0,
+  "balanceAmount": 1500,
+  "paymentStatus": "pending",
+  "notes": "",
+  "createdBy": "693d5f270b12208a98520c14",
+  "status": "final"
+}
+========================
+
+=== CREATE SALE CALLED ===
+Time: 2025-12-13T22:30:20.798Z
+
+=== SALE REQUEST DEBUG ===
+Time: 2025-12-13T22:30:20.800Z
+Party field value: 693db04702292c940b675e1f
+Party field type: string
+Full request body:
+{
+  "invoiceNumber": "",
+  "date": "2025-12-13",
+  "party": "693db04702292c940b675e1f",
+  "items": [
+    {
+      "item": "693d93d80df3d90a6e79d910",
+      "quantity": 5,
+      "rate": 300,
+      "amount": 1500,
+      "taxAmount": 0
+    }
+  ],
+  "subtotal": 1500,
+  "discountAmount": 0,
+  "taxAmount": 0,
+  "totalAmount": 1500,
+  "grandTotal": 1500,
+  "paidAmount": 0,
+  "balanceAmount": 1500,
+  "paymentStatus": "pending",
+  "notes": "",
+  "createdBy": "693d5f270b12208a98520c14",
+  "status": "final"
+}
+========================
+
+=== CREATE SALE CALLED ===
+Time: 2025-12-13T22:33:05.202Z
+
+=== SALE REQUEST DEBUG ===
+Time: 2025-12-13T22:33:05.205Z
+Party field value: 693db04702292c940b675e1f
+Party field type: string
+Full request body:
+{
+  "invoiceNumber": "INV-002",
+  "date": "2025-12-13",
+  "party": "693db04702292c940b675e1f",
+  "items": [
+    {
+      "item": "693d93d80df3d90a6e79d910",
+      "quantity": 5,
+      "rate": 300,
+      "amount": 1500,
+      "taxAmount": 0
+    }
+  ],
+  "subtotal": 1500,
+  "discountAmount": 0,
+  "taxAmount": 0,
+  "totalAmount": 1500,
+  "grandTotal": 1500,
+  "paidAmount": 0,
+  "balanceAmount": 1500,
+  "paymentStatus": "pending",
+  "notes": "",
+  "createdBy": "693d5f270b12208a98520c14",
+  "status": "final"
+}
+========================
+
+=== CREATE SALE CALLED ===
+Time: 2025-12-13T22:47:50.760Z
+
+=== SALE REQUEST DEBUG ===
+Time: 2025-12-13T22:47:50.763Z
+Party field value: 693db04702292c940b675e1f
+Party field type: string
+Full request body:
+{
+  "invoiceNumber": "INV-001",
+  "date": "2025-12-13",
+  "party": "693db04702292c940b675e1f",
+  "items": [
+    {
+      "item": "693d93d80df3d90a6e79d910",
+      "quantity": 5,
+      "rate": 300,
+      "amount": 1500,
+      "taxAmount": 0
+    },
+    {
+      "item": "693d427082510cac410618d0",
+      "quantity": 5,
+      "rate": 200,
+      "amount": 1000,
+      "taxAmount": 0
+    },
+    {
+      "item": "693d427082510cac410618cd",
+      "quantity": 5,
+      "rate": 100,
+      "amount": 500,
+      "taxAmount": 0
+    }
+  ],
+  "subtotal": 3000,
+  "discountAmount": 0,
+  "taxAmount": 0,
+  "totalAmount": 3000,
+  "grandTotal": 3000,
+  "paidAmount": 0,
+  "balanceAmount": 3000,
+  "paymentStatus": "pending",
+  "notes": "",
+  "createdBy": "693d5f270b12208a98520c14",
+  "status": "final"
+}
+========================
+
+=== CREATE SALE CALLED ===
+Time: 2025-12-13T22:48:30.382Z
+
+=== SALE REQUEST DEBUG ===
+Time: 2025-12-13T22:48:30.383Z
+Party field value: 693db04702292c940b675e1f
+Party field type: string
+Full request body:
+{
+  "invoiceNumber": "INV-002",
+  "date": "2025-12-13",
+  "party": "693db04702292c940b675e1f",
+  "items": [
+    {
+      "item": "693d93d80df3d90a6e79d910",
+      "quantity": 1,
+      "rate": 300,
+      "amount": 300,
+      "taxAmount": 0
+    }
+  ],
+  "subtotal": 300,
+  "discountAmount": 0,
+  "taxAmount": 0,
+  "totalAmount": 300,
+  "grandTotal": 300,
+  "paidAmount": 0,
+  "balanceAmount": 300,
+  "paymentStatus": "pending",
+  "notes": "",
+  "createdBy": "693d5f270b12208a98520c14",
+  "status": "draft"
+}
+========================

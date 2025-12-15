@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Bilal Accounting System (BAS)</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.css" rel="stylesheet">
+    <link href="/css/desktop-style.css" rel="stylesheet">
+    <link href="/css/sidebar.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+
+<body>
+    <!-- Main Content Wrapper -->
+    <div class="main-content">
+        <!-- Top Navigation -->
+        <nav class="top-nav">
+            <div class="d-flex align-items-center">
+                <button id="sidebarToggle" class="btn btn-link text-dark me-3">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h4 class="mb-0">Dashboard</h4>
+            </div>
+
+            <div class="user-info dropdown">
+                <div class="d-flex align-items-center" data-bs-toggle="dropdown" style="cursor: pointer;">
+                    <div class="user-avatar text-white bg-primary rounded-circle d-flex align-items-center justify-content-center"
+                        style="width: 35px; height: 35px;">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <span class="ms-2 d-none d-md-block" id="userName">User</span>
+                </div>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="/profile.html">Profile</a></li>
+                    <li>
+                        <hr class="dropdown-divider">
+                    </li>
+                    <li><a class="dropdown-item" href="#" onclick="window.pageAccess.logout()">Logout</a></li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Dashboard Content -->
+        <div class="container-fluid mt-4">
+            <!-- Date Filter Controls -->
+            <!-- Date Filter Controls -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm"
+                        style="background: linear-gradient(to right, #ffffff, #f8f9fa);">
+                        <div class="card-body py-3">
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-primary bg-opacity-10 p-2 rounded-circle me-3 text-primary">
+                                        <i class="fas fa-calendar-alt"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0 fw-bold text-gray-800">Time Period</h6>
+                                        <small class="text-muted">Select analysis timeframe</small>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                    <div class="nav nav-pills bg-light p-1 rounded-3 date-filter-pills" role="group">
+                                        <button class="nav-link px-3 py-1 border-0 rounded-pill small fw-semibold"
+                                            onclick="setDateFilter('today')" data-filter="today">Today</button>
+                                        <button class="nav-link px-3 py-1 border-0 rounded-pill small fw-semibold"
+                                            onclick="setDateFilter('week')" data-filter="week">This Week</button>
+                                        <button
+                                            class="nav-link px-3 py-1 border-0 rounded-pill active small fw-semibold shadow-sm"
+                                            onclick="setDateFilter('month')" data-filter="month">This Month</button>
+                                        <button class="nav-link px-3 py-1 border-0 rounded-pill small fw-semibold"
+                                            onclick="setDateFilter('custom')" data-filter="custom">Custom</button>
+                                    </div>
+
+                                    <div id="customDateRange" class="ms-2" style="display: none;">
+                                        <div class="input-group input-group-sm shadow-sm">
+                                            <span class="input-group-text bg-white border-end-0"><i
+                                                    class="far fa-calendar"></i></span>
+                                            <input type="date" id="fromDate" class="form-control border-start-0"
+                                                placeholder="Start Date">
+                                            <span
+                                                class="input-group-text bg-light border-start-0 border-end-0">to</span>
+                                            <input type="date" id="toDate" class="form-control border-start-0"
+                                                placeholder="End Date">
+                                            <button class="btn btn-primary"
+                                                onclick="applyCustomDateFilter()">Apply</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <button class="btn btn-light btn-sm shadow-sm border text-muted"
+                                        onclick="refreshDashboard()" data-bs-toggle="tooltip" title="Refresh Data">
+                                        <i class="fas fa-sync-alt fa-spin-hover"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12">
+                    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+                        <h1 class="h3 mb-0 text-gray-800">
+                            <!-- Dashboard Title removed as it is in top nav now, but we can keep page stats title or actions here -->
+                        </h1>
+                        <!-- <a href="#" class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm"><i class="fas fa-download fa-sm text-white-50"></i> Generate Report</a> -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="row mb-4">
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card border-left-primary shadow h-100 py-2">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                        Today's Sales
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800" id="todaySales">
+                                        0.00
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="fas fa-money-bill fa-2x text-gray-300"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card border-left-success shadow h-100 py-2">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                        Today's Purchases
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800" id="todayPurchases">
+                                        0.00
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="fas fa-shopping-cart fa-2x text-gray-300"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card border-left-info shadow h-100 py-2">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                        Total Customers
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalCustomers">
+                                        0
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="fas fa-users fa-2x text-gray-300"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card border-left-warning shadow h-100 py-2">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                        Low Stock Items
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800" id="lowStockItems">
+                                        0
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="row mb-4">
+                <div class="col-xl-8 col-lg-7">
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                            <h6 class="m-0 font-weight-bold text-primary">Sales Overview</h6>
+                            <div class="dropdown no-arrow">
+                                <a class="dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+                                </a>
+                                <div class="dropdown-menu dropdown-menu-right shadow">
+                                    <a class="dropdown-item" href="#" onclick="changeChartPeriod('week')">Last 7
+                                        Days</a>
+                                    <a class="dropdown-item" href="#" onclick="changeChartPeriod('month')">Last 30
+                                        Days</a>
+                                    <a class="dropdown-item" href="#" onclick="changeChartPeriod('year')">Last Year</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-area">
+                                <canvas id="salesChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-4 col-lg-5">
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-primary">Category Distribution</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-pie pt-4 pb-2">
+                                <canvas id="categoryChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Transactions -->
+            <div class="row">
+                <div class="col-lg-6 mb-4">
+                    <div class="card shadow">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-primary">Recent Sales</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Invoice #</th>
+                                            <th>Date</th>
+                                            <th>Customer</th>
+                                            <th>Amount</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="recentSales">
+                                        <!-- Will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-6 mb-4">
+                    <div class="card shadow">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-primary">Recent Purchases</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Invoice #</th>
+                                            <th>Date</th>
+                                            <th>Supplier</th>
+                                            <th>Amount</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="recentPurchases">
+                                        <!-- Will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div> <!-- End Main Content -->
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="/js/pageAccess.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/dashboard.js"></script>
+</body>
+
+</html>

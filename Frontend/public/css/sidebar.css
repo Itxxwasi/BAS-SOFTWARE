@@ -1,0 +1,226 @@
+/* Sidebar Styles - Refined for "MTS" Look */
+:root {
+    --sidebar-bg: #1e4c8c;
+    --sidebar-width-full: 250px;
+    --sidebar-width-mini: 60px;
+    --popover-bg: #263238;
+    --popover-text: #fff;
+    --active-item-bg: #153866;
+}
+
+/* Sidebar Container */
+.sidebar-container {
+    height: 100vh;
+    background-color: var(--sidebar-bg);
+    color: white;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    transition: width 0.3s;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
+}
+
+.sidebar-container.full {
+    width: var(--sidebar-width-full);
+}
+
+.sidebar-container.mini {
+    width: var(--sidebar-width-mini);
+}
+
+/* Header */
+.sidebar-header {
+    height: 50px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    background-color: #153866;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-header .logo-text {
+    font-weight: bold;
+    font-size: 1.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.mini .logo-text {
+    display: none;
+}
+
+.mini .sidebar-header {
+    justify-content: center;
+}
+
+/* User Info Section */
+.user-info-mini {
+    padding: 15px 0;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.user-avatar-circle {
+    width: 35px;
+    height: 35px;
+    background: #e0e0e0;
+    border-radius: 50%;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #333;
+}
+
+/* Navigation Items */
+.sidebar-menu {
+    flex-grow: 1;
+    padding-top: 10px;
+    /* Overflow handled by specific mode classes below */
+}
+
+.nav-item {
+    position: relative;
+    width: 100%;
+}
+
+.nav-link {
+    color: rgba(255, 255, 255, 0.8) !important;
+    padding: 12px 15px;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    transition: background 0.2s, color 0.2s;
+    cursor: pointer;
+    text-decoration: none !important;
+}
+
+.nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white !important;
+}
+
+.nav-link i {
+    width: 30px;
+    text-align: center;
+    font-size: 1.1rem;
+}
+
+.nav-link span {
+    margin-left: 10px;
+}
+
+.nav-link .arrow {
+    transition: transform 0.3s;
+}
+
+/* Rotate arrow when collapsed open */
+.nav-link[aria-expanded="true"] .arrow {
+    transform: rotate(90deg);
+}
+
+/* Mode Specific Interactions */
+
+/* FULL MODE: Hide Popover, Show Accordion Trigger */
+.sidebar-container.full .popover-menu {
+    display: none !important;
+}
+
+.sidebar-container.full .submenu-inline {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-container.full .small-link {
+    padding-left: 45px;
+    font-size: 0.95em;
+}
+
+/* MINI MODE: Hide Accordion, Show Popover on Hover */
+.sidebar-container.mini .nav-link {
+    justify-content: center;
+    padding: 15px 0;
+}
+
+.sidebar-container.mini .nav-link span,
+.sidebar-container.mini .nav-link .arrow,
+.sidebar-container.mini .submenu-inline {
+    display: none !important;
+}
+
+/* Popover Submenu Styling */
+.popover-menu {
+    display: none;
+    position: absolute;
+    left: var(--sidebar-width-mini);
+    top: 0;
+    width: 250px;
+    background-color: var(--popover-bg);
+    color: var(--popover-text);
+    box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.3);
+    border-radius: 0 4px 4px 0;
+    z-index: 1001;
+    padding: 10px 0;
+}
+
+.sidebar-container.mini .nav-item:hover .popover-menu {
+    display: block;
+}
+
+.popover-header {
+    padding: 10px 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-weight: bold;
+    background-color: #1e282c;
+}
+
+.popover-item {
+    display: block;
+    padding: 8px 20px;
+    color: #b8c7ce;
+    text-decoration: none;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+.popover-item:hover {
+    color: white;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Body Margins - Push content when sidebar is present */
+body.sidebar-full {
+    padding-left: var(--sidebar-width-full);
+    transition: padding-left 0.3s;
+}
+
+body.sidebar-mini {
+    padding-left: var(--sidebar-width-mini);
+    transition: padding-left 0.3s;
+}
+
+/* Ensure no other margins interfere */
+.main-content {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Hide standard bootstrap collapse class in mini mode to prevent flashes */
+.mini .collapse {
+    display: none !important;
+}
+
+/* Sidebar Menu Scrolling - Handle Popover Visibility */
+/* In Full mode, we need scrolling. In Mini mode, we need overflow visible for popovers */
+.sidebar-container.full .sidebar-menu {
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.sidebar-container.mini .sidebar-menu {
+    overflow: visible;
+    /* Allow popovers to break out */
+}
