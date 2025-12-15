@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Management - Bilal Accounting System (BAS)</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Page Access Control -->
+    <script src="js/pageAccess.js"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fas fa-chart-line"></i> SalesPro</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li><a href="main.html" class="nav-link"><i class="fas fa-home"></i> Home Page</a></li>
+                    <li><a href="items.html" class="nav-link"><i class="fas fa-box"></i> Items</a></li>
+                    <li><a href="parties.html" class="nav-link"><i class="fas fa-users"></i> Parties</a></li>
+                    <li><a href="sales.html" class="nav-link"><i class="fas fa-shopping-cart"></i> Sales</a></li>
+                    <li><a href="purchases.html" class="nav-link"><i class="fas fa-truck"></i> Purchases</a></li>
+                    <li><a href="payments.html" class="nav-link"><i class="fas fa-money-bill-wave"></i> Payments</a>
+                    </li>
+                    <li><a href="receipts.html" class="nav-link"><i class="fas fa-receipt"></i> Receipts</a></li>
+                    <li><a href="expenses.html" class="nav-link"><i class="fas fa-chart-pie"></i> Expenses</a></li>
+                    <li><a href="#stock" class="nav-link active"><i class="fas fa-warehouse"></i> Stock</a></li>
+                    <li><a href="reports.html" class="nav-link"><i class="fas fa-file-alt"></i> Reports</a></li>
+                    <li><a href="settings.html" class="nav-link"><i class="fas fa-cog"></i> Settings</a></li>
+                </ul>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logoutBtn" class="btn btn-danger btn-sm"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Navigation -->
+            <header class="top-nav">
+                <div class="top-nav-left">
+                    <button id="menuToggle" class="menu-toggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1>Stock Management</h1>
+                </div>
+                <div class="top-nav-right">
+                    <div class="user-info">
+                        <span id="userName">Welcome, User</span>
+                        <img src="https://via.placeholder.com/40" alt="User" class="user-avatar">
+                    </div>
+                </div>
+            </header>
+
+            <!-- Stock Content -->
+            <div class="stock-content">
+                <!-- Stock Overview Cards -->
+                <div class="stock-overview">
+                    <div class="overview-card">
+                        <div class="card-icon green">
+                            <i class="fas fa-boxes"></i>
+                        </div>
+                        <div class="card-info">
+                            <h3 id="totalItems">0</h3>
+                            <p>Total Items</p>
+                        </div>
+                    </div>
+                    <div class="overview-card">
+                        <div class="card-icon orange">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="card-info">
+                            <h3 id="lowStockItems">0</h3>
+                            <p>Low Stock Items</p>
+                        </div>
+                    </div>
+                    <div class="overview-card">
+                        <div class="card-icon red">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                        <div class="card-info">
+                            <h3 id="outOfStockItems">0</h3>
+                            <p>Out of Stock</p>
+                        </div>
+                    </div>
+                    <div class="overview-card">
+                        <div class="card-icon blue">
+                            <i class="fas fa-dollar-sign"></i>
+                        </div>
+                        <div class="card-info">
+                            <h3 id="stockValue">$0</h3>
+                            <p>Total Stock Value</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions Bar -->
+                <div class="actions-bar">
+                    <div class="actions-left">
+                        <button id="addAdjustmentBtn" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> New Adjustment
+                        </button>
+                        <button id="exportStockBtn" class="btn btn-secondary">
+                            <i class="fas fa-download"></i> Export Stock
+                        </button>
+                        <button id="printReportBtn" class="btn btn-secondary">
+                            <i class="fas fa-print"></i> Print Report
+                        </button>
+                    </div>
+                    <div class="actions-right">
+                        <div class="search-box">
+                            <input type="text" id="searchInput" placeholder="Search items...">
+                            <i class="fas fa-search"></i>
+                        </div>
+                        <select id="categoryFilter" class="form-control">
+                            <option value="">All Categories</option>
+                            <option value="Electronics">Electronics</option>
+                            <option value="Clothing">Clothing</option>
+                            <option value="Food">Food</option>
+                            <option value="Beverages">Beverages</option>
+                            <option value="Stationery">Stationery</option>
+                            <option value="Furniture">Furniture</option>
+                            <option value="Hardware">Hardware</option>
+                            <option value="Pharmaceuticals">Pharmaceuticals</option>
+                            <option value="Cosmetics">Cosmetics</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <select id="stockFilter" class="form-control">
+                            <option value="">All Stock</option>
+                            <option value="low">Low Stock</option>
+                            <option value="out">Out of Stock</option>
+                            <option value="normal">Normal Stock</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Stock Table -->
+                <div class="table-container">
+                    <table class="data-table" id="stockTable">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="selectAll"></th>
+                                <th>SKU</th>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Current Stock</th>
+                                <th>Unit</th>
+                                <th>Purchase Price</th>
+                                <th>Sale Price</th>
+                                <th>Stock Value</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stockTableBody">
+                            <!-- Stock items will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination" id="pagination">
+                    <!-- Pagination will be loaded here -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Stock Adjustment Modal -->
+    <div id="adjustmentModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3 id="modalTitle">New Stock Adjustment</h3>
+                <span class="close" id="closeModal">&times;</span>
+            </div>
+            <form id="adjustmentForm" class="modal-body">
+                <input type="hidden" id="adjustmentId">
+
+                <!-- Adjustment Details -->
+                <div class="adjustment-details">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="adjustmentDate">Adjustment Date *</label>
+                            <input type="date" id="adjustmentDate" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="adjustmentType">Adjustment Type *</label>
+                            <select id="adjustmentType" class="form-control" required>
+                                <option value="">Select Type</option>
+                                <option value="in">Stock In</option>
+                                <option value="out">Stock Out</option>
+                                <option value="damage">Damage</option>
+                                <option value="loss">Loss</option>
+                                <option value="return">Return</option>
+                                <option value="transfer">Transfer</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="reason">Reason *</label>
+                        <textarea id="reason" class="form-control" rows="2" required
+                            placeholder="Enter reason for stock adjustment"></textarea>
+                    </div>
+                </div>
+
+                <!-- Adjustment Items -->
+                <div class="adjustment-items">
+                    <div class="items-header">
+                        <h4>Items</h4>
+                        <button type="button" id="addItemBtn" class="btn btn-sm btn-primary">
+                            <i class="fas fa-plus"></i> Add Item
+                        </button>
+                    </div>
+                    <div class="items-table">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Current Stock</th>
+                                    <th>Adjustment Qty</th>
+                                    <th>New Stock</th>
+                                    <th>Unit Value</th>
+                                    <th>Total Value</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adjustmentItemsBody">
+                                <!-- Items will be added here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Totals -->
+                <div class="adjustment-totals">
+                    <div class="totals-grid">
+                        <div class="total-item">
+                            <label>Total Items:</label>
+                            <span id="totalItemsCount">0</span>
+                        </div>
+                        <div class="total-item">
+                            <label>Total Value:</label>
+                            <span id="totalAdjustmentValue">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notes -->
+                <div class="form-group">
+                    <label for="notes">Notes</label>
+                    <textarea id="notes" class="form-control" rows="3"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Save Adjustment</button>
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Item Modal -->
+    <div id="addItemModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Item</h3>
+                <span class="close" id="closeItemModal">&times;</span>
+            </div>
+            <form id="addItemForm" class="modal-body">
+                <div class="form-group">
+                    <label for="itemSelect">Select Item *</label>
+                    <select id="itemSelect" class="form-control" required>
+                        <option value="">Select Item</option>
+                        <!-- Items will be loaded here -->
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="currentStock">Current Stock</label>
+                        <input type="number" id="currentStock" class="form-control" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="adjustmentQty">Adjustment Quantity *</label>
+                        <input type="number" id="adjustmentQty" class="form-control" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="newStock">New Stock</label>
+                    <input type="number" id="newStock" class="form-control" readonly>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Add Item</button>
+                    <button type="button" class="btn btn-secondary" id="cancelItemBtn">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/auth.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/stock.js"></script>
+</body>
+
+</html>

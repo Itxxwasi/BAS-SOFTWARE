@@ -1,0 +1,132 @@
+const Item = require('../models/Item');
+const asyncHandler = require('../middleware/async');
+const ErrorResponse = require('../utils/errorResponse');
+const { itemValidations, handleValidationErrors } = require('../middleware/validation');
+
+// @desc    Get all items
+// @route   GET /api/v1/items
+// @access  Private
+const getItems = asyncHandler(async (req, res, next) => {
+  res.status(200).json(res.advancedResults);
+});
+
+// @desc    Get single item
+// @route   GET /api/v1/items/:id
+// @access  Private
+const getItem = asyncHandler(async (req, res, next) => {
+  const item = await Item.findById(req.params.id)
+    .populate('company')
+    .populate('class')
+    .populate('subclass')
+    .populate('supplier');
+
+  if (!item) {
+    return next(new ErrorResponse(`Item not found with id of ${req.params.id}`, 404));
+  }
+
+  res.status(200).json({ success: true, data: item });
+});
+
+// @desc    Create new item
+// @route   POST /api/v1/items
+// @access  Private
+const createItem = asyncHandler(async (req, res, next) => {
+  // Add user to req.body
+  req.body.createdBy = req.user.id;
+
+  const item = await Item.create(req.body);
+
+  res.status(201).json({
+    success: true,
+    data: item
+  });
+});
+
+// @desc    Update item
+// @route   PUT /api/v1/items/:id
+// @access  Private
+const updateItem = asyncHandler(async (req, res, next) => {
+  let item = await Item.findById(req.params.id);
+
+  if (!item) {
+    return next(new ErrorResponse(`Item not found with id of ${req.params.id}`, 404));
+  }
+
+  // Make sure user is item owner or admin
+  if (item.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
+    return next(new ErrorResponse(`User ${req.user.id} is not authorized to update this item`, 401));
+  }
+
+  item = await Item.findByIdAndUpdate(req.params.id, req.body, {
+    new: true,
+    runValidators: true
+  });
+
+  res.status(200).json({ success: true, data: item });
+});
+
+// @desc    Delete item
+// @route   DELETE /api/v1/items/:id
+// @access  Private
+const deleteItem = asyncHandler(async (req, res, next) => {
+  const item = await Item.findById(req.params.id);
+
+  if (!item) {
+    return next(new ErrorResponse(`Item not found with id of ${req.params.id}`, 404));
+  }
+
+  // Make sure user is item owner or admin
+  if (item.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
+    return next(new ErrorResponse(`User ${req.user.id} is not authorized to delete this item`, 401));
+  }
+
+  await item.remove();
+
+  res.status(200).json({ success: true, data: {} });
+});
+
+// @desc    Get items by category
+// @route   GET /api/v1/items/category/:category
+// @access  Private
+const getItemsByCategory = asyncHandler(async (req, res, next) => {
+  const items = await Item.find({ category: req.params.category });
+
+  res.status(200).json({
+    success: true,
+    count: items.length,
+    data: items
+  });
+});
+
+// @desc    Get all categories
+// @route   GET /api/v1/items/categories
+// @access  Private
+const getCategories = asyncHandler(async (req, res, next) => {
+  const categories = await Item.distinct('category');
+
+  res.status(200).json(categories);
+});
+
+// @desc    Get low stock items
+// @route   GET /api/v1/items/low-stock
+// @access  Private
+const getLowStockItems = asyncHandler(async (req, res, next) => {
+  const items = await Item.find({ stockQty: { $lte: 10 } }); // Adjust threshold as needed
+
+  res.status(200).json({
+    success: true,
+    count: items.length,
+    data: items
+  });
+});
+
+module.exports = {
+  getItems,
+  getItem,
+  createItem,
+  updateItem,
+  deleteItem,
+  getItemsByCategory,
+  getCategories,
+  getLowStockItems
+};

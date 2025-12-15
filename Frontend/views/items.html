@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Item Registration - Bilal Accounting System (BAS)</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/desktop-style.css" rel="stylesheet">
+    <link href="/css/sidebar.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Desktop Style -->
+    <link href="/css/desktop-style.css" rel="stylesheet">
+</head>
+
+<body>
+    <!-- Page Header -->
+    <div class="page-header">
+        <div style="flex: 1;">
+            <i class="fas fa-box me-2"></i>
+            Item Registration
+        </div>
+        <div style="flex: 1; text-align: center;">
+            <a href="/main.html" class="btn btn-outline-light btn-sm me-3" style="border-radius: 20px;">
+                <i class="fas fa-home me-1"></i> Home Page
+            </a>
+        </div>
+        <div class="user-info" style="flex: 1; justify-content: flex-end;">
+            <div class="user-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <span id="userName">User</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="desktop-container">
+        <div class="content-wrapper">
+            <!-- Form Section -->
+            <div class="form-section">
+                <form id="itemForm">
+                    <input type="hidden" id="itemId">
+
+                    <!-- Row 1: ID and Search -->
+                    <div class="form-row">
+                        <div class="form-field w-100">
+                            <label>ID</label>
+                            <input type="text" id="autoId" disabled>
+                        </div>
+                        <div class="form-field flex-3">
+                            <label>Search Item</label>
+                            <input type="text" id="searchByName" placeholder="Type item name or scan barcode to search">
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Item Name -->
+                    <div class="form-row">
+                        <div class="form-field flex-3">
+                            <label class="required">Item Name</label>
+                            <input type="text" id="name" required>
+                        </div>
+                    </div>
+
+                    <!-- Row 3: Item Code and Barcode -->
+                    <div class="form-row">
+                        <div class="form-field w-150">
+                            <label class="required">Item Code</label>
+                            <input type="text" id="sku" placeholder="Auto-generated" readonly>
+                        </div>
+                        <div class="form-field flex-1">
+                            <label>GST/Prc Bar Code</label>
+                            <input type="text" id="barcode" placeholder="Auto-generated">
+                        </div>
+                    </div>
+
+                    <!-- Row 4: Prices -->
+                    <div class="form-row">
+                        <div class="form-field w-150">
+                            <label class="required">Cost Price</label>
+                            <input type="number" id="purchasePrice" step="0.01" required>
+                        </div>
+                        <div class="form-field w-150">
+                            <label class="required">Sale Price</label>
+                            <input type="number" id="salePrice" step="0.01" required>
+                        </div>
+                        <div class="form-field w-150">
+                            <label>Retail Price</label>
+                            <input type="number" id="retailPrice" step="0.01">
+                        </div>
+                        <div class="form-field w-100">
+                            <label>Incentive</label>
+                            <input type="number" id="incentive" step="0.01">
+                        </div>
+                    </div>
+
+                    <!-- Row 5: Categories and Dropdowns -->
+                    <div class="form-row mt-3">
+                        <div class="form-field flex-1">
+                            <label>Company (All=A)</label>
+                            <div class="input-group">
+                                <select id="company">
+                                    <option value="">-- Select Company --</option>
+                                </select>
+                                <button type="button" class="btn-add-new"
+                                    onclick="DesktopUI.showQuickAddDialog('company', loadCompanies)">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-field flex-1">
+                            <label class="required">Category (All=A)</label>
+                            <div class="input-group">
+                                <select id="category" required>
+                                    <option value="">-- Select Category --</option>
+                                </select>
+                                <button type="button" class="btn-add-new"
+                                    onclick="DesktopUI.showQuickAddDialog('category', loadCategories)">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-field flex-1">
+                            <label>Class (All=4)</label>
+                            <div class="input-group">
+                                <select id="class">
+                                    <option value="">-- Select Class --</option>
+                                </select>
+                                <button type="button" class="btn-add-new"
+                                    onclick="DesktopUI.showQuickAddDialog('class', loadClasses)">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-field flex-1">
+                            <label>SubClass (All=4)</label>
+                            <div class="input-group">
+                                <select id="subclass">
+                                    <option value="">-- Select SubClass --</option>
+                                </select>
+                                <button type="button" class="btn-add-new"
+                                    onclick="DesktopUI.showQuickAddDialog('subclass', loadSubclasses)">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-field flex-1">
+                            <label>Supplier (All=A)</label>
+                            <div class="input-group">
+                                <select id="supplier">
+                                    <option value="">-- Select Supplier --</option>
+                                </select>
+                                <button type="button" class="btn-add-new"
+                                    onclick="DesktopUI.showQuickAddDialog('supplier', loadSuppliers)">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-field w-150">
+                            <label class="required">Unit</label>
+                            <div class="input-group">
+                                <select id="unit" required>
+                                    <option value="">-- Select --</option>
+                                </select>
+                                <button type="button" class="btn-add-new"
+                                    onclick="DesktopUI.showQuickAddDialog('unit', loadUnits)">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Row 6: Tax and Other Fields -->
+                    <div class="form-row">
+                        <div class="form-field w-150">
+                            <label>Tax %</label>
+                            <input type="number" id="taxPercent" step="0.01" value="0">
+                        </div>
+                        <div class="form-field w-150">
+                            <label>Min Stock Alert</label>
+                            <input type="number" id="minStockLevel" value="10">
+                        </div>
+                        <div class="form-field w-150">
+                            <label>
+                                <input type="checkbox" id="isActive" checked>
+                                Active
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="form-row">
+                        <div class="form-field flex-1">
+                            <label>Description</label>
+                            <textarea id="description" rows="2"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Stock Table -->
+                    <div class="embedded-table mt-3">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Store</th>
+                                    <th>Stock In Hand</th>
+                                    <th>Opening</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>1</td>
+                                    <td>Shop</td>
+                                    <td class="text-right">
+                                        <input type="number" id="stockQuantity" value="0"
+                                            style="width: 80px; text-align: right;" readonly tabindex="-1">
+                                    </td>
+                                    <td class="text-right">
+                                        <input type="number" id="openingStock" value="0"
+                                            style="width: 80px; text-align: right;">
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="search-bar">
+                <input type="text" class="search-input" id="searchInput" placeholder="Search items...">
+                <button class="btn btn-secondary btn-sm" onclick="resetFilters()">
+                    <i class="fas fa-redo"></i> Reset
+                </button>
+            </div>
+
+            <!-- Items Table -->
+            <div class="table-container">
+                <table class="data-table" id="itemsTable">
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>Class</th>
+                            <th>SubClass</th>
+                            <th>Supplier</th>
+                            <th class="text-right">Sale Price</th>
+                            <th class="text-center">Stock</th>
+                            <th class="text-center">Unit</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemsTableBody">
+                        <!-- Will be populated by JavaScript -->
+                    </tbody>
+                </table>
+
+                <!-- Pagination -->
+                <div id="pagination" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Bar -->
+    <div class="action-bar">
+        <button class="btn btn-success" onclick="saveItem()" data-action="save">
+            <i class="fas fa-save"></i> Save
+        </button>
+        <button class="btn btn-danger" onclick="clearForm()">
+            <i class="fas fa-times"></i> Close
+        </button>
+        <button class="btn btn-primary" onclick="showItemsList()">
+            <i class="fas fa-list"></i> List
+        </button>
+        <button class="btn btn-warning" onclick="printItems()">
+            <i class="fas fa-print"></i> Print
+        </button>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/pageAccess.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/desktop-ui.js?v=4"></script>
+    <script src="/js/items.js?v=3"></script>
+</body>
+
+</html>
