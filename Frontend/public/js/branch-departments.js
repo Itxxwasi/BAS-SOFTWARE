@@ -1,6 +1,10 @@
-document.addEventListener('DOMContentLoaded', () => {
-    loadBranches();
-    loadDepartments();
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadBranches();
+    await loadDepartments();
+
+    document.getElementById('branch').addEventListener('change', () => {
+        renderTable(allDepartments);
+    });
 });
 
 let allDepartments = [];
@@ -14,15 +18,20 @@ async function loadBranches() {
         const data = await response.json();
         if (data.success) {
             const select = document.getElementById('branch');
+            const currentVal = select.value;
             select.innerHTML = '';
+
             data.data.forEach(store => {
                 const option = document.createElement('option');
                 option.value = store.name;
                 option.textContent = store.name;
                 select.appendChild(option);
             });
-            // Re-render table now that we have branches
-            renderTable(allDepartments);
+
+            // Preserve selection if possible, otherwise default to first
+            if (currentVal && Array.from(select.options).some(o => o.value === currentVal)) {
+                select.value = currentVal;
+            }
         }
     } catch (e) {
         console.error('Error loading branches:', e);
@@ -38,6 +47,7 @@ async function loadDepartments() {
         const data = await response.json();
         if (data.success) {
             allDepartments = data.data;
+            console.log('Loaded departments:', allDepartments.length);
             renderTable(allDepartments);
         }
     } catch (e) {
@@ -51,17 +61,24 @@ function renderTable(departments) {
     tbody.innerHTML = '';
 
     const branch = document.getElementById('branch').value;
-
-    // If no branch selected yet (loading), show nothing or all? 
-    // Usually user wants to see departments for the selected branch.
-    // If branch is empty, maybe show nothing.
+    console.log('Filtering for branch:', branch);
 
     const filtered = branch ? departments.filter(d => d.branch === branch) : [];
+
+    // Sort by Code (seq)
+    filtered.sort((a, b) => {
+        const codeA = parseInt(a.code) || 999999;
+        const codeB = parseInt(b.code) || 999999;
+        return codeA - codeB;
+    });
+
+    console.log('Found:', filtered.length);
 
     filtered.forEach(d => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${d.branch}</td>
+            <td>${d.code || '-'}</td>
             <td>${d.name}</td>
             <td>${d.deduction}</td>
              <td>${d.isActive ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>'}</td>

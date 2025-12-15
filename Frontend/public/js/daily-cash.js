@@ -130,7 +130,9 @@ async function loadDepartments() {
         select.innerHTML = '<option value="">Select Department</option>';
 
         if (data.success) {
-            const filtered = data.data.filter(d => d.branch === branch && d.isActive);
+            const filtered = data.data
+                .filter(d => d.branch === branch && d.isActive)
+                .sort((a, b) => (parseInt(a.code) || 999999) - (parseInt(b.code) || 999999));
             filtered.forEach(d => {
                 const opt = document.createElement('option');
                 opt.value = d._id;

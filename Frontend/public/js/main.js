@@ -10,13 +10,13 @@ function setActiveSection(sectionId) {
     sections.forEach(section => {
         section.style.display = 'none';
     });
-    
+
     // Show the selected section
     const activeSection = document.getElementById(sectionId);
     if (activeSection) {
         activeSection.style.display = 'block';
     }
-    
+
     // Update active link in sidebar
     sidebarLinks.forEach(link => {
         link.parentElement.classList.remove('active');
@@ -80,13 +80,13 @@ window.addEventListener('resize', () => {
 function validateForm(fields) {
     let isValid = true;
     const errors = [];
-    
+
     fields.forEach(field => {
         const element = document.getElementById(field.id);
         if (!element) return;
-        
+
         if (field.required && !element.value.trim()) {
-            errors.push(${field.label} is required`);
+            errors.push(`${field.label} is required`);
             element.classList.add('error');
             isValid = false;
         } else if (field.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(element.value)) {
@@ -94,14 +94,14 @@ function validateForm(fields) {
             element.classList.add('error');
             isValid = false;
         } else if (field.type === 'number' && isNaN(element.value)) {
-            errors.push(${field.label} must be a number`);
+            errors.push(`${field.label} must be a number`);
             element.classList.add('error');
             isValid = false;
         } else {
             element.classList.remove('error');
         }
     });
-    
+
     return { isValid, errors };
 }
 
@@ -142,7 +142,7 @@ function createLoadingOverlay() {
         align-items: center;
         z-index: 9999;
     `;
-    
+
     const spinner = document.createElement('div');
     spinner.className = 'spinner';
     spinner.style.cssText = `
@@ -153,7 +153,7 @@ function createLoadingOverlay() {
         height: 40px;
         animation: spin 1s linear infinite;
     `;
-    
+
     const style = document.createElement('style');
     style.textContent = `
         @keyframes spin {
@@ -161,11 +161,11 @@ function createLoadingOverlay() {
             100% { transform: rotate(360deg); }
         }
     `;
-    
+
     document.head.appendChild(style);
     overlay.appendChild(spinner);
     document.body.appendChild(overlay);
-    
+
     return overlay;
 }
 
@@ -177,3 +177,34 @@ window.App = {
     validateForm,
     setActiveSection
 };
+
+// Global Keyboard Shortcuts
+document.addEventListener('keydown', (e) => {
+    // Alt + S to Save
+    if (e.altKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+
+        // Strategy: Find the most relevant "Save" button
+        // 1. Check for buttons with specific IDs used in the app
+        const specificIds = ['saveBtn', 'btnSave', 'submitBtn'];
+        for (const id of specificIds) {
+            const btn = document.getElementById(id);
+            if (btn && btn.offsetParent !== null && !btn.disabled) {
+                btn.click();
+                return;
+            }
+        }
+
+        // 2. Fallback: Find any visible button with "Save" in text
+        const buttons = Array.from(document.querySelectorAll('button, input[type="submit"]'));
+        const visibleSave = buttons.find(b =>
+            (b.textContent.toLowerCase().includes('save') || b.value.toLowerCase().includes('save')) &&
+            b.offsetParent !== null &&
+            !b.disabled
+        );
+
+        if (visibleSave) {
+            visibleSave.click();
+        }
+    }
+});

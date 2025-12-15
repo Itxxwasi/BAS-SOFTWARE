@@ -36,17 +36,44 @@ exports.createStore = async (req, res) => {
     }
 };
 
+const Department = require('../models/Department');
+const CashSale = require('../models/CashSale');
+
 // @desc    Update store
 // @route   PUT /api/v1/stores/:id
 exports.updateStore = async (req, res) => {
     try {
-        const store = await Store.findByIdAndUpdate(req.params.id, req.body, {
-            new: true,
-            runValidators: true
-        });
+        let store = await Store.findById(req.params.id);
+
         if (!store) {
             return res.status(404).json({ success: false, message: 'Store not found' });
         }
+
+        // Check if name is changing
+        if (req.body.name && req.body.name !== store.name) {
+            const oldName = store.name;
+            const newName = req.body.name;
+
+            // Cascade update to Departments
+            await Department.updateMany(
+                { branch: oldName },
+                { $set: { branch: newName } }
+            );
+
+            // Cascade update to CashSales
+            await CashSale.updateMany(
+                { branch: oldName },
+                { $set: { branch: newName } }
+            );
+
+            // You might want to update other collections like Purchases, Stock, etc. if they store branch name string.
+        }
+
+        store = await Store.findByIdAndUpdate(req.params.id, req.body, {
+            new: true,
+            runValidators: true
+        });
+
         res.status(200).json({ success: true, data: store });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

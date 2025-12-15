@@ -232,7 +232,7 @@
                     <input type="text" placeholder="Search..." class="form-control form-control-sm"
                         style="width: 300px;">
                     <div>
-                        <button class="btn btn-success btn-sm" onclick="saveSheet()">Save (alt+d)</button>
+                        <button class="btn btn-success btn-sm" id="saveBtn" onclick="saveSheet()">Save (alt+d)</button>
                         <button class="btn btn-primary btn-sm" onclick="printSheet('opening')">Print</button>
                     </div>
                 </div>
@@ -266,7 +266,8 @@
                         <div class="row mb-2 align-items-center">
                             <label class="col-sm-4 fw-bold">Received Cash</label>
                             <div class="col-sm-8">
-                                <input type="number" id="receivedCash" class="form-control form-control-sm" value="0">
+                                <input type="number" id="receivedCash" class="form-control form-control-sm bg-light"
+                                    value="0" readonly>
                             </div>
                         </div>
 

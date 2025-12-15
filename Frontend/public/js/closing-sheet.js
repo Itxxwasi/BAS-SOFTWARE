@@ -7,6 +7,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     await loadBranches();
     loadSheet();
+
+    // Fix: Manually handle tab switching cleanup to prevent overlap
+    const tabLinks = document.querySelectorAll('button[data-bs-toggle="tab"]');
+    tabLinks.forEach(tab => {
+        tab.addEventListener('shown.bs.tab', (event) => {
+            const targetId = event.target.getAttribute('data-bs-target');
+            document.querySelectorAll('.tab-pane').forEach(pane => {
+                if (`#${pane.id}` !== targetId) {
+                    pane.classList.remove('show', 'active');
+                }
+            });
+        });
+    });
 });
 
 let currentDepartments = [];
@@ -51,11 +64,21 @@ async function loadSheet() {
             currentDepartments = depData.data; // Store all
         }
 
-        const filteredDepts = currentDepartments.filter(d => d.branch === branch && d.isActive);
+        const filteredDepts = currentDepartments
+            .filter(d => d.branch === branch && d.isActive)
+            .sort((a, b) => (parseInt(a.code) || 999999) - (parseInt(b.code) || 999999));
 
         // Filter for Dept Opening Tab: Show if Opening Forward OR Receiving Forward is checked
         // User Request: "only opening farward , and received farward check department will show only"
         const deptOpeningFilteredDepts = filteredDepts.filter(d => d.openingForward || d.receivingForward);
+
+        // Sort by Code (seq)
+        deptOpeningFilteredDepts.sort((a, b) => {
+            const codeA = parseInt(a.code) || 999999;
+            const codeB = parseInt(b.code) || 999999;
+            return codeA - codeB;
+        });
+
         console.log('Dept Opening Filtered:', deptOpeningFilteredDepts.map(d => d.name));
 
         // Load existing sheet data
@@ -103,8 +126,39 @@ async function loadSheet() {
         // --- Tab 2: Closing 01 ---
         // Basic fields
         // Opening Cash is forwarded from Department Opening Total
+        // Calculate Received Cash from Big Cash Departments
+        // Store Daily Cash Data & Cash Sales Data
+        let dailyCashData = [];
+        let cashSalesData = [];
+        const bigCashDeptIds = filteredDepts.filter(d => d.bigCashForward).map(d => d._id);
+        let receivedCashSum = 0;
+
+        try {
+            const [dcResp, csResp] = await Promise.all([
+                fetch(`/api/v1/daily-cash?date=${date}&branch=${branch}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }),
+                fetch(`/api/v1/cash-sales?startDate=${date}&endDate=${date}&branch=${branch}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+            ]);
+
+            const dcJson = await dcResp.json();
+            const csJson = await csResp.json();
+
+            if (dcJson.success) dailyCashData = dcJson.data;
+            if (csJson.success) cashSalesData = csJson.data;
+
+            if (dailyCashData.length > 0) {
+                const relevantRecords = dailyCashData.filter(r =>
+                    r.department && bigCashDeptIds.includes(r.department._id || r.department)
+                );
+                receivedCashSum = relevantRecords.reduce((sum, r) => sum + (r.bigCash || 0), 0);
+            }
+        } catch (e) { console.error('Error fetching data:', e); }
+
         document.getElementById('openingCash').value = deptOpeningTotal;
-        document.getElementById('receivedCash').value = sheet.closing01?.receivedCash || 0;
+        document.getElementById('receivedCash').value = receivedCashSum; // Use calculated sum
         document.getElementById('departmentTotal').value = sheet.closing01?.departmentTotal || 0;
         document.getElementById('counterCashTotal').value = sheet.closing01?.counterCashTotal || 0;
         document.getElementById('percentageCashTotal').value = sheet.closing01?.percentageCashTotal || 0;
@@ -114,28 +168,141 @@ async function loadSheet() {
         closing01Rows.innerHTML = '';
 
         let closing01DeptTotal = 0;
+        let calculatedCounterCashTotal = 0;
+        let calculatedDepartmentTotal = 0;
+        let calculatedPercentageCashTotal = 0;
 
         filteredDepts.forEach((d) => {
-            let amount = 0;
-            if (sheet.closing01 && sheet.closing01.departments) {
-                const saved = sheet.closing01.departments.find(item =>
+            // ... (Lines 175-238 similar, but need to handle block structure)
+            // I will paste the surrounding context to just inject the new variable and logic logic.
+            // Wait, replace_file_content works on chunks.
+            // I will split this into two edits if needed, or one big replace of the loop setup and footer.
+            // But the logic for PERCENTAGE CASH needs to be INSIDE the loop.
+            // I will use a larger block replacement for the whole loop area if possible, or targeted edits.
+            // Let's TRY to target the specific conditional block.
+
+            // Actually, I can just modify the loop start and end, and the 'else' block.
+            // That's 3 places.
+
+            // Let's do the loop start first to add the variable.
+
+            // 1. Get Opening Amount
+            let openingAmount = 0;
+            if (sheet.departmentOpening) {
+                const op = sheet.departmentOpening.find(item =>
                     (item.department && item.department._id === d._id) || (item.department === d._id)
                 );
-                if (saved) amount = saved.amount;
+                if (op) openingAmount = op.amount;
             }
-            closing01DeptTotal += amount;
 
-            const div = document.createElement('div');
-            div.className = 'row mx-0 border-bottom py-1 align-items-center';
-            div.innerHTML = `
-                <div class="col-8 small">${d.name}</div>
-                <div class="col-4">
-                    <input type="number" class="form-control form-control-sm text-end closing01-dept-input" 
-                         data-dept-id="${d._id}" value="${amount}" onchange="calcClosing01Totals()">
-                </div>
-            `;
-            closing01Rows.appendChild(div);
+            // 2. Get Big Cash & Slip
+            let bigCashAmount = 0;
+            let slipAmount = 0;
+            if (d.bigCashForward && dailyCashData.length > 0) {
+                const dc = dailyCashData.find(r =>
+                    r.department && (r.department._id === d._id || r.department === d._id)
+                );
+                if (dc) {
+                    bigCashAmount = dc.bigCash || 0;
+                    slipAmount = parseFloat(dc.slip) || 0;
+                }
+            }
+
+            // 3. Calculate Sales
+            // Sales as Main Dept (for Combine_Dep_Sales)
+            let salesAsMainDept = 0;
+            if (cashSalesData.length > 0) {
+                const mainSales = cashSalesData.filter(s =>
+                    s.department && (s.department._id === d._id || s.department === d._id)
+                );
+                salesAsMainDept = mainSales.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
+            }
+
+            // Sales as Cash Counter (for Deduct_UG_Sale)
+            let salesAsCounter = 0;
+            if (cashSalesData.length > 0) {
+                const counterSales = cashSalesData.filter(s => s.cashCounter === d.name);
+                salesAsCounter = counterSales.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
+            }
+
+            // 4. Determine Net Value & Routing
+            let netValue = 0;
+            let showInList = false;
+
+            if (d.combineDepSales) {
+                // Combine Logic: Opening + Sales (Main)
+                netValue = openingAmount + salesAsMainDept;
+                if (netValue >= 0) {
+                    calculatedCounterCashTotal += netValue;
+                    showInList = false;
+                } else {
+                    showInList = true;
+                }
+
+                // Note: Combine depts do NOT contribute to Department Total based on current understanding
+
+            } else if (d.name === 'MEDICINE') {
+                // Medicine Logic: Opening Only
+                netValue = openingAmount;
+                if (netValue < 0) {
+                    showInList = true;
+                } else if (d.receivingForward && netValue > 0) {
+                    calculatedDepartmentTotal += netValue;
+                }
+
+            } else {
+                // Standard Logic: Opening + Big + Slip - (Counter Sales if Deduct)
+                netValue = openingAmount + bigCashAmount + slipAmount;
+
+                if (d.deductUgSale) {
+                    netValue -= salesAsCounter;
+                }
+
+                if (d.name === 'PERCENTAGE CASH' && netValue > 0) {
+                    calculatedPercentageCashTotal += netValue;
+                }
+
+                if (netValue < 0) {
+                    showInList = true;
+                } else if (d.receivingForward && netValue > 0 && d.name !== 'CASH REC FROM COUNTER' && d.name !== 'PERCENTAGE CASH') {
+                    calculatedDepartmentTotal += netValue;
+                }
+            }
+
+            // 5. Render to List if Negative (Shortfall)
+            if (showInList) {
+                const displayValue = Math.abs(netValue);
+                let finalAmount = displayValue;
+
+                // Use saved value if valid and different? 
+                // Prioritize calculated as per request "Show in list" usually means the mismatch.
+                // Keeping existing overwrite logic just in case user edits.
+                if (sheet.closing01 && sheet.closing01.departments) {
+                    const saved = sheet.closing01.departments.find(item =>
+                        (item.department && item.department._id === d._id) || (item.department === d._id)
+                    );
+                    if (saved && saved.amount !== 0) finalAmount = saved.amount;
+                }
+
+                closing01DeptTotal += finalAmount;
+
+                const div = document.createElement('div');
+                div.className = 'row mx-0 border-bottom py-1 align-items-center';
+                div.innerHTML = `
+                     <div class="col-8 small">${d.name}</div>
+                     <div class="col-4">
+                         <input type="number" class="form-control form-control-sm text-end closing01-dept-input" 
+                              data-dept-id="${d._id}" value="${finalAmount}" onchange="calcClosing01Totals()" readonly>
+                     </div>
+                 `;
+                closing01Rows.appendChild(div);
+            }
         });
+
+        // Update Totals
+        document.getElementById('counterCashTotal').value = calculatedCounterCashTotal;
+        document.getElementById('departmentTotal').value = calculatedDepartmentTotal;
+        document.getElementById('percentageCashTotal').value = calculatedPercentageCashTotal;
 
         // Initial Calculation
         calcClosing01Totals();
@@ -263,40 +430,33 @@ function calcDeptOpeningTotal() {
 }
 
 function calcClosing01Totals() {
-    let deptTotal = 0;
+    let deptListTotal = 0;
     document.querySelectorAll('.closing01-dept-input').forEach(inp => {
-        deptTotal += parseFloat(inp.value) || 0;
+        deptListTotal += parseFloat(inp.value) || 0;
     });
-
-    // In simpler version, maybe we just calculate total of these inputs
-    // But image shows "Total Closing 01" which seems to be independent or sum of specific fields
-
-    // For now, let's assume specific logic:
-    // Total Closing 01 = Sum of Departments + OpeningCash + ReceivedCash? No that's usually separate.
-    // Based on image:
-    // Department Total seems to be the sum of Department Closing amounts?
-    // Total Closing 01 (Green) = 2560358
-    // Total (Red) = 0?
-
-    // This is complex accounting logic. I will implement sum calculation for now.
 
     const openingCash = parseFloat(document.getElementById('openingCash').value) || 0;
     const receivedCash = parseFloat(document.getElementById('receivedCash').value) || 0;
+
+    // Read Right-Hand Side Totals
+    const departmentTotal = parseFloat(document.getElementById('departmentTotal').value) || 0;
     const counterCashTotal = parseFloat(document.getElementById('counterCashTotal').value) || 0;
     const percentageCashTotal = parseFloat(document.getElementById('percentageCashTotal').value) || 0;
-    const totalClosing02 = parseFloat(document.getElementById('totalClosing02').value) || 0;
 
-    // Based on image:
-    // Total Closing 01 is emphasized green.
-    // Let's assume it is sum of all cash sources:
-    // OpeningCash + ReceivedCash + CounterCashTotal + PercentageCashTotal + TotalClosing02 + DeptTotal ?
+    // Calculate Total Closing 02 (User Formula)
+    const totalClosing02 = departmentTotal + counterCashTotal + percentageCashTotal;
+    document.getElementById('totalClosing02').value = totalClosing02;
 
-    // For now, I will just display sum of dept amounts in "Total Closing 01" for demonstration if logic is not explicit.
-    // But better: deptTotal + openingCash + receivedCash + counterCashTotal + percentageCashTotal + totalClosing02
+    // Calculate Total Closing 01 (Left Side Total)
+    // Formula: Sum of Departments (Shortfalls) + Opening Cash + Received Cash
+    const totalClosing01 = deptListTotal + openingCash + receivedCash;
 
-    const totalClosing01 = deptTotal + openingCash + receivedCash + counterCashTotal + percentageCashTotal + totalClosing02;
     document.getElementById('totalClosing01').textContent = totalClosing01.toFixed(0);
-    document.getElementById('grandTotal').textContent = totalClosing01.toFixed(0); // If red total is same or diff?
+
+    // Calculate Grand Total (Red Bar)
+    // Formula: Total Closing 01 - Total Closing 02
+    const grandTotal = totalClosing01 - totalClosing02;
+    document.getElementById('grandTotal').textContent = grandTotal.toFixed(0);
 }
 
 // Add listeners for other inputs in Tab 2 to recalc
