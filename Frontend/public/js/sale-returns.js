@@ -1,10 +1,9 @@
-// Sale Returns Management JavaScript - Desktop Design
+// Sales Management JavaScript - Desktop Design
 let currentPage = 1;
 let currentLimit = 10;
-let returnItems = [];
+let saleItems = [];
 let availableItems = [];
 let customers = [];
-let sales = [];
 
 document.addEventListener('DOMContentLoaded', function () {
     // Check if user is authenticated
@@ -16,8 +15,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // Set user name
     setUserName();
 
-    // Initialize returns page
-    initReturnsPage();
+    // Initialize sales page
+    initSalesPage();
 });
 
 // Set user name in header
@@ -29,44 +28,38 @@ function setUserName() {
     }
 }
 
-// Initialize returns page
-function initReturnsPage() {
-    // Set today's date
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('returnDate').value = today;
-    document.getElementById('startDate').value = today;
-    document.getElementById('endDate').value = today;
+// Initialize sales page
+function initSalesPage() {
+    // Set date range (First day of month to Today)
+    const todayDate = new Date();
+    const firstDay = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
+
+    // Format to YYYY-MM-DD
+    const formatDateInput = (date) => date.toISOString().split('T')[0];
+
+    document.getElementById('saleDate').value = formatDateInput(todayDate);
+    document.getElementById('startDate').value = formatDateInput(firstDay);
+    document.getElementById('endDate').value = formatDateInput(todayDate);
 
     // Load data
     loadCustomers();
     loadItems();
-    generateReturnNumber();
+    loadCategories();
+    // Don't load sales on init - only when List button is clicked
+    generateInvoiceNumber();
 
     // Event listeners
     document.getElementById('searchInput').addEventListener('input', debounce(handleSearch, 300));
-    document.getElementById('startDate').addEventListener('change', loadReturns);
-    document.getElementById('endDate').addEventListener('change', loadReturns);
-    document.getElementById('statusFilter').addEventListener('change', loadReturns);
+    document.getElementById('startDate').addEventListener('change', loadSales);
+    document.getElementById('endDate').addEventListener('change', loadSales);
+    document.getElementById('statusFilter').addEventListener('change', loadSales);
 
     // Customer change event
     document.getElementById('customer').addEventListener('change', function () {
         const selectedCustomer = customers.find(c => c._id === this.value);
         if (selectedCustomer) {
+            document.getElementById('customerContact').value = selectedCustomer.phone || selectedCustomer.mobile || '';
             document.getElementById('preBalance').value = selectedCustomer.currentBalance || 0;
-            loadCustomerSales(this.value);
-            calculateTotals();
-        }
-    });
-
-    // Sale Invoice change event (Auto-load items)
-    document.getElementById('saleInvoice').addEventListener('change', function () {
-        console.log('Sale Invoice Changed:', this.value);
-        if (this.value) {
-            loadSaleDetails(this.value);
-        } else {
-            // Clear items if unselected
-            returnItems = [];
-            updateItemsTable();
             calculateTotals();
         }
     });
@@ -76,7 +69,7 @@ function initReturnsPage() {
         const selectedItem = availableItems.find(item => item._id === this.value);
         if (selectedItem) {
             document.getElementById('itemCode').value = selectedItem.sku || '';
-            document.getElementById('salePrice').value = selectedItem.salePrice || 0;
+            document.getElementById('price').value = selectedItem.salePrice || 0;
             document.getElementById('stock').value = selectedItem.stockQty || 0;
             document.getElementById('taxPercent').value = selectedItem.taxPercent || 0;
             calculateItemTotal();
@@ -84,55 +77,345 @@ function initReturnsPage() {
     });
 
     // Calculation events
-    document.getElementById('quantity').addEventListener('input', calculateItemTotal);
-    document.getElementById('salePrice').addEventListener('input', calculateItemTotal);
+    document.getElementById('pack').addEventListener('input', calculateItemTotal);
+    document.getElementById('price').addEventListener('input', calculateItemTotal);
     document.getElementById('taxPercent').addEventListener('input', calculateItemTotal);
-    document.getElementById('refunded').addEventListener('input', calculateTotals);
+    document.getElementById('discPercent').addEventListener('input', calculateItemTotal);
+    document.getElementById('discountPercent').addEventListener('input', calculateTotals);
+    document.getElementById('discountRs').addEventListener('input', calculateTotals);
+    document.getElementById('totalTaxPercent').addEventListener('input', calculateTotals);
+    document.getElementById('misc').addEventListener('input', calculateTotals);
+    document.getElementById('freight').addEventListener('input', calculateTotals);
+    document.getElementById('paid').addEventListener('input', calculateTotals);
 }
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Prevent page jumping when using Tab to navigate inputs inside the item entry section.
+    // Capture Tab key scroll position and restore it on focusin inside the item-entry-section.
+    let tabScrollPos = null;
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Tab') {
+            tabScrollPos = { x: window.scrollX, y: window.scrollY };
+        }
+    });
+
+    document.addEventListener('focusin', function (e) {
+        if (!tabScrollPos) return;
+        // Only restore when focusing inside item-entry-section
+        if (e.target && e.target.closest && e.target.closest('.item-entry-section')) {
+            const pos = tabScrollPos;
+            setTimeout(() => {
+                try { window.scrollTo(pos.x, pos.y); } catch (err) { /* ignore */ }
+                tabScrollPos = null;
+            }, 0);
+        } else {
+            tabScrollPos = null;
+        }
+    });
+
+    // Item name autocomplete (instant dropdown with all items)
+    const itemNameInput = document.getElementById('itemName');
+    const suggestionsBox = document.getElementById('itemSuggestions');
+    // Using global availableItems for filtering
+
+    // Helper to escape HTML
+    window.escapeHtml = function(text) {
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+        return text.replace(/[&<>"']/g, m => map[m]);
+    };
+
+    if (itemNameInput) {
+        // Expose function for button click
+        window.showItemList = function() {
+            itemNameInput.focus();
+        };
+
+        // Show all items on focus (instant dropdown)
+        itemNameInput.addEventListener('focus', async function (e) {
+            // If we already loaded items, just show them
+            if (availableItems.length > 0) {
+                showAllSuggestions();
+                return;
+            }
+
+            // Otherwise fetch all items
+            await loadItems();
+            showAllSuggestions();
+        });
+
+        // Filter items as user types
+        itemNameInput.addEventListener('input', function (e) {
+            const q = this.value.trim();
+            if (!q) {
+                showAllSuggestions();
+                return;
+            }
+
+            // Filter items by substring anywhere in name, sku or barcode
+            const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(esc, 'i');
+            const filtered = availableItems.filter(it => {
+                return regex.test(it.name || '') || regex.test(it.sku || '') || regex.test(it.barcode || '');
+            });
+            
+            if (filtered.length === 0) {
+                suggestionsBox.style.display = 'none';
+                suggestionsBox.innerHTML = '';
+                return;
+            }
+
+            // Render filtered suggestions
+            suggestionsBox.innerHTML = filtered.map(it => `
+                <div tabindex="0" class="suggestion-item" data-id="${it._id}" data-name="${window.escapeHtml(it.name)}" data-sku="${it.sku || ''}" data-stock="${it.stockQty || 0}" data-sale="${it.salePrice || 0}" data-tax="${it.taxPercent || 0}">
+                    <strong>${window.escapeHtml(it.name)}</strong> <span style="color:#666">(${window.escapeHtml(it.sku || '')})</span>
+                </div>
+            `).join('');
+            suggestionsBox.style.display = 'block';
+        });
+
+        // Helper function to show all items
+        let activeSuggestionIndex = -1;
+
+        function setActiveSuggestion(index) {
+            const items = suggestionsBox.querySelectorAll('.suggestion-item');
+            items.forEach((el, i) => el.classList.toggle('active', i === index));
+            activeSuggestionIndex = index;
+            if (index >= 0 && items[index]) {
+                items[index].scrollIntoView({ block: 'nearest' });
+            }
+        }
+
+        // Helper function to select item from suggestion
+        function selectItemFromSuggestion(el) {
+            const id = el.getAttribute('data-id');
+            const name = el.getAttribute('data-name');
+            const sku = el.getAttribute('data-sku');
+            const stock = el.getAttribute('data-stock');
+            const sale = el.getAttribute('data-sale');
+            const tax = el.getAttribute('data-tax');
+
+            // Set values
+            const itemSelect = document.getElementById('itemSelect');
+            if (itemSelect) itemSelect.value = id;
+            itemNameInput.value = name || '';
+            document.getElementById('itemCode').value = sku || '';
+            document.getElementById('price').value = sale || 0;
+            document.getElementById('stock').value = stock || 0;
+            document.getElementById('taxPercent').value = tax || 0;
+            calculateItemTotal();
+
+            // Hide suggestions
+            suggestionsBox.style.display = 'none';
+            suggestionsBox.innerHTML = '';
+            activeSuggestionIndex = -1;
+        }
+
+        function showAllSuggestions() {
+            if (availableItems.length === 0) {
+                suggestionsBox.style.display = 'none';
+                return;
+            }
+            suggestionsBox.innerHTML = availableItems.map(it => `
+                <div tabindex="0" class="suggestion-item" data-id="${it._id}" data-name="${window.escapeHtml(it.name)}" data-sku="${it.sku || ''}" data-stock="${it.stockQty || 0}" data-sale="${it.salePrice || 0}" data-tax="${it.taxPercent || 0}">
+                    <strong>${window.escapeHtml(it.name)}</strong> <span style="color:#666">(${window.escapeHtml(it.sku || '')})</span>
+                </div>
+            `).join('');
+            suggestionsBox.style.display = 'block';
+            activeSuggestionIndex = -1;
+        }
+
+        // Selection via mousedown (fires before input blur) — more reliable for mouse
+        suggestionsBox.addEventListener('mousedown', function (ev) {
+            const el = ev.target.closest('.suggestion-item');
+            if (!el) return;
+            ev.preventDefault();
+            selectItemFromSuggestion(el);
+        });
+
+        // Update active suggestion on mouseover
+        suggestionsBox.addEventListener('mousemove', function (ev) {
+            const el = ev.target.closest('.suggestion-item');
+            if (!el) return;
+            const items = suggestionsBox.querySelectorAll('.suggestion-item');
+            const idx = Array.prototype.indexOf.call(items, el);
+            if (idx >= 0) setActiveSuggestion(idx);
+        });
+
+        // Direct click on suggestion item
+        suggestionsBox.addEventListener('click', function (ev) {
+            const el = ev.target.closest('.suggestion-item');
+            if (!el) return;
+            ev.preventDefault();
+            selectItemFromSuggestion(el);
+        });
+
+        // Keyboard navigation: up/down + Enter to select
+        itemNameInput.addEventListener('keydown', function (e) {
+            const visible = suggestionsBox.style.display === 'block' || suggestionsBox.innerHTML.trim() !== '';
+            if (!visible) return;
+            const items = suggestionsBox.querySelectorAll('.suggestion-item');
+            if (!items || items.length === 0) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                const next = activeSuggestionIndex < items.length - 1 ? activeSuggestionIndex + 1 : 0;
+                setActiveSuggestion(next);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                const prev = activeSuggestionIndex > 0 ? activeSuggestionIndex - 1 : items.length - 1;
+                setActiveSuggestion(prev);
+            } else if (e.key === 'Enter') {
+                if (activeSuggestionIndex >= 0 && items[activeSuggestionIndex]) {
+                    e.preventDefault();
+                    selectItemFromSuggestion(items[activeSuggestionIndex]);
+                }
+            }
+        });
+
+        // Also handle Enter when suggestions or document have focus
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter') return;
+            const visible = suggestionsBox.style.display === 'block' || suggestionsBox.innerHTML.trim() !== '';
+            if (!visible) return;
+            const focused = document.activeElement;
+            const focusedSuggestion = focused && focused.classList && focused.classList.contains('suggestion-item');
+            if (focusedSuggestion) {
+                e.preventDefault();
+                selectItemFromSuggestion(focused);
+                return;
+            }
+            const items = suggestionsBox.querySelectorAll('.suggestion-item');
+            if (activeSuggestionIndex >= 0 && items[activeSuggestionIndex]) {
+                e.preventDefault();
+                selectItemFromSuggestion(items[activeSuggestionIndex]);
+            }
+        });
+
+        // Allow keyboard Enter when a suggestion has focus inside the suggestions box
+        suggestionsBox.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                const el = document.activeElement;
+                if (el && el.classList && el.classList.contains('suggestion-item')) {
+                    e.preventDefault();
+                    selectItemFromSuggestion(el);
+                }
+            }
+        });
+
+        // Hide suggestions on blur after small delay to allow click
+        let suggestionsBlurTimeout = null;
+        itemNameInput.addEventListener('blur', function () {
+            suggestionsBlurTimeout = setTimeout(() => {
+                suggestionsBox.style.display = 'none';
+            }, 200);
+        });
+
+        // If user presses inside suggestions, clear the blur timeout so selection works
+        suggestionsBox.addEventListener('mousedown', function () {
+            if (suggestionsBlurTimeout) {
+                clearTimeout(suggestionsBlurTimeout);
+                suggestionsBlurTimeout = null;
+            }
+        });
+    }
+
+    // Barcode scanning / manual entry on itemCode
+    const itemCodeInput = document.getElementById('itemCode');
+    let lastLookedUpCode = '';
+
+    if (itemCodeInput) {
+        // Trigger lookup on Enter (barcode scanners usually send Enter)
+        itemCodeInput.addEventListener('keydown', async function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const code = this.value.trim();
+                if (!code) return;
+                
+                // Always lookup on Enter, even if same code (maybe they want to reset)
+                await handleBarcodeLookup(code);
+                lastLookedUpCode = code;
+            }
+        });
+
+        // Lookup when focus leaves the field (for manual typing + Tab)
+        itemCodeInput.addEventListener('blur', async function () {
+            const code = this.value.trim();
+            if (!code) return;
+            
+            // Avoid double lookup if we just did it via Enter
+            if (code === lastLookedUpCode) return;
+            
+            await handleBarcodeLookup(code);
+            lastLookedUpCode = code;
+        });
+    }
+
+    // Keyboard navigation: Enter on discount field adds item and focuses on next item's name field
+    document.getElementById('discPercent').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addItemToSale();
+            // Focus on itemName field for next item
+            setTimeout(() => {
+                const itemNameInput = document.getElementById('itemName');
+                if (itemNameInput) {
+                    try {
+                        itemNameInput.focus({ preventScroll: true });
+                    } catch (err) {
+                        // Older browsers may not support preventScroll
+                        itemNameInput.focus();
+                    }
+                }
+            }, 100);
+        }
+    });
+}); // end of DOMContentLoaded
+
+
+
 
 // Load customers
 async function loadCustomers() {
     try {
+        console.log('🔄 Loading customers...');
         const token = localStorage.getItem('token');
         const response = await fetch('/api/v1/parties?partyType=customer&limit=1000', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
+        console.log('📥 Response status:', response.status);
+
         if (response.ok) {
             const data = await response.json();
             customers = data.data || [];
+            console.log('✅ Loaded customers:', customers.length);
+            console.log('📋 Customers:', customers);
+
             const customerSelect = document.getElementById('customer');
             customerSelect.innerHTML = '<option value="">-- Select Customer --</option>';
 
             customers.forEach(customer => {
-                customerSelect.innerHTML += `<option value="${customer._id}">${customer.name}</option>`;
+                console.log('Adding customer:', customer.name, customer._id);
+                console.log('Customer object:', customer);
+
+                // Create option element properly
+                const option = document.createElement('option');
+                option.value = customer._id;
+                option.textContent = customer.name;
+                customerSelect.appendChild(option);
+
+                console.log('Option added - value:', option.value, 'text:', option.textContent);
             });
+
+            console.log('✅ Customer dropdown populated');
+            console.log('Total options:', customerSelect.options.length);
+        } else {
+            const error = await response.text();
+            console.error('❌ Failed to load customers:', response.status, error);
         }
     } catch (error) {
-        console.error('Error loading customers:', error);
-    }
-}
-
-// Load customer sales
-async function loadCustomerSales(customerId) {
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`/api/v1/sales?party=${customerId}&limit=100`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            sales = data.data || [];
-            const saleSelect = document.getElementById('saleInvoice');
-            saleSelect.innerHTML = '<option value="">-- Select Invoice --</option>';
-
-            sales.forEach(sale => {
-                saleSelect.innerHTML += `<option value="${sale._id}">${sale.invoiceNumber || sale.invoiceNo} - ${formatDate(sale.date)}</option>`;
-            });
-        }
-    } catch (error) {
-        console.error('Error loading sales:', error);
+        console.error('❌ Error loading customers:', error);
     }
 }
 
@@ -147,130 +430,103 @@ async function loadItems() {
         if (response.ok) {
             const data = await response.json();
             availableItems = data.data || [];
-            const itemSelect = document.getElementById('itemSelect');
-            itemSelect.innerHTML = '<option value="">-- Select Item --</option>';
-
-            availableItems.forEach(item => {
-                itemSelect.innerHTML += `<option value="${item._id}">${item.name} (Stock: ${item.stockQty || 0})</option>`;
-            });
+            // Items loaded for autocomplete
         }
     } catch (error) {
         console.error('Error loading items:', error);
     }
 }
 
-// Load sale details and populate return items
-async function loadSaleDetails(saleId) {
+// Load categories
+async function loadCategories() {
     try {
-        if (!saleId) return;
-
-        showLoading();
         const token = localStorage.getItem('token');
-        const response = await fetch(`/api/v1/sales/${saleId}`, {
+        const response = await fetch('/api/v1/categories', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
         if (response.ok) {
             const data = await response.json();
-            const sale = data.data;
+            const categorySelect = document.getElementById('category');
+            categorySelect.innerHTML = '<option value="">-- Select --</option>';
 
-            if (sale && sale.items) {
-                returnItems = [];
-
-                sale.items.forEach(item => {
-                    // Handle populate structure or ID only
-                    const itemId = item.item._id || item.item;
-                    const itemCode = item.item.sku || item.item.code || ''; // Depends on population
-                    const itemName = item.item.name || item.name; // Fallback
-
-                    // Add to return items
-                    returnItems.push({
-                        id: itemId,
-                        code: itemCode,
-                        name: itemName,
-                        quantity: item.quantity, // Default to full return? Or 0? Let's verify requirement.
-                        // Ideally default to 0 to let user choose, or full quantity to return everything.
-                        // User asked "load data agt invoice all ietm was save in sale".
-                        // Usually pre-filling with sold quantity is convenient.
-                        salePrice: item.rate || item.price || 0,
-                        subtotal: (item.quantity * (item.rate || 0)),
-                        taxPercent: item.taxPercent || 0, // Need to handle tax populate if complex
-                        taxAmount: item.taxAmount || 0,
-                        total: item.total || item.amount
-                    });
+            if (data.data) {
+                data.data.forEach(cat => {
+                    categorySelect.innerHTML += `<option value="${cat._id}">${cat.name}</option>`;
                 });
-
-                updateItemsTable();
-                calculateTotals();
-                showSuccess('Items loaded from invoice');
             }
-        } else {
-            showError('Failed to load sale details');
         }
     } catch (error) {
-        console.error('Error loading sale details:', error);
-        showError('Error loading sale details');
-    } finally {
-        hideLoading();
+        console.error('Error loading categories:', error);
     }
 }
 
-// Generate return number
-async function generateReturnNumber() {
+// Generate invoice number
+async function generateInvoiceNumber() {
     try {
+        console.log('🔄 Generating invoice number...');
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/v1/sales-returns?limit=10&sort=-createdAt', {
+        const response = await fetch('/api/v1/sales?limit=1&sort=-createdAt', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
         if (response.ok) {
             const data = await response.json();
-            // Find the first return with SRET- prefix
-            const lastReturn = data.data.find(r =>
-                (r.returnInvoiceNo || r.returnNo || '').startsWith('SRET-')
-            );
-            let newReturnNo = 'SRET-001';
+            const lastSale = data.data[0];
+            let newInvoice = 'INV-001';
 
-            if (lastReturn && (lastReturn.returnInvoiceNo || lastReturn.returnNo)) {
-                const returnNo = lastReturn.returnInvoiceNo || lastReturn.returnNo;
-                // Check if it matches SRET format
-                if (returnNo.startsWith('SRET-')) {
-                    const lastNumber = parseInt(returnNo.split('-')[1]) || 0;
-                    newReturnNo = `SRET-${String(lastNumber + 1).padStart(3, '0')}`;
+            // Check for both invoiceNumber (model) and invoiceNo (legacy)
+            const lastInvoiceNo = lastSale ? (lastSale.invoiceNumber || lastSale.invoiceNo) : null;
+
+            if (lastInvoiceNo) {
+                const parts = lastInvoiceNo.split('-');
+                if (parts.length === 2) {
+                    const lastNumber = parseInt(parts[1]) || 0;
+                    newInvoice = `INV-${String(lastNumber + 1).padStart(3, '0')}`;
                 }
             }
 
-            document.getElementById('returnNo').value = newReturnNo;
+            console.log('✅ Generated Invoice Number:', newInvoice);
+            document.getElementById('invoiceNo').value = newInvoice;
+        } else {
+            console.error('❌ Failed to fetch last sale for invoice generation');
         }
     } catch (error) {
-        console.error('Error generating return number:', error);
-        document.getElementById('returnNo').value = 'SRET-001';
+        console.error('❌ Error generating invoice number:', error);
+        // Fallback
+        document.getElementById('invoiceNo').value = 'INV-' + Date.now().toString().slice(-4);
     }
 }
 
 // Calculate item total
 function calculateItemTotal() {
-    const quantity = parseFloat(document.getElementById('quantity').value) || 0;
-    const salePrice = parseFloat(document.getElementById('salePrice').value) || 0;
+    const pack = parseFloat(document.getElementById('pack').value) || 0;
+    const price = parseFloat(document.getElementById('price').value) || 0;
     const taxPercent = parseFloat(document.getElementById('taxPercent').value) || 0;
+    const discPercent = parseFloat(document.getElementById('discPercent').value) || 0;
 
-    const subtotal = quantity * salePrice;
+    const subtotal = pack * price;
     const taxAmount = (subtotal * taxPercent) / 100;
     const total = subtotal + taxAmount;
+    const discAmount = (total * discPercent) / 100;
+    const netTotal = total - discAmount;
 
-    document.getElementById('taxRs').value = taxAmount.toFixed(2);
     document.getElementById('itemTotal').value = total.toFixed(2);
+    document.getElementById('taxRs').value = taxAmount.toFixed(2);
+    document.getElementById('itemNetTotal').value = netTotal.toFixed(2);
 }
 
-// Add item to return
+// Add item to sale
 function addItemToReturn() {
     const itemId = document.getElementById('itemSelect').value;
     const itemCode = document.getElementById('itemCode').value;
-    const quantity = parseFloat(document.getElementById('quantity').value) || 0;
-    const salePrice = parseFloat(document.getElementById('salePrice').value) || 0;
+    const pack = parseFloat(document.getElementById('pack').value) || 0;
+    const price = parseFloat(document.getElementById('price').value) || 0;
     const taxPercent = parseFloat(document.getElementById('taxPercent').value) || 0;
+    const discPercent = parseFloat(document.getElementById('discPercent').value) || 0;
+    const incentive = parseFloat(document.getElementById('incentive').value) || 0;
 
-    if (!itemId || quantity <= 0) {
+    if (!itemId || pack <= 0) {
         showError('Please select an item and enter quantity');
         return;
     }
@@ -281,23 +537,29 @@ function addItemToReturn() {
         return;
     }
 
-    const subtotal = quantity * salePrice;
+    const subtotal = pack * price;
     const taxAmount = (subtotal * taxPercent) / 100;
     const total = subtotal + taxAmount;
+    const discAmount = (total * discPercent) / 100;
+    const netTotal = total - discAmount;
 
     const item = {
         id: itemId,
         code: itemCode,
         name: selectedItem.name,
-        quantity: quantity,
-        salePrice: salePrice,
+        pack: pack,
+        price: price,
         subtotal: subtotal,
         taxPercent: taxPercent,
         taxAmount: taxAmount,
-        total: total
+        total: total,
+        discPercent: discPercent,
+        discAmount: discAmount,
+        netTotal: netTotal,
+        incentive: incentive
     };
 
-    returnItems.push(item);
+    saleItems.push(item);
     updateItemsTable();
     clearItemFields();
     calculateTotals();
@@ -305,21 +567,24 @@ function addItemToReturn() {
 
 // Update items table
 function updateItemsTable() {
-    const tbody = document.getElementById('returnItemsBody');
+    const tbody = document.getElementById('saleItemsBody');
     tbody.innerHTML = '';
 
-    returnItems.forEach((item, index) => {
+    saleItems.forEach((item, index) => {
         const row = tbody.insertRow();
         row.innerHTML = `
             <td>${index + 1}</td>
             <td>${item.code}</td>
             <td>${item.name}</td>
-            <td class="text-right">${item.quantity}</td>
-            <td class="text-right">${item.salePrice.toFixed(2)}</td>
+            <td class="text-right">${item.pack}</td>
+            <td class="text-right">${item.price.toFixed(2)}</td>
             <td class="text-right">${item.subtotal.toFixed(2)}</td>
             <td class="text-right">${item.taxPercent.toFixed(2)}</td>
             <td class="text-right">${item.taxAmount.toFixed(2)}</td>
             <td class="text-right">${item.total.toFixed(2)}</td>
+            <td class="text-right">${item.discPercent.toFixed(2)}</td>
+            <td class="text-right">${item.discAmount.toFixed(2)}</td>
+            <td class="text-right">${item.netTotal.toFixed(2)}</td>
             <td class="text-center">
                 <button class="icon-btn danger" onclick="removeItem(${index})" title="Delete">
                     <i class="fas fa-trash"></i>
@@ -329,18 +594,22 @@ function updateItemsTable() {
     });
 
     // Update footer totals
-    const totalSub = returnItems.reduce((sum, item) => sum + item.subtotal, 0);
-    const totalTaxRs = returnItems.reduce((sum, item) => sum + item.taxAmount, 0);
-    const totalAmount = returnItems.reduce((sum, item) => sum + item.total, 0);
+    const totalSub = saleItems.reduce((sum, item) => sum + item.subtotal, 0);
+    const totalTaxRs = saleItems.reduce((sum, item) => sum + item.taxAmount, 0);
+    const totalAmount = saleItems.reduce((sum, item) => sum + item.total, 0);
+    const totalDiscRs = saleItems.reduce((sum, item) => sum + item.discAmount, 0);
+    const totalNet = saleItems.reduce((sum, item) => sum + item.netTotal, 0);
 
     document.getElementById('footerSub').textContent = totalSub.toFixed(2);
     document.getElementById('footerTaxRs').textContent = totalTaxRs.toFixed(2);
     document.getElementById('footerTotal').textContent = totalAmount.toFixed(2);
+    document.getElementById('footerDiscRs').textContent = totalDiscRs.toFixed(2);
+    document.getElementById('footerNetTotal').textContent = totalNet.toFixed(2);
 }
 
-// Remove item from return
+// Remove item from sale
 function removeItem(index) {
-    returnItems.splice(index, 1);
+    saleItems.splice(index, 1);
     updateItemsTable();
     calculateTotals();
 }
@@ -348,86 +617,133 @@ function removeItem(index) {
 // Clear item fields
 function clearItemFields() {
     document.getElementById('itemSelect').value = '';
+    const itemNameInput = document.getElementById('itemName');
+    if (itemNameInput) itemNameInput.value = '';
     document.getElementById('itemCode').value = '';
-    document.getElementById('quantity').value = 1;
-    document.getElementById('salePrice').value = '';
+    document.getElementById('pack').value = 1;
+    document.getElementById('price').value = '';
     document.getElementById('stock').value = '';
     document.getElementById('taxPercent').value = 0;
     document.getElementById('taxRs').value = '';
     document.getElementById('itemTotal').value = '';
+    document.getElementById('itemNetTotal').value = '';
+    document.getElementById('incentive').value = 0;
+    document.getElementById('discPercent').value = 0;
 }
 
 // Calculate totals
 function calculateTotals() {
-    const itemsTotal = returnItems.reduce((sum, item) => sum + item.total, 0);
-    const itemsTax = returnItems.reduce((sum, item) => sum + item.taxAmount, 0);
-    const itemsSubtotal = returnItems.reduce((sum, item) => sum + item.subtotal, 0);
-    const refunded = parseFloat(document.getElementById('refunded').value) || 0;
+    const itemsTotal = saleItems.reduce((sum, item) => sum + item.netTotal, 0);
+    const discountPercent = parseFloat(document.getElementById('discountPercent').value) || 0;
+    const discountRs = parseFloat(document.getElementById('discountRs').value) || 0;
+    const totalTaxPercent = parseFloat(document.getElementById('totalTaxPercent').value) || 0;
+    const misc = parseFloat(document.getElementById('misc').value) || 0;
+    const freight = parseFloat(document.getElementById('freight').value) || 0;
+    const paid = parseFloat(document.getElementById('paid').value) || 0;
     const preBalance = parseFloat(document.getElementById('preBalance').value) || 0;
 
-    // Calculate balances (returns reduce customer balance - they owe us less)
-    const balance = itemsTotal - refunded;
-    const newBalance = preBalance - itemsTotal + refunded;
+    // Calculate discount
+    let totalDiscount = discountRs;
+    if (discountPercent > 0) {
+        totalDiscount = (itemsTotal * discountPercent) / 100;
+        document.getElementById('discountRs').value = totalDiscount.toFixed(2);
+    }
+
+    // Calculate after discount
+    const afterDiscount = itemsTotal - totalDiscount;
+
+    // Calculate tax
+    const taxAmount = (afterDiscount * totalTaxPercent) / 100;
+
+    // Calculate net total
+    const netTotal = afterDiscount + taxAmount + misc + freight;
+
+    // Calculate balances
+    const invBalance = netTotal - paid;
+    const newBalance = preBalance + invBalance;
 
     // Update fields
-    document.getElementById('subTotal').value = itemsSubtotal.toFixed(2);
-    document.getElementById('totalTaxRs').value = itemsTax.toFixed(2);
-    document.getElementById('grandTotal').value = itemsTotal.toFixed(2);
-    document.getElementById('balance').value = balance.toFixed(2);
+    document.getElementById('totalAmount').value = itemsTotal.toFixed(2);
+    document.getElementById('totalTaxRs').value = taxAmount.toFixed(2);
+    document.getElementById('netTotal').value = netTotal.toFixed(2);
+    document.getElementById('invBalance').value = invBalance.toFixed(2);
     document.getElementById('newBalance').value = newBalance.toFixed(2);
 }
 
-// Save return
-async function saveReturn(status = 'completed') {
+// Save sale
+async function saveReturn(status = 'final', printAfter = false) {
     try {
-        if (returnItems.length === 0) {
+        if (saleItems.length === 0) {
             showError('Please add at least one item');
             return;
         }
 
         const customerId = document.getElementById('customer').value;
+
+        // Debug: Show what we captured
+        console.log('🔍 DEBUG: Customer ID captured:', customerId);
+        console.log('🔍 DEBUG: Customer ID length:', customerId ? customerId.length : 0);
+        console.log('🔍 DEBUG: Customer ID type:', typeof customerId);
+
         if (!customerId) {
             showError('Please select a customer');
             return;
         }
 
+        console.log('Customer ID:', customerId);
+
         showLoading();
 
         const token = localStorage.getItem('token');
-        const returnId = document.getElementById('returnId').value;
+        const saleId = document.getElementById('saleId').value;
 
         // Calculate totals
-        const itemsTotal = returnItems.reduce((sum, item) => sum + item.total, 0);
-        const itemsTax = returnItems.reduce((sum, item) => sum + item.taxAmount, 0);
-        const itemsSubtotal = returnItems.reduce((sum, item) => sum + item.subtotal, 0);
-        const refunded = parseFloat(document.getElementById('refunded').value) || 0;
+        const itemsTotal = saleItems.reduce((sum, item) => sum + item.netTotal, 0);
+        const discountRs = parseFloat(document.getElementById('discountRs').value) || 0;
+        const totalTaxPercent = parseFloat(document.getElementById('totalTaxPercent').value) || 0;
+        const misc = parseFloat(document.getElementById('misc').value) || 0;
+        const freight = parseFloat(document.getElementById('freight').value) || 0;
+        const paid = parseFloat(document.getElementById('paid').value) || 0;
+
+        // Calculate after discount
+        const afterDiscount = itemsTotal - discountRs;
+
+        // Calculate tax
+        const taxAmount = (afterDiscount * totalTaxPercent) / 100;
+
+        // Calculate final totals
+        const subTotal = itemsTotal;
+        const netTotal = afterDiscount + taxAmount + misc + freight;
+        const grandTotal = netTotal;
 
         const formData = {
-            returnInvoiceNo: document.getElementById('returnNo').value,
-            date: document.getElementById('returnDate').value,
-            customerId: customerId, // Changed from customer to customerId
-            saleInvoice: document.getElementById('saleInvoice').value || null,
-            items: returnItems.map(item => ({
-                itemId: item.id, // Backend expects itemId or item
-                // Backend uses item.id as itemId
-                returnQty: item.quantity, // Backend expects returnQty or quantity
-                // Note: Frontend UI calculates 'quantity' as return qty for new items.
-                // For auto-loaded items, we set quantity.
-                salePrice: item.salePrice,
-                price: item.salePrice,
-                taxPercent: item.taxPercent,
-                returnAmount: item.total // Backend calcs this, but we send it
+            invoiceNumber: document.getElementById('invoiceNo').value,
+            date: document.getElementById('saleDate').value,
+            party: customerId,
+            items: saleItems.map(item => ({
+                item: item.id,
+                quantity: item.pack,
+                rate: item.price,
+                amount: item.netTotal,
+                taxAmount: (item.netTotal * item.taxPercent) / 100 || 0
             })),
-            totalReturnAmount: itemsTotal, // Backend expects totalReturnAmount
-            returnMode: document.getElementById('paymentMode').value, // Changed from paymentMode
-            notes: document.getElementById('remarks').value, // Changed from remarks
+            subtotal: subTotal,
+            discountAmount: discountRs,
+            taxAmount: taxAmount,
+            totalAmount: netTotal,
+            grandTotal: grandTotal,
+            paidAmount: paid,
+            balanceAmount: grandTotal - paid,
+            paymentStatus: paid === 0 ? 'pending' : (paid >= grandTotal ? 'paid' : 'partial'),
+            notes: document.getElementById('remarks').value,
+            createdBy: null, // Will be set by backend from token
             status: status
         };
 
-        const url = returnId ? `/api/v1/sales-returns/${returnId}` : '/api/v1/sales-returns';
-        const method = returnId ? 'PUT' : 'POST';
+        console.log('Form Data to send:', formData);
 
-        console.log('Sending Return Data:', formData);
+        const url = saleId ? `/api/v1/sales/${saleId}` : '/api/v1/sales';
+        const method = saleId ? 'PUT' : 'POST';
 
         const response = await fetch(url, {
             method: method,
@@ -439,22 +755,28 @@ async function saveReturn(status = 'completed') {
         });
 
         if (response.ok) {
+            const savedSale = await response.json();
             clearForm();
-            showSuccess('Sale return saved successfully');
+            loadSales(currentPage, currentLimit);
+            showSuccess(status === 'draft' ? 'Sale saved as draft' : 'Sale saved successfully');
+
+            if (printAfter) {
+                printSale(savedSale._id || savedSale.data._id);
+            }
         } else {
             const error = await response.json();
-            showError(error.message || 'Failed to save sale return');
+            showError(error.message || 'Failed to save sale');
         }
     } catch (error) {
-        console.error('Error saving return:', error);
-        showError('Failed to save sale return');
+        console.error('Error saving sale:', error);
+        showError('Failed to save sale');
     } finally {
         hideLoading();
     }
 }
 
-// Load returns
-async function loadReturns(page = 1, limit = 10) {
+// Load sales
+async function loadSales(page = 1, limit = 10) {
     try {
         showLoading();
 
@@ -473,55 +795,53 @@ async function loadReturns(page = 1, limit = 10) {
         if (endDate) queryParams += `&endDate=${endDate}`;
         if (status) queryParams += `&status=${status}`;
 
-        const response = await fetch(`/api/v1/sales-returns${queryParams}`, {
+        const response = await fetch(`/api/v1/sales${queryParams}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
         if (response.ok) {
             const data = await response.json();
-            displayReturns(data.data);
+            displaySales(data.data);
             updatePagination(data.pagination);
         } else {
-            throw new Error('Failed to load returns');
+            throw new Error('Failed to load sales');
         }
     } catch (error) {
-        console.error('Error loading returns:', error);
-        document.getElementById('returnsTableBody').innerHTML =
-            '<tr><td colspan="10" class="text-center">No sale returns found</td></tr>';
+        console.error('Error loading sales:', error);
+        showError('Failed to load sales');
     } finally {
         hideLoading();
     }
 }
 
-// Display returns
-function displayReturns(returns) {
-    const tbody = document.getElementById('returnsTableBody');
+// Display sales
+function displaySales(sales) {
+    const tbody = document.getElementById('salesTableBody');
 
-    if (!returns || returns.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="text-center">No sale returns found</td></tr>';
+    if (!sales || sales.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center">No sales found</td></tr>';
         return;
     }
 
-    tbody.innerHTML = returns.map(returnItem => `
+    tbody.innerHTML = sales.map(sale => `
         <tr>
             <td class="text-center">
-                <button class="icon-btn" onclick="editReturn('${returnItem._id}')" title="Edit">
+                <button class="icon-btn" onclick="editSale('${sale._id}')" title="Edit">
                     <i class="fas fa-edit"></i>
                 </button>
-                <button class="icon-btn text-secondary" onclick="window.open('/print-invoice.html?type=sale-return&id=${returnItem._id}', '_blank')" title="Print">
+                <button class="icon-btn text-secondary" onclick="window.open('/print-invoice.html?type=sale&id=${sale._id}', '_blank')" title="Print">
                     <i class="fas fa-print"></i>
                 </button>
             </td>
-            <td>${returnItem.returnInvoiceNo}</td>
-            <td>${formatDate(returnItem.date)}</td>
-            <td>${returnItem.customerId?.name || '-'}</td>
-            <td>${returnItem.saleId?.invoiceNumber || '-'}</td>
-            <td>${returnItem.items?.length || 0} items</td>
-            <td class="text-right">${(returnItem.totalReturnAmount || returnItem.grandTotal || 0).toFixed(2)}</td>
-            <td class="text-center"><span class="badge badge-info">${returnItem.returnMode || returnItem.paymentMode}</span></td>
-            <td class="text-center">${getReturnStatusBadge(returnItem.status)}</td>
+            <td>${sale.invoiceNumber || sale.invoiceNo}</td>
+            <td>${formatDate(sale.date)}</td>
+            <td>${sale.party?.name || sale.customer?.name || '-'}</td>
+            <td>${sale.items?.length || 0} items</td>
+            <td class="text-right">${(parseFloat(sale.totalAmount || sale.grandTotal) || 0).toFixed(2)}</td>
+            <td class="text-center"><span class="badge badge-info">${sale.paymentStatus || 'pending'}</span></td>
+            <td class="text-center">${getSaleStatusBadge(sale.status)}</td>
             <td class="text-center">
-                <button class="icon-btn danger" onclick="deleteReturnById('${returnItem._id}')" title="Delete">
+                <button class="icon-btn danger" onclick="deleteSaleById('${sale._id}')" title="Delete">
                     <i class="fas fa-trash"></i>
                 </button>
             </td>
@@ -529,51 +849,133 @@ function displayReturns(returns) {
     `).join('');
 }
 
-// Get return status badge
-function getReturnStatusBadge(status) {
+// Get sale status badge
+function getSaleStatusBadge(status) {
     const badges = {
         draft: '<span class="badge badge-warning">Draft</span>',
-        completed: '<span class="badge badge-success">Completed</span>',
+        final: '<span class="badge badge-success">Final</span>',
         cancelled: '<span class="badge badge-danger">Cancelled</span>'
     };
     return badges[status] || badges.draft;
 }
 
-// Edit return
-async function editReturn(returnId) {
+// Handle barcode lookup and populate item fields
+async function handleBarcodeLookup(code) {
+    try {
+        const token = localStorage.getItem('token');
+        const resp = await fetch(`/api/v1/items/barcode/${encodeURIComponent(code)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!resp.ok) {
+            // Try query-based endpoint fallback
+            const resp2 = await fetch(`/api/v1/items/barcode?code=${encodeURIComponent(code)}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!resp2.ok) {
+                showError(`Item not found for code: ${code}`);
+                return;
+            }
+            const data2 = await resp2.json();
+            populateItemFromLookup(data2.data);
+            return;
+        }
+
+        const data = await resp.json();
+        populateItemFromLookup(data.data);
+    } catch (err) {
+        console.error('Barcode lookup error:', err);
+        showError('Error looking up barcode');
+    }
+}
+
+function populateItemFromLookup(item) {
+    if (!item) return;
+    
+    // Ensure item is in availableItems and dropdown
+    const itemSelect = document.getElementById('itemSelect');
+    let found = availableItems.find(i => i._id === item._id);
+    
+    if (!found) {
+        // Add to local list
+        availableItems.push(item);
+        found = item;
+    }
+
+    if (itemSelect) {
+        itemSelect.value = item._id;
+    }
+
+    document.getElementById('itemCode').value = item.barcode || item.sku || '';
+    document.getElementById('price').value = item.salePrice || 0;
+    document.getElementById('stock').value = item.stockQty || 0;
+    document.getElementById('taxPercent').value = item.taxPercent || 0;
+    
+    const itemNameInput = document.getElementById('itemName');
+    if (itemNameInput) itemNameInput.value = item.name || '';
+    
+    calculateItemTotal();
+    
+    // Move focus to Pack (Quantity) field for quick entry
+    const packInput = document.getElementById('pack');
+    if (packInput) {
+        packInput.focus();
+        packInput.select();
+    }
+}
+
+// Edit sale
+async function editSale(saleId) {
     try {
         showLoading();
 
         const token = localStorage.getItem('token');
-        const response = await fetch(`/api/v1/sales-returns/${returnId}`, {
+        const response = await fetch(`/api/v1/sales/${saleId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
         if (response.ok) {
             const responseData = await response.json();
-            const returnData = responseData.data || responseData;
+            const sale = responseData.data || responseData;
 
             // Populate form
-            document.getElementById('returnId').value = returnData._id;
-            document.getElementById('returnNo').value = returnData.returnInvoiceNo;
-            document.getElementById('returnDate').value = returnData.date ? returnData.date.split('T')[0] : '';
-            document.getElementById('customer').value = returnData.customerId?._id || returnData.customerId;
-            document.getElementById('saleInvoice').value = returnData.saleId?._id || returnData.saleId || '';
-            document.getElementById('remarks').value = returnData.notes || '';
-            document.getElementById('paymentMode').value = returnData.returnMode || 'cash';
-            document.getElementById('refunded').value = returnData.refundedAmount || 0;
+            document.getElementById('saleId').value = sale._id;
+            document.getElementById('invoiceNo').value = sale.invoiceNumber || sale.invoiceNo;
+            document.getElementById('saleDate').value = sale.date ? sale.date.split('T')[0] : '';
+
+            // Handle party/customer field
+            const partyId = sale.party?._id || sale.party || sale.customer?._id || sale.customer;
+            document.getElementById('customer').value = partyId;
+
+            document.getElementById('remarks').value = sale.notes || '';
+            // Payment mode might be in transaction, assume cash for now if missing
+            document.getElementById('paymentMode').value = sale.paymentMode || 'cash';
+
+            document.getElementById('discountRs').value = sale.discountAmount || sale.discount || 0;
+            // taxPercent might not be directly on sale anymore, inferred from items or stored?
+            // Assuming it might be stored or 0.
+            document.getElementById('totalTaxPercent').value = 0;
+
+            document.getElementById('misc').value = 0; // misc/freight might not be in new model, set 0
+            document.getElementById('freight').value = 0;
+            document.getElementById('paid').value = sale.paidAmount || 0;
 
             // Load items
-            returnItems = returnData.items.map(item => ({
-                id: item.itemId?._id || item.itemId,
-                code: item.itemId?.sku || '',
-                name: item.itemId?.name || '',
-                quantity: item.returnQty,
-                salePrice: item.price,
-                subtotal: item.returnQty * item.price,
-                taxPercent: item.taxPercent || 0,
-                taxAmount: ((item.returnQty * item.price) * (item.taxPercent || 0)) / 100,
-                total: item.returnAmount || (item.returnQty * item.price)
+            saleItems = sale.items.map(item => ({
+                id: item.item._id || item.item,
+                code: item.item.sku || '', // SKU might need population? Backend populates items.item
+                name: item.item.name || item.name || '',
+                pack: item.quantity,
+                price: item.rate || item.salePrice || 0,
+                subtotal: (item.quantity * (item.rate || item.salePrice || 0)),
+                taxPercent: 0, // Item tax percent?
+                taxAmount: item.taxAmount || 0,
+                // Total amount for item
+                total: item.amount || item.total || 0,
+                discPercent: 0,
+                discAmount: 0,
+                netTotal: item.amount || item.total || 0,
+                incentive: 0
             }));
 
             updateItemsTable();
@@ -585,21 +987,21 @@ async function editReturn(returnId) {
             // Scroll to top
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
-            showSuccess('Return loaded for editing');
+            showSuccess('Sale loaded for editing');
         } else {
-            showError('Failed to load return data');
+            showError('Failed to load sale data');
         }
     } catch (error) {
-        console.error('Error loading return data:', error);
-        showError('Failed to load return data');
+        console.error('Error loading sale data:', error);
+        showError('Failed to load sale data');
     } finally {
         hideLoading();
     }
 }
 
-// Delete return by ID
-async function deleteReturnById(returnId) {
-    if (!confirm('Are you sure you want to delete this sale return?')) {
+// Delete sale by ID
+async function deleteSaleById(saleId) {
+    if (!confirm('Are you sure you want to delete this sale?')) {
         return;
     }
 
@@ -607,39 +1009,49 @@ async function deleteReturnById(returnId) {
         showLoading();
 
         const token = localStorage.getItem('token');
-        const response = await fetch(`/api/v1/sales-returns/${returnId}`, {
+        const response = await fetch(`/api/v1/sales/${saleId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
         if (response.ok) {
-            loadReturns(currentPage, currentLimit);
-            showSuccess('Sale return deleted successfully');
+            loadSales(currentPage, currentLimit);
+            showSuccess('Sale deleted successfully');
         } else {
-            showError('Failed to delete sale return');
+            showError('Failed to delete sale');
         }
     } catch (error) {
-        console.error('Error deleting return:', error);
-        showError('Failed to delete sale return');
+        console.error('Error deleting sale:', error);
+        showError('Failed to delete sale');
     } finally {
         hideLoading();
     }
 }
 
+// Delete current sale
+function deleteSale() {
+    const saleId = document.getElementById('saleId').value;
+    if (saleId) {
+        deleteSaleById(saleId);
+    } else {
+        showError('No sale selected to delete');
+    }
+}
+
 // Clear form
 function clearForm() {
-    document.getElementById('returnForm').reset();
-    document.getElementById('returnId').value = '';
-    document.getElementById('returnDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('saleForm').reset();
+    document.getElementById('saleId').value = '';
+    document.getElementById('saleDate').value = new Date().toISOString().split('T')[0];
     document.getElementById('paymentMode').value = 'cash';
-    returnItems = [];
+    saleItems = [];
     updateItemsTable();
     clearItemFields();
     calculateTotals();
-    generateReturnNumber();
+    generateInvoiceNumber();
 }
 
-// Show returns list
+// Show sales list
 function showReturnsList() {
     const listModal = document.getElementById('listModal');
     const listModalOverlay = document.getElementById('listModalOverlay');
@@ -648,12 +1060,12 @@ function showReturnsList() {
         listModal.classList.add('active');
         listModalOverlay.classList.add('active');
 
-        // Load returns data
-        loadReturns(currentPage, currentLimit);
+        // Load sales data
+        loadSales(currentPage, currentLimit);
     }
 }
 
-// Hide returns list
+// Hide sales list
 function hideList() {
     const listModal = document.getElementById('listModal');
     const listModalOverlay = document.getElementById('listModalOverlay');
@@ -664,19 +1076,39 @@ function hideList() {
     }
 }
 
+// Print sale
+function printSale(saleId) {
+    if (!saleId) {
+        saleId = document.getElementById('saleId').value;
+    }
+    if (saleId) {
+        window.print();
+    } else {
+        showError('No sale to print');
+    }
+}
+
+// Search invoice
+function searchInvoice() {
+    const invoice = prompt('Enter invoice number:');
+    if (invoice) {
+        document.getElementById('searchInput').value = invoice;
+        loadSales();
+    }
+}
+
 // Handle search
 function handleSearch() {
-    loadReturns(1, currentLimit);
+    loadSales(1, currentLimit);
 }
 
 // Reset filters
 function resetFilters() {
     document.getElementById('searchInput').value = '';
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('startDate').value = today;
-    document.getElementById('endDate').value = today;
+    document.getElementById('startDate').value = '';
+    document.getElementById('endDate').value = '';
     document.getElementById('statusFilter').value = '';
-    loadReturns(1, currentLimit);
+    loadSales(1, currentLimit);
 }
 
 // Update pagination
@@ -691,7 +1123,7 @@ function updatePagination(pagination) {
     let html = '<div class="d-flex justify-content-center gap-2">';
 
     if (pagination.prev) {
-        html += `<button class="btn btn-sm btn-secondary" onclick="loadReturns(${pagination.prev.page}, ${currentLimit})">
+        html += `<button class="btn btn-sm btn-secondary" onclick="loadSales(${pagination.prev.page}, ${currentLimit})">
             <i class="fas fa-chevron-left"></i> Previous
         </button>`;
     }
@@ -706,7 +1138,7 @@ function updatePagination(pagination) {
     </button>`;
 
     if (pagination.next) {
-        html += `<button class="btn btn-sm btn-secondary" onclick="loadReturns(${pagination.next.page}, ${currentLimit})">
+        html += `<button class="btn btn-sm btn-secondary" onclick="loadSales(${pagination.next.page}, ${currentLimit})">
             Next <i class="fas fa-chevron-right"></i>
         </button>`;
     }
@@ -734,7 +1166,15 @@ function formatDate(dateString) {
     return new Date(dateString).toLocaleDateString(undefined, options);
 }
 
-// Helper functions
+// Modal functions (placeholders)
+function openCustomerModal() {
+    showInfo('Customer quick add will be implemented');
+}
+
+function openItemModal() {
+    showInfo('Item quick add will be implemented');
+}
+
 function showCustomerList() {
     window.location.href = '/parties.html';
 }

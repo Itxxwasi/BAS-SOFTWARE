@@ -64,17 +64,8 @@ function initSalesPage() {
         }
     });
 
-    // Item selection event
-    document.getElementById('itemSelect').addEventListener('change', function () {
-        const selectedItem = availableItems.find(item => item._id === this.value);
-        if (selectedItem) {
-            document.getElementById('itemCode').value = selectedItem.sku || '';
-            document.getElementById('price').value = selectedItem.salePrice || 0;
-            document.getElementById('stock').value = selectedItem.stockQty || 0;
-            document.getElementById('taxPercent').value = selectedItem.taxPercent || 0;
-            calculateItemTotal();
-        }
-    });
+    // Item selection event (Handled by Autocomplete now)
+    // document.getElementById('itemSelect').addEventListener('change', ...);
 
     // Calculation events
     document.getElementById('pack').addEventListener('input', calculateItemTotal);
@@ -87,6 +78,40 @@ function initSalesPage() {
     document.getElementById('misc').addEventListener('input', calculateTotals);
     document.getElementById('freight').addEventListener('input', calculateTotals);
     document.getElementById('paid').addEventListener('input', calculateTotals);
+
+    // Setup item entry navigation
+    setupItemEntryNavigation();
+}
+
+// Setup navigation for item entry fields
+function setupItemEntryNavigation() {
+    const fields = [
+        { id: 'pack', action: 'add' }, // Enter adds item
+        { id: 'taxPercent', next: 'price' },
+        { id: 'price', next: 'incentive' },
+        { id: 'incentive', next: 'discPercent' },
+        { id: 'discPercent', action: 'add' } // Enter adds item
+    ];
+
+    fields.forEach(field => {
+        const el = document.getElementById(field.id);
+        if (el) {
+            el.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (field.action === 'add') {
+                        addItemToSale();
+                    } else if (field.next) {
+                        const nextEl = document.getElementById(field.next);
+                        if (nextEl) {
+                            nextEl.focus();
+                            if (nextEl.select) nextEl.select();
+                        }
+                    }
+                }
+            });
+        }
+    });
 }
 
 // Load customers
@@ -144,12 +169,7 @@ async function loadItems() {
         if (response.ok) {
             const data = await response.json();
             availableItems = data.data || [];
-            const itemSelect = document.getElementById('itemSelect');
-            itemSelect.innerHTML = '<option value="">-- Select Item --</option>';
-
-            availableItems.forEach(item => {
-                itemSelect.innerHTML += `<option value="${item._id}">${item.name} (Stock: ${item.stockQty || 0})</option>`;
-            });
+            // Items loaded for autocomplete
         }
     } catch (error) {
         console.error('Error loading items:', error);
@@ -166,13 +186,15 @@ async function loadCategories() {
 
         if (response.ok) {
             const data = await response.json();
-            const categorySelect = document.getElementById('category');
-            categorySelect.innerHTML = '<option value="">-- Select --</option>';
+            const categorySelect = document.getElementById('categoryFilter');
+            if (categorySelect) {
+                categorySelect.innerHTML = '<option value="">All Categories</option>';
 
-            if (data.data) {
-                data.data.forEach(cat => {
-                    categorySelect.innerHTML += `<option value="${cat._id}">${cat.name}</option>`;
-                });
+                if (data.data) {
+                    data.data.forEach(cat => {
+                        categorySelect.innerHTML += `<option value="${cat.name}">${cat.name}</option>`;
+                    });
+                }
             }
         }
     } catch (error) {
@@ -283,6 +305,12 @@ function addItemToSale() {
     updateItemsTable();
     clearItemFields();
     calculateTotals();
+
+    // Focus back to item search for next entry
+    const itemNameInput = document.getElementById('itemName');
+    if (itemNameInput) {
+        itemNameInput.focus();
+    }
 }
 
 // Update items table
@@ -337,6 +365,9 @@ function removeItem(index) {
 // Clear item fields
 function clearItemFields() {
     document.getElementById('itemSelect').value = '';
+    const itemNameInput = document.getElementById('itemName');
+    if (itemNameInput) itemNameInput.value = '';
+    
     document.getElementById('itemCode').value = '';
     document.getElementById('pack').value = 1;
     document.getElementById('price').value = '';
@@ -833,5 +864,285 @@ function showCustomerList() {
 }
 
 function showItemList() {
-    window.location.href = '/items.html';
+    const itemNameInput = document.getElementById('itemName');
+    if (itemNameInput) {
+        itemNameInput.focus();
+    }
 }
+
+// Autocomplete functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const itemNameInput = document.getElementById('itemName');
+    const suggestionsBox = document.getElementById('itemSuggestions');
+    
+    // Helper to escape HTML
+    window.escapeHtml = function(text) {
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+        return text ? text.replace(/[&<>"']/g, m => map[m]) : '';
+    };
+
+    if (itemNameInput && suggestionsBox) {
+        // Show all items on focus (instant dropdown)
+        itemNameInput.addEventListener('focus', async function (e) {
+            if (availableItems.length > 0) {
+                showAllSuggestions();
+                return;
+            }
+            await loadItems();
+            showAllSuggestions();
+        });
+
+        // Filter items as user types
+        itemNameInput.addEventListener('input', function (e) {
+            const q = this.value.trim();
+            const categoryFilter = document.getElementById('categoryFilter');
+            const selectedCategory = categoryFilter ? categoryFilter.value : '';
+
+            if (!q) {
+                showAllSuggestions();
+                return;
+            }
+
+            const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(esc, 'i');
+            const filtered = availableItems.filter(it => {
+                const matchesCategory = !selectedCategory || it.category === selectedCategory;
+                const matchesSearch = regex.test(it.name || '') || regex.test(it.sku || '') || regex.test(it.barcode || '');
+                return matchesCategory && matchesSearch;
+            });
+            
+            if (filtered.length === 0) {
+                suggestionsBox.style.display = 'none';
+                suggestionsBox.innerHTML = '';
+                return;
+            }
+
+            suggestionsBox.innerHTML = filtered.map(it => `
+                <div tabindex="0" class="suggestion-item" data-id="${it._id}" data-name="${window.escapeHtml(it.name)}" data-sku="${it.sku || ''}" data-stock="${it.stockQty || 0}" data-sale="${it.salePrice || 0}" data-tax="${it.taxPercent || 0}">
+                    <strong>${window.escapeHtml(it.name)}</strong> <span style="color:#666">(${window.escapeHtml(it.sku || '')})</span>
+                </div>
+            `).join('');
+            suggestionsBox.style.display = 'block';
+        });
+
+        // Add category filter change listener
+        const categoryFilter = document.getElementById('categoryFilter');
+        if (categoryFilter) {
+            categoryFilter.addEventListener('change', function() {
+                // If search box is focused or has value, trigger search/suggestion update
+                if (document.activeElement === itemNameInput || itemNameInput.value.trim()) {
+                    itemNameInput.dispatchEvent(new Event('input'));
+                } else if (document.activeElement === itemNameInput) {
+                    showAllSuggestions();
+                }
+            });
+        }
+
+        // Helper function to show all items
+        let activeSuggestionIndex = -1;
+
+        function setActiveSuggestion(index) {
+            const items = suggestionsBox.querySelectorAll('.suggestion-item');
+            items.forEach((el, i) => el.classList.toggle('active', i === index));
+            activeSuggestionIndex = index;
+            if (index >= 0 && items[index]) {
+                items[index].scrollIntoView({ block: 'nearest' });
+            }
+        }
+
+        function selectItemFromSuggestion(el) {
+            const id = el.getAttribute('data-id');
+            const name = el.getAttribute('data-name');
+            const sku = el.getAttribute('data-sku');
+            const stock = el.getAttribute('data-stock');
+            const sale = el.getAttribute('data-sale');
+            const tax = el.getAttribute('data-tax');
+
+            const itemSelect = document.getElementById('itemSelect');
+            if (itemSelect) itemSelect.value = id;
+            itemNameInput.value = name || '';
+            document.getElementById('itemCode').value = sku || '';
+            document.getElementById('price').value = sale || 0;
+            document.getElementById('stock').value = stock || 0;
+            document.getElementById('taxPercent').value = tax || 0;
+            calculateItemTotal();
+
+            suggestionsBox.style.display = 'none';
+            suggestionsBox.innerHTML = '';
+            activeSuggestionIndex = -1;
+            
+            // Move focus to Pack (Quantity) field
+            const packInput = document.getElementById('pack');
+            if (packInput) {
+                packInput.focus();
+                packInput.select();
+            }
+        }
+
+        function showAllSuggestions() {
+            const categoryFilter = document.getElementById('categoryFilter');
+            const selectedCategory = categoryFilter ? categoryFilter.value : '';
+            
+            let items = availableItems;
+            if (selectedCategory) {
+                items = items.filter(it => it.category === selectedCategory);
+            }
+
+            if (items.length === 0) {
+                suggestionsBox.style.display = 'none';
+                return;
+            }
+            suggestionsBox.innerHTML = items.map(it => `
+                <div tabindex="0" class="suggestion-item" data-id="${it._id}" data-name="${window.escapeHtml(it.name)}" data-sku="${it.sku || ''}" data-stock="${it.stockQty || 0}" data-sale="${it.salePrice || 0}" data-tax="${it.taxPercent || 0}">
+                    <strong>${window.escapeHtml(it.name)}</strong> <span style="color:#666">(${window.escapeHtml(it.sku || '')})</span>
+                </div>
+            `).join('');
+            suggestionsBox.style.display = 'block';
+            activeSuggestionIndex = -1;
+        }
+
+        suggestionsBox.addEventListener('mousedown', function (ev) {
+            const el = ev.target.closest('.suggestion-item');
+            if (!el) return;
+            ev.preventDefault();
+            selectItemFromSuggestion(el);
+        });
+
+        suggestionsBox.addEventListener('mousemove', function (ev) {
+            const el = ev.target.closest('.suggestion-item');
+            if (!el) return;
+            const items = suggestionsBox.querySelectorAll('.suggestion-item');
+            const idx = Array.prototype.indexOf.call(items, el);
+            if (idx >= 0) setActiveSuggestion(idx);
+        });
+
+        itemNameInput.addEventListener('keydown', function (e) {
+            const visible = suggestionsBox.style.display === 'block' || suggestionsBox.innerHTML.trim() !== '';
+            if (!visible) return;
+            const items = suggestionsBox.querySelectorAll('.suggestion-item');
+            if (!items || items.length === 0) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                const next = activeSuggestionIndex < items.length - 1 ? activeSuggestionIndex + 1 : 0;
+                setActiveSuggestion(next);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                const prev = activeSuggestionIndex > 0 ? activeSuggestionIndex - 1 : items.length - 1;
+                setActiveSuggestion(prev);
+            } else if (e.key === 'Enter') {
+                if (activeSuggestionIndex >= 0 && items[activeSuggestionIndex]) {
+                    e.preventDefault();
+                    selectItemFromSuggestion(items[activeSuggestionIndex]);
+                }
+            }
+        });
+
+        // Hide on blur
+        let suggestionsBlurTimeout = null;
+        itemNameInput.addEventListener('blur', function () {
+            suggestionsBlurTimeout = setTimeout(() => {
+                suggestionsBox.style.display = 'none';
+            }, 200);
+        });
+        
+        suggestionsBox.addEventListener('mousedown', function () {
+            if (suggestionsBlurTimeout) {
+                clearTimeout(suggestionsBlurTimeout);
+                suggestionsBlurTimeout = null;
+            }
+        });
+    }
+
+    // Barcode scanning / manual entry on itemCode
+    const itemCodeInput = document.getElementById('itemCode');
+    let lastLookedUpCode = '';
+
+    if (itemCodeInput) {
+        // Trigger lookup on Enter
+        itemCodeInput.addEventListener('keydown', async function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const code = this.value.trim();
+                if (!code) return;
+                
+                await handleBarcodeLookup(code);
+                lastLookedUpCode = code;
+            }
+        });
+
+        // Lookup when focus leaves
+        itemCodeInput.addEventListener('blur', async function () {
+            const code = this.value.trim();
+            if (!code) return;
+            if (code === lastLookedUpCode) return;
+            
+            await handleBarcodeLookup(code);
+            lastLookedUpCode = code;
+        });
+    }
+});
+
+// Handle barcode lookup
+async function handleBarcodeLookup(code) {
+    try {
+        const token = localStorage.getItem('token');
+        const resp = await fetch(`/api/v1/items/barcode/${encodeURIComponent(code)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (resp.ok) {
+            const data = await resp.json();
+            populateItemFromLookup(data.data);
+            return;
+        }
+        
+        // Fallback to query
+        const resp2 = await fetch(`/api/v1/items/barcode?code=${encodeURIComponent(code)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (resp2.ok) {
+            const data2 = await resp2.json();
+            populateItemFromLookup(data2.data);
+        } else {
+            showError(`Item not found for code: ${code}`);
+        }
+    } catch (err) {
+        console.error('Barcode lookup error:', err);
+    }
+}
+
+function populateItemFromLookup(item) {
+    if (!item) return;
+    
+    const itemSelect = document.getElementById('itemSelect');
+    let found = availableItems.find(i => i._id === item._id);
+    
+    if (!found) {
+        availableItems.push(item);
+        found = item;
+    }
+    
+    if (itemSelect) {
+        itemSelect.value = item._id;
+    }
+    
+    document.getElementById('itemCode').value = item.sku || '';
+    document.getElementById('price').value = item.salePrice || 0;
+    document.getElementById('stock').value = item.stockQty || 0;
+    document.getElementById('taxPercent').value = item.taxPercent || 0;
+    
+    const itemNameInput = document.getElementById('itemName');
+    if (itemNameInput) itemNameInput.value = item.name || '';
+
+    calculateItemTotal();
+
+    // Focus pack/quantity
+    const packInput = document.getElementById('pack');
+    if (packInput) {
+        packInput.focus();
+        packInput.select();
+    }
+}
+

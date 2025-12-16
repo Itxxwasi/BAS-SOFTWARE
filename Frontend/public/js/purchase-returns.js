@@ -81,7 +81,247 @@ function initReturnsPage() {
     document.getElementById('costPrice').addEventListener('input', calculateItemTotal);
     document.getElementById('taxPercent').addEventListener('input', calculateItemTotal);
     document.getElementById('paid').addEventListener('input', calculateTotals);
-}
+
+    // Prevent page jumping when using Tab to navigate inputs inside the item entry section.
+    let tabScrollPos = null;
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Tab') {
+            tabScrollPos = { x: window.scrollX, y: window.scrollY };
+        }
+    });
+
+    document.addEventListener('focusin', function (e) {
+        if (!tabScrollPos) return;
+        if (e.target && e.target.closest && e.target.closest('.item-entry-section')) {
+            const pos = tabScrollPos;
+            setTimeout(() => {
+                try { window.scrollTo(pos.x, pos.y); } catch (err) { /* ignore */ }
+                tabScrollPos = null;
+            }, 0);
+        } else {
+            tabScrollPos = null;
+        }
+    });
+
+    // Item name autocomplete
+    const itemNameInput = document.getElementById('itemName');
+    const suggestionsBox = document.getElementById('itemSuggestions');
+    let allItemsForDropdown = [];
+
+    window.escapeHtml = function(text) {
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+        return text.replace(/[&<>"']/g, m => map[m]);
+    };
+
+    if (itemNameInput) {
+        itemNameInput.addEventListener('focus', async function (e) {
+            if (allItemsForDropdown.length > 0) {
+                showAllSuggestions();
+                return;
+            }
+            try {
+                const token = localStorage.getItem('token');
+                const resp = await fetch(`/api/v1/items?limit=1000`, {
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                });
+                if (!resp.ok) {
+                    suggestionsBox.style.display = 'none';
+                    return;
+                }
+                const data = await resp.json();
+                allItemsForDropdown = data.data || [];
+                showAllSuggestions();
+            } catch (err) {
+                console.error('Error loading items:', err);
+                suggestionsBox.style.display = 'none';
+            }
+        });
+
+        itemNameInput.addEventListener('input', function (e) {
+            const q = this.value.trim();
+            if (!q) {
+                showAllSuggestions();
+                return;
+            }
+            const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(esc, 'i');
+            const filtered = allItemsForDropdown.filter(it => {
+                return regex.test(it.name || '') || regex.test(it.sku || '') || regex.test(it.barcode || '');
+            });
+            
+            if (filtered.length === 0) {
+                suggestionsBox.style.display = 'none';
+                suggestionsBox.innerHTML = '';
+                return;
+            }
+
+            suggestionsBox.innerHTML = filtered.map(it => `
+                <div tabindex="0" class="suggestion-item" data-id="${it._id}" data-name="${window.escapeHtml(it.name)}" data-sku="${it.sku || ''}" data-stock="${it.stockQty || 0}" data-cost="${it.purchasePrice || 0}" data-tax="${it.taxPercent || 0}">
+                    <strong>${window.escapeHtml(it.name)}</strong> <span style="color:#666">(${window.escapeHtml(it.sku || '')})</span>
+                </div>
+            `).join('');
+            suggestionsBox.style.display = 'block';
+        });
+
+        let activeSuggestionIndex = -1;
+
+        function setActiveSuggestion(index) {
+            const items = suggestionsBox.querySelectorAll('.suggestion-item');
+            items.forEach((el, i) => el.classList.toggle('active', i === index));
+            activeSuggestionIndex = index;
+            if (index >= 0 && items[index]) {
+                items[index].scrollIntoView({ block: 'nearest' });
+            }
+        }
+
+        function selectItemFromSuggestion(el) {
+            const id = el.getAttribute('data-id');
+            const name = el.getAttribute('data-name');
+            const sku = el.getAttribute('data-sku');
+            const stock = el.getAttribute('data-stock');
+            const cost = el.getAttribute('data-cost');
+            const tax = el.getAttribute('data-tax');
+
+            const itemSelect = document.getElementById('itemSelect');
+            if (itemSelect) itemSelect.value = id;
+            itemNameInput.value = name || '';
+            document.getElementById('itemCode').value = sku || '';
+            document.getElementById('costPrice').value = cost || 0;
+            document.getElementById('stock').value = stock || 0;
+            document.getElementById('taxPercent').value = tax || 0;
+            calculateItemTotal();
+
+            suggestionsBox.style.display = 'none';
+            suggestionsBox.innerHTML = '';
+            activeSuggestionIndex = -1;
+        }
+
+        function showAllSuggestions() {
+            if (allItemsForDropdown.length === 0) {
+                suggestionsBox.style.display = 'none';
+                return;
+            }
+            suggestionsBox.innerHTML = allItemsForDropdown.map(it => `
+                <div tabindex="0" class="suggestion-item" data-id="${it._id}" data-name="${window.escapeHtml(it.name)}" data-sku="${it.sku || ''}" data-stock="${it.stockQty || 0}" data-cost="${it.purchasePrice || 0}" data-tax="${it.taxPercent || 0}">
+                    <strong>${window.escapeHtml(it.name)}</strong> <span style="color:#666">(${window.escapeHtml(it.sku || '')})</span>
+                </div>
+            `).join('');
+            suggestionsBox.style.display = 'block';
+            activeSuggestionIndex = -1;
+        }
+
+        suggestionsBox.addEventListener('mousedown', function (ev) {
+            const el = ev.target.closest('.suggestion-item');
+            if (!el) return;
+            ev.preventDefault();
+            selectItemFromSuggestion(el);
+        });
+
+        suggestionsBox.addEventListener('mousemove', function (ev) {
+            const el = ev.target.closest('.suggestion-item');
+            if (!el) return;
+            const items = suggestionsBox.querySelectorAll('.suggestion-item');
+            const idx = Array.prototype.indexOf.call(items, el);
+            if (idx >= 0) setActiveSuggestion(idx);
+        });
+
+        suggestionsBox.addEventListener('click', function (ev) {
+            const el = ev.target.closest('.suggestion-item');
+            if (!el) return;
+            ev.preventDefault();
+            selectItemFromSuggestion(el);
+        });
+
+        itemNameInput.addEventListener('keydown', function (e) {
+            const visible = suggestionsBox.style.display === 'block' || suggestionsBox.innerHTML.trim() !== '';
+            if (!visible) return;
+            const items = suggestionsBox.querySelectorAll('.suggestion-item');
+            if (!items || items.length === 0) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                const next = activeSuggestionIndex < items.length - 1 ? activeSuggestionIndex + 1 : 0;
+                setActiveSuggestion(next);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                const prev = activeSuggestionIndex > 0 ? activeSuggestionIndex - 1 : items.length - 1;
+                setActiveSuggestion(prev);
+            } else if (e.key === 'Enter') {
+                if (activeSuggestionIndex >= 0 && items[activeSuggestionIndex]) {
+                    e.preventDefault();
+                    selectItemFromSuggestion(items[activeSuggestionIndex]);
+                }
+            }
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter') return;
+            const visible = suggestionsBox.style.display === 'block' || suggestionsBox.innerHTML.trim() !== '';
+            if (!visible) return;
+            const focused = document.activeElement;
+            const focusedSuggestion = focused && focused.classList && focused.classList.contains('suggestion-item');
+            if (focusedSuggestion) {
+                e.preventDefault();
+                selectItemFromSuggestion(focused);
+                return;
+            }
+            const items = suggestionsBox.querySelectorAll('.suggestion-item');
+            if (activeSuggestionIndex >= 0 && items[activeSuggestionIndex]) {
+                e.preventDefault();
+                selectItemFromSuggestion(items[activeSuggestionIndex]);
+            }
+        });
+        
+        // Hide suggestions on blur
+        let suggestionsBlurTimeout = null;
+        itemNameInput.addEventListener('blur', function () {
+            suggestionsBlurTimeout = setTimeout(() => {
+                suggestionsBox.style.display = 'none';
+            }, 200);
+        });
+
+        suggestionsBox.addEventListener('mousedown', function () {
+            if (suggestionsBlurTimeout) {
+                clearTimeout(suggestionsBlurTimeout);
+                suggestionsBlurTimeout = null;
+            }
+        });
+    }
+
+    // Barcode scanning
+    const itemCodeInput = document.getElementById('itemCode');
+    let lastLookedUpCode = '';
+
+    if (itemCodeInput) {
+        itemCodeInput.addEventListener('keydown', async function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const code = this.value.trim();
+                if (!code) return;
+                await handleBarcodeLookup(code);
+                lastLookedUpCode = code;
+            }
+        });
+
+        itemCodeInput.addEventListener('blur', async function () {
+            const code = this.value.trim();
+            if (!code) return;
+            if (code === lastLookedUpCode) return;
+            await handleBarcodeLookup(code);
+            lastLookedUpCode = code;
+        });
+    }
+
+    document.getElementById('taxPercent').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addItemToReturn();
+            setTimeout(() => {
+                const itemNameInput = document.getElementById('itemName');
+                if (itemNameInput) itemNameInput.focus();
+            }, 100);
+        }
+    });
 
 // Load suppliers
 async function loadSuppliers() {
@@ -339,6 +579,8 @@ function removeItem(index) {
 // Clear item fields
 function clearItemFields() {
     document.getElementById('itemSelect').value = '';
+    const itemNameInput = document.getElementById('itemName');
+    if (itemNameInput) itemNameInput.value = '';
     document.getElementById('itemCode').value = '';
     document.getElementById('quantity').value = 1;
     document.getElementById('costPrice').value = '';
@@ -753,4 +995,50 @@ function showSupplierList() {
 
 function showItemList() {
     window.location.href = '/items.html';
+}
+
+// Handle barcode lookup
+async function handleBarcodeLookup(code) {
+    try {
+        const token = localStorage.getItem('token');
+        const resp = await fetch(`/api/v1/items/barcode/${encodeURIComponent(code)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!resp.ok) {
+            const resp2 = await fetch(`/api/v1/items/barcode?code=${encodeURIComponent(code)}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!resp2.ok) { showError(`Item not found for code: ${code}`); return; }
+            const data2 = await resp2.json();
+            populateItemFromLookup(data2.data);
+            return;
+        }
+        const data = await resp.json();
+        populateItemFromLookup(data.data);
+    } catch (err) {
+        console.error('Barcode lookup error:', err);
+        showError('Error looking up barcode');
+    }
+}
+
+// Populate item from lookup
+function populateItemFromLookup(item) {
+    if (!item) return;
+    
+    const itemSelect = document.getElementById('itemSelect');
+    if (itemSelect) itemSelect.value = item._id;
+    
+    const itemNameInput = document.getElementById('itemName');
+    if (itemNameInput) itemNameInput.value = item.name;
+    
+    document.getElementById('itemCode').value = item.sku || item.barcode || '';
+    document.getElementById('costPrice').value = item.purchasePrice || 0;
+    document.getElementById('stock').value = item.stockQty || 0;
+    document.getElementById('taxPercent').value = item.taxPercent || 0;
+    
+    calculateItemTotal();
+    
+    // Focus on quantity or next field
+    setTimeout(() => document.getElementById('quantity').focus(), 100);
+}
 }

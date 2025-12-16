@@ -176,14 +176,14 @@
                                     </div>
                                     <div class="form-field flex-2">
                                         <label>Name</label>
-                                        <div class="input-group">
-                                            <select id="itemSelect">
-                                                <option value="">-- Select Item --</option>
-                                            </select>
+                                        <div class="input-group" style="position: relative;">
+                                            <input type="text" id="itemName" placeholder="Type to search item..." autocomplete="off">
+                                            <input type="hidden" id="itemSelect">
                                             <button type="button" class="btn-add-new" style="background: #007BFF;"
                                                 onclick="showItemList()">
                                                 <i class="fas fa-list"></i>
                                             </button>
+                                            <div id="itemSuggestions" class="suggestions-box" style="display:none;"></div>
                                         </div>
                                     </div>
                                 </div>

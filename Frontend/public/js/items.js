@@ -440,6 +440,14 @@ async function saveItem() {
             return;
         }
 
+        // Explicit validation for Category (since it's a critical required field)
+        const category = document.getElementById('category').value;
+        if (!category) {
+            showError('Please select a category');
+            document.getElementById('category').focus();
+            return;
+        }
+
         showLoading();
 
         const token = localStorage.getItem('token');
@@ -459,7 +467,7 @@ async function saveItem() {
             purchasePrice: parseFloat(document.getElementById('purchasePrice').value) || 0,
             salePrice: parseFloat(document.getElementById('salePrice').value) || 0,
             retailPrice: parseFloat(document.getElementById('retailPrice').value) || 0,
-            stockQty: parseInt(document.getElementById('stockQty').value) || 0,
+            stockQty: parseInt(document.getElementById('stockQuantity').value) || 0,
             openingStock: parseInt(document.getElementById('openingStock').value) || 0, // Ensure this saved if schema has it
             minStockLevel: parseInt(document.getElementById('minStockLevel').value) || 10,
             unit: document.getElementById('unit').value,
@@ -487,8 +495,24 @@ async function saveItem() {
             clearForm();
             loadItems();
         } else {
-            const error = await response.json();
-            showError(error.message || 'Failed to save item');
+            let errMsg = 'Failed to save item';
+            try {
+                const err = await response.json();
+                const detailed =
+                    (typeof err.error === 'string' ? err.error : null) ||
+                    (Array.isArray(err.error) ? err.error.join(', ') : null) ||
+                    (err.message ? err.message : null) ||
+                    (Array.isArray(err.errors) ? err.errors.map(e => e.message).join(', ') : null);
+                if (detailed) errMsg = detailed;
+                if (response.status === 400 && err && err.error === 'Duplicate field value entered') {
+                    errMsg = 'Duplicate value. Please use a unique SKU or leave it blank to auto-generate.';
+                }
+                console.error('Item save failed:', { status: response.status, error: err, payload: formData });
+            } catch (parseErr) {
+                const text = await response.text();
+                console.error('Item save failed:', { status: response.status, error: text, payload: formData });
+            }
+            showError(errMsg);
         }
     } catch (error) {
         console.error('Error saving item:', error);
@@ -528,7 +552,7 @@ async function editItem(itemId) {
             document.getElementById('purchasePrice').value = item.purchasePrice || 0;
             document.getElementById('salePrice').value = item.salePrice || 0;
             document.getElementById('retailPrice').value = item.retailPrice || 0;
-            document.getElementById('stockQty').value = item.stockQty || 0;
+            document.getElementById('stockQuantity').value = item.stockQty || 0;
             document.getElementById('openingStock').value = item.openingStock || 0;
             // Lock opening stock for existing items
             document.getElementById('openingStock').readOnly = true;
