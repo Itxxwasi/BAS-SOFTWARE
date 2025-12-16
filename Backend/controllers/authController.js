@@ -20,7 +20,7 @@ exports.register = async (req, res) => {
     let user = await User.findOne({ email });
     console.log('Existing user found?', !!user);
     if (user) {
-      return res.status(400).json({ msg: 'User already exists' });
+      return res.status(400).json({ message: 'User already exists' });
     }
 
     // Create new user
@@ -82,13 +82,13 @@ exports.login = async (req, res) => {
 
     if (!user) {
       console.log('User not found in DB');
-      return res.status(400).json({ msg: 'Invalid credentials' });
+      return res.status(400).json({ message: 'Invalid credentials' });
     }
 
     // Check if user is active
     if (!user.isActive) {
       console.log('User is inactive');
-      return res.status(400).json({ msg: 'Account is deactivated' });
+      return res.status(400).json({ message: 'Account is deactivated' });
     }
 
     // Check password
@@ -98,7 +98,7 @@ exports.login = async (req, res) => {
 
     if (!isMatch) {
       console.log('Password mismatch');
-      return res.status(400).json({ msg: 'Invalid credentials' });
+      return res.status(400).json({ message: 'Invalid credentials' });
     }
 
     // Create JWT token
@@ -145,7 +145,7 @@ exports.logout = async (req, res) => {
   try {
     // In a real JWT implementation, the token is stateless
     // The client should handle token removal
-    res.json({ msg: 'Logged out successfully' });
+    res.json({ message: 'Logged out successfully' });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');

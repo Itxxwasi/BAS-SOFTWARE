@@ -48,6 +48,7 @@ exports.saveClosingSheet = async (req, res) => {
             // Update existing
             if (departmentOpening) sheet.departmentOpening = departmentOpening;
             if (closing01) sheet.closing01 = closing01;
+            if (req.body.closing02) sheet.closing02 = req.body.closing02;
             // Add other tabs here as they implemented
             await sheet.save();
         } else {

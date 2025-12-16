@@ -24,7 +24,7 @@ exports.getDailyCash = async (req, res) => {
             query.branch = req.query.branch;
         }
 
-        const records = await DailyCash.find(query).populate('department').sort({ createdAt: -1 });
+        const records = await DailyCash.find(query).populate('department').populate('bank').sort({ createdAt: -1 });
         res.status(200).json({ success: true, count: records.length, data: records });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });

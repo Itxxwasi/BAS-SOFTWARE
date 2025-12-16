@@ -38,6 +38,23 @@ exports.createStore = async (req, res) => {
 
 const Department = require('../models/Department');
 const CashSale = require('../models/CashSale');
+const Voucher = require('../models/Voucher');
+const SupplierPayment = require('../models/SupplierPayment');
+const Payroll = require('../models/Payroll');
+const Expense = require('../models/Expense');
+const EmployeePenalty = require('../models/EmployeePenalty');
+const EmployeeCommission = require('../models/EmployeeCommission');
+const EmployeeClearance = require('../models/EmployeeClearance');
+const EmployeeAdvance = require('../models/EmployeeAdvance');
+const EmployeeAdjustment = require('../models/EmployeeAdjustment');
+const Employee = require('../models/Employee');
+const DailyCash = require('../models/DailyCash');
+const CustomerPayment = require('../models/CustomerPayment');
+const CustomerDemand = require('../models/CustomerDemand');
+const ClosingSheet = require('../models/ClosingSheet');
+const Bank = require('../models/Bank');
+const Attendance = require('../models/Attendance');
+const Account = require('../models/Account');
 
 // @desc    Update store
 // @route   PUT /api/v1/stores/:id
@@ -62,6 +79,108 @@ exports.updateStore = async (req, res) => {
 
             // Cascade update to CashSales
             await CashSale.updateMany(
+                { branch: oldName },
+                { $set: { branch: newName } }
+            );
+
+            // Cascade update to Vouchers
+            await Voucher.updateMany(
+                { branch: oldName },
+                { $set: { branch: newName } }
+            );
+
+            // Cascade update to SupplierPayments
+            await SupplierPayment.updateMany(
+                { branch: oldName },
+                { $set: { branch: newName } }
+            );
+
+            // Cascade update to Payrolls
+            await Payroll.updateMany(
+                { branch: oldName },
+                { $set: { branch: newName } }
+            );
+
+            // Cascade update to Expenses
+            await Expense.updateMany(
+                { branch: oldName },
+                { $set: { branch: newName } }
+            );
+
+            // Cascade update to EmployeePenalties
+            await EmployeePenalty.updateMany(
+                { branch: oldName },
+                { $set: { branch: newName } }
+            );
+
+            // Cascade update to EmployeeCommissions
+            await EmployeeCommission.updateMany(
+                { branch: oldName },
+                { $set: { branch: newName } }
+            );
+
+            // Cascade update to EmployeeClearances
+            await EmployeeClearance.updateMany(
+                { branch: oldName },
+                { $set: { branch: newName } }
+            );
+
+            // Cascade update to EmployeeAdvances
+            await EmployeeAdvance.updateMany(
+                { branch: oldName },
+                { $set: { branch: newName } }
+            );
+
+            // Cascade update to EmployeeAdjustments
+            await EmployeeAdjustment.updateMany(
+                { branch: oldName },
+                { $set: { branch: newName } }
+            );
+
+            // Cascade update to Employees
+            await Employee.updateMany(
+                { branch: oldName },
+                { $set: { branch: newName } }
+            );
+
+            // Cascade update to DailyCash
+            await DailyCash.updateMany(
+                { branch: oldName },
+                { $set: { branch: newName } }
+            );
+
+            // Cascade update to CustomerPayments
+            await CustomerPayment.updateMany(
+                { branch: oldName },
+                { $set: { branch: newName } }
+            );
+
+            // Cascade update to CustomerDemands
+            await CustomerDemand.updateMany(
+                { branch: oldName },
+                { $set: { branch: newName } }
+            );
+
+            // Cascade update to ClosingSheets
+            await ClosingSheet.updateMany(
+                { branch: oldName },
+                { $set: { branch: newName } }
+            );
+
+            // Cascade update to Banks
+            await Bank.updateMany(
+                { branch: oldName },
+                { $set: { branch: newName } }
+            );
+
+            // Cascade update to Attendances
+            await Attendance.updateMany(
+                { branch: oldName },
+                { $set: { branch: newName } }
+            );
+
+            // Cascade update to Accounts
+            await Account.updateMany(
                 { branch: oldName },
                 { $set: { branch: newName } }
             );

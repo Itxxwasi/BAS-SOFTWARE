@@ -327,150 +327,210 @@
             <div class="tab-pane fade" id="closing02" role="tabpanel">
                 <div class="row">
                     <!-- Left Container - ALL FIELDS -->
+                    <!-- Left Container - ALL FIELDS -->
                     <div class="col-md-6">
                         <div class="row mb-2">
-                            <label class="col-4 fw-bold">Department</label>
-                            <div class="col-8">
+                            <label class="col-sm-3 fw-bold">Department</label>
+                            <div class="col-sm-9">
                                 <select id="closing02Dept" class="form-select form-select-sm">
                                     <option value="">Select Department</option>
                                 </select>
                             </div>
                         </div>
 
+                        <!-- Row: Counter Closing | Bank Total -->
                         <div class="row mb-2">
-                            <label class="col-4 fw-bold">Counter Closing</label>
-                            <div class="col-8">
-                                <input type="number" id="counterClosing"
-                                    class="form-control form-control-sm bg-info text-white fw-bold" value="0">
+                            <div class="col-sm-6">
+                                <div class="row">
+                                    <label class="col-sm-6 fw-bold small">Counter Closing</label>
+                                    <div class="col-sm-6">
+                                        <input type="number" id="counterClosing"
+                                            class="form-control form-control-sm bg-info text-white fw-bold" value="0">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="row">
+                                    <label class="col-sm-4 fw-bold small text-end">Bank Total</label>
+                                    <div class="col-sm-8">
+                                        <input type="number" id="bankTotal"
+                                            class="form-control form-control-sm bg-info text-white fw-bold" value="0"
+                                            readonly>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
+                        <!-- Full Width Total (Green) -->
                         <div class="row mb-2">
-                            <label class="col-4 fw-bold">Total</label>
-                            <div class="col-8">
+                            <label class="col-sm-3 fw-bold">Total</label>
+                            <div class="col-sm-9">
                                 <input type="number" id="closing02Total"
                                     class="form-control form-control-sm bg-success text-white fw-bold" value="0"
                                     readonly>
                             </div>
                         </div>
 
+                        <!-- Row: LP | Coin -->
                         <div class="row mb-2">
-                            <label class="col-4 fw-bold">LP</label>
-                            <div class="col-8">
-                                <input type="number" id="lp" class="form-control form-control-sm" value="0">
+                            <div class="col-sm-6">
+                                <div class="row">
+                                    <label class="col-sm-6 fw-bold">LP</label>
+                                    <div class="col-sm-6">
+                                        <input type="number" id="lp" class="form-control form-control-sm" value="0">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="row">
+                                    <label class="col-sm-4 fw-bold text-end">Coin</label>
+                                    <div class="col-sm-8">
+                                        <input type="number" id="coin" class="form-control form-control-sm" value="0">
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
+                        <!-- Row: Misc (-) | Dis & C.S -->
                         <div class="row mb-2">
-                            <label class="col-4 fw-bold">Misc (-)</label>
-                            <div class="col-8">
-                                <input type="number" id="misc" class="form-control form-control-sm" value="0">
+                            <div class="col-sm-6">
+                                <div class="row">
+                                    <label class="col-sm-6 fw-bold">Misc (-)</label>
+                                    <div class="col-sm-6">
+                                        <input type="number" id="misc" class="form-control form-control-sm" value="0">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="row">
+                                    <label class="col-sm-4 fw-bold text-end" style="white-space: nowrap;">Dis &
+                                        C.S</label>
+                                    <div class="col-sm-8">
+                                        <input type="number" id="divCS" class="form-control form-control-sm" value="0">
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
+                        <!-- Full Width Total (Green) -->
                         <div class="row mb-2">
-                            <label class="col-4 fw-bold">Total</label>
-                            <div class="col-8">
+                            <label class="col-sm-3 fw-bold">Total</label>
+                            <div class="col-sm-9">
                                 <input type="number" id="closing02GrandTotal"
                                     class="form-control form-control-sm bg-success text-white fw-bold" value="0"
                                     readonly>
                             </div>
                         </div>
 
+                        <!-- Row: Received Cash | Total (Actually this seems to be Received Cash on left, and Total C02 on right or below) -->
+                        <!-- The image shows: Received Cash | Total (Green block) -->
                         <div class="row mb-2">
-                            <label class="col-4 fw-bold">Received Cash</label>
-                            <div class="col-8">
-                                <input type="number" id="receivedCashC02"
-                                    class="form-control form-control-sm bg-info text-white" value="0">
+                            <div class="col-sm-6">
+                                <div class="row">
+                                    <label class="col-sm-6 fw-bold small">Received Cash</label>
+                                    <div class="col-sm-6">
+                                        <input type="number" id="receivedCashC02"
+                                            class="form-control form-control-sm bg-info text-white" value="0">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="row">
+                                    <label class="col-sm-4 fw-bold text-end">Total</label>
+                                    <div class="col-sm-8">
+                                        <input type="number" id="totalC02"
+                                            class="form-control form-control-sm bg-success text-white fw-bold" value="0"
+                                            readonly>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
+                        <!-- Row: Opening (-) | T.Sale Manual -->
                         <div class="row mb-2">
-                            <label class="col-4 fw-bold">Opening (-)</label>
-                            <div class="col-8">
-                                <input type="number" id="openingMinus"
-                                    class="form-control form-control-sm bg-primary text-white" value="0">
+                            <div class="col-sm-6">
+                                <div class="row">
+                                    <label class="col-sm-6 fw-bold small">Opening (-)</label>
+                                    <div class="col-sm-6">
+                                        <input type="number" id="openingMinus"
+                                            class="form-control form-control-sm bg-primary text-white" value="0">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="row">
+                                    <label class="col-sm-4 fw-bold text-end small" style="white-space:nowrap;">T.Sale
+                                        Manual</label>
+                                    <div class="col-sm-8">
+                                        <input type="number" id="tSaleManual"
+                                            class="form-control form-control-sm bg-warning text-dark" value="0">
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
+                        <!-- Row: T.Sale Comp | Difference -->
                         <div class="row mb-2">
-                            <label class="col-4 fw-bold">Total Sale Computer</label>
-                            <div class="col-8">
-                                <input type="number" id="totalSaleComputer"
-                                    class="form-control form-control-sm bg-info text-white" value="0">
+                            <div class="col-sm-6">
+                                <div class="row"> <!-- Add Plus button here if needed -->
+                                    <label class="col-sm-6 fw-bold small" style="white-space:nowrap;">Total Sale
+                                        Computer</label>
+                                    <div class="col-sm-6 input-group input-group-sm">
+                                        <button class="btn btn-primary px-2" type="button"><i
+                                                class="fas fa-plus"></i></button>
+                                        <input type="number" id="totalSaleComputer"
+                                            class="form-control bg-info text-white" value="0">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="row">
+                                    <label class="col-sm-4 fw-bold text-end small">Difference</label>
+                                    <div class="col-sm-8">
+                                        <input type="number" id="difference"
+                                            class="form-control form-control-sm bg-danger text-white fw-bold" value="0"
+                                            readonly>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
+                        <!-- Row: Gross Sale | Discount Value -->
                         <div class="row mb-2">
-                            <label class="col-4 fw-bold">Gross Sale</label>
-                            <div class="col-8">
-                                <input type="number" id="grossSale" class="form-control form-control-sm" value="0">
+                            <div class="col-sm-6">
+                                <div class="row">
+                                    <label class="col-sm-6 fw-bold small">Gross Sale</label>
+                                    <div class="col-sm-6">
+                                        <input type="number" id="grossSale" class="form-control form-control-sm"
+                                            value="0">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="row">
+                                    <label class="col-sm-4 fw-bold text-end small" style="white-space:nowrap;">Discount
+                                        Value</label>
+                                    <div class="col-sm-8">
+                                        <input type="number" id="discountValue" class="form-control form-control-sm"
+                                            value="0">
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
+                        <!-- Row: Discount Per -->
                         <div class="row mb-2">
-                            <label class="col-4 fw-bold">Discount Per</label>
-                            <div class="col-8">
-                                <input type="number" step="0.01" id="discountPer"
-                                    class="form-control form-control-sm bg-info text-white" value="0.00">
+                            <div class="col-sm-6">
+                                <div class="row">
+                                    <label class="col-sm-6 fw-bold small">Discount Per</label>
+                                    <div class="col-sm-6">
+                                        <input type="number" step="0.01" id="discountPer"
+                                            class="form-control form-control-sm bg-info text-white" value="0.00">
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- RIGHT SIDE FIELDS MOVED TO LEFT -->
-                        <div class="row mb-2">
-                            <label class="col-4 fw-bold">Bank Total</label>
-                            <div class="col-8">
-                                <input type="number" id="bankTotal"
-                                    class="form-control form-control-sm bg-info text-white fw-bold" value="0" readonly>
-                            </div>
-                        </div>
-
-                        <div class="row mb-2">
-                            <label class="col-4 fw-bold">Coin</label>
-                            <div class="col-8">
-                                <input type="number" id="coin" class="form-control form-control-sm" value="0">
-                            </div>
-                        </div>
-
-                        <div class="row mb-2">
-                            <label class="col-4 fw-bold">Dis & C.S</label>
-                            <div class="col-8">
-                                <input type="number" id="divCS" class="form-control form-control-sm" value="0">
-                            </div>
-                        </div>
-
-                        <div class="row mb-2">
-                            <label class="col-4 fw-bold">Total</label>
-                            <div class="col-8">
-                                <input type="number" id="totalC02"
-                                    class="form-control form-control-sm bg-success text-white fw-bold" value="0"
-                                    readonly>
-                            </div>
-                        </div>
-
-                        <div class="row mb-2">
-                            <label class="col-4 fw-bold">T.Sale Manual</label>
-                            <div class="col-8">
-                                <input type="number" id="tSaleManual"
-                                    class="form-control form-control-sm bg-warning text-dark" value="0">
-                            </div>
-                        </div>
-
-                        <div class="row mb-2">
-                            <label class="col-4 fw-bold">Difference</label>
-                            <div class="col-8">
-                                <input type="number" id="difference"
-                                    class="form-control form-control-sm bg-danger text-white fw-bold" value="0"
-                                    readonly>
-                            </div>
-                        </div>
-
-                        <div class="row mb-3">
-                            <label class="col-4 fw-bold">Discount Value</label>
-                            <div class="col-8">
-                                <input type="number" id="discountValue" class="form-control form-control-sm" value="0">
-                            </div>
-                        </div>
 
                         <div class="mt-3">
                             <button class="btn btn-success btn-sm" onclick="saveSheet()"><i class="fas fa-save"></i>

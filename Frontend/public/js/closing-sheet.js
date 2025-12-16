@@ -11,18 +11,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Fix: Manually handle tab switching cleanup to prevent overlap
     const tabLinks = document.querySelectorAll('button[data-bs-toggle="tab"]');
     tabLinks.forEach(tab => {
-        tab.addEventListener('shown.bs.tab', (event) => {
+        tab.addEventListener('shown.bs.tab', async (event) => {
             const targetId = event.target.getAttribute('data-bs-target');
             document.querySelectorAll('.tab-pane').forEach(pane => {
                 if (`#${pane.id}` !== targetId) {
                     pane.classList.remove('show', 'active');
                 }
             });
+
+            // Auto-Refresh Logic on Tab Switch
+            if (targetId === '#closing02') {
+                console.log('Refreshing Closing 02 Data...');
+                await refreshDailyCashData();
+                await loadClosing02BankTable();
+                const deptId = document.getElementById('closing02Dept').value;
+                if (deptId) {
+                    updateClosing02Derived(deptId);
+                }
+            } else if (targetId === '#closing01') {
+                console.log('Refreshing Closing 01 Data...');
+                await refreshDailyCashData();
+                calcDeptOpeningTotal(); // Ensure opening total is fresh
+                calcClosing01Totals();  // Recalculate totals
+            } else if (targetId === '#deptOpening') {
+                // Usually relies on sheet data, maybe reload sheet?
+                // But reloading sheet resets inputs. Safe to leave or just calc totals.
+                calcDeptOpeningTotal();
+            }
         });
     });
 });
 
+
 let currentDepartments = [];
+let currentDailyCashData = [];
+let currentCashSalesData = [];
+let currentSheetData = {};
+let closing02State = {};
 
 async function loadBranches() {
     try {
@@ -87,6 +112,12 @@ async function loadSheet() {
         });
         const sheetData = await sheetResp.json();
         const sheet = sheetData.data || {};
+        currentSheetData = sheet;
+        if (sheet.closing02 && sheet.closing02.data) {
+            closing02State = sheet.closing02.data;
+        } else {
+            closing02State = {};
+        }
 
         console.log('Sheet Data:', sheet);
 
@@ -146,8 +177,14 @@ async function loadSheet() {
             const dcJson = await dcResp.json();
             const csJson = await csResp.json();
 
-            if (dcJson.success) dailyCashData = dcJson.data;
-            if (csJson.success) cashSalesData = csJson.data;
+            if (dcJson.success) {
+                dailyCashData = dcJson.data;
+                currentDailyCashData = dcJson.data; // Store globally
+            }
+            if (csJson.success) {
+                cashSalesData = csJson.data;
+                currentCashSalesData = csJson.data; // Store globally
+            }
 
             if (dailyCashData.length > 0) {
                 const relevantRecords = dailyCashData.filter(r =>
@@ -199,13 +236,14 @@ async function loadSheet() {
             let bigCashAmount = 0;
             let slipAmount = 0;
             if (d.bigCashForward && dailyCashData.length > 0) {
-                const dc = dailyCashData.find(r =>
-                    r.department && (r.department._id === d._id || r.department === d._id)
+                // Filter: Match Dept AND Exclude Bank Mode
+                const validRecords = dailyCashData.filter(r =>
+                    (r.department && (r.department._id === d._id || r.department === d._id)) &&
+                    r.mode !== 'Bank'
                 );
-                if (dc) {
-                    bigCashAmount = dc.bigCash || 0;
-                    slipAmount = parseFloat(dc.slip) || 0;
-                }
+
+                bigCashAmount = validRecords.reduce((sum, r) => sum + (r.bigCash || 0), 0);
+                slipAmount = validRecords.reduce((sum, r) => sum + (parseFloat(r.slip) || 0), 0);
             }
 
             // 3. Calculate Sales
@@ -323,6 +361,14 @@ async function loadSheet() {
         loadClosing02DeptTable(filteredDepts);
         loadClosing02BankTable();
 
+        // Add event listener for Closing 02 Dept Change
+        const c02DeptSelect = document.getElementById('closing02Dept');
+        c02DeptSelect.removeEventListener('change', handleClosing02DeptChange); // prevent duplicates
+        c02DeptSelect.addEventListener('change', handleClosing02DeptChange);
+
+        // Clear Closing 02 Form initially
+        clearClosing02Form();
+
     } catch (e) {
         console.error(e);
         alert('Error loading sheet data');
@@ -384,17 +430,82 @@ async function loadClosing02BankTable() {
         let total = 0;
 
         if (data.success && data.data && data.data.length > 0) {
-            data.data.forEach(bank => {
-                const amount = bank.amount || 0;
-                total += amount;
+            // Filter only 'Bank' mode entries
+            let bankEntries = data.data.filter(r => r.mode === 'Bank');
 
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="fw-bold">${bank.bankName || 'Unknown'}</td>
-                    <td class="text-end">${amount.toLocaleString()}</td>
-                `;
-                tbody.appendChild(tr);
+            // Filter by Department if provided
+            // if (deptId) {
+            //     bankEntries = bankEntries.filter(r =>
+            //         (r.department && r.department._id === deptId) || r.department === deptId
+            //     );
+            // }
+
+            // Aggregate by Department AND Bank Name
+            const bankMap = new Map(); // Key: DeptID_BankName -> { displayName: "Bank (XXX)", amount: Total }
+
+            bankEntries.forEach(entry => {
+                // Bank Name Logic
+                let bankName = 'Unknown Bank';
+                if (entry.bank && typeof entry.bank === 'object') {
+                    // Bank model uses 'bankName', but check 'name' just in case of inconsistency
+                    bankName = entry.bank.bankName || entry.bank.name || 'Unknown Bank';
+                } else if (entry.bankName) {
+                    bankName = entry.bankName;
+                } else if (typeof entry.bank === 'string') {
+                    // Should hopefully be resolved now, but if not:
+                    bankName = 'Bank';
+                }
+
+                // Department Info
+                let deptId = 'unknown';
+                let deptShort = 'UNK';
+
+                if (entry.department && typeof entry.department === 'object') {
+                    deptId = entry.department._id;
+                    const dName = entry.department.name || '';
+                    if (dName) deptShort = dName.substring(0, 3).toUpperCase();
+                } else if (entry.department) {
+                    deptId = entry.department;
+                }
+
+                // Composite Key
+                const uniqueKey = `${deptId}_${bankName}`;
+
+                // Format: "ALF (MED)"
+                // Check if bankName already contains the deptShort to avoid double like "ALF (COS) (COS)"
+                let displayName = bankName;
+                if (!bankName.includes(`(${deptShort})`)) {
+                    displayName = `${bankName} (${deptShort})`;
+                }
+
+                const amount = entry.totalAmount || entry.amount || 0;
+
+                if (bankMap.has(uniqueKey)) {
+                    const current = bankMap.get(uniqueKey);
+                    current.amount += amount;
+                } else {
+                    bankMap.set(uniqueKey, {
+                        name: displayName,
+                        amount: amount
+                    });
+                }
             });
+
+            // Iterate Map
+            if (bankMap.size > 0) {
+                bankMap.forEach((data, key) => {
+                    total += data.amount;
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="fw-bold">${data.name}</td>
+                        <td class="text-end">${data.amount.toLocaleString()}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">No bank data</td></tr>';
+            }
+
         } else {
             tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">No bank data</td></tr>';
         }
@@ -403,9 +514,19 @@ async function loadClosing02BankTable() {
             totalEl.textContent = total.toLocaleString();
         }
 
-        if (bankTotalInput) {
-            bankTotalInput.value = total;
-        }
+        // Also update the "Bank Total" input in the form if it's meant to be the sum of ALL banks
+        // But wait, the form is Department specific. 
+        // If the user wants to show "Bank Total" for THAT department, we should calculate it differently.
+        // However, currently the logic sets 'bankTotal' input from SavedState or calc.
+        // If this table is global, we shouldn't overwrite the department-specific input unless explicitly asked.
+        // The user said: "daily cash i save bank enteries accourding to department wise so show here bank enteries".
+        // This implies the TABLE should show them.
+        // I will NOT strictly overwrite the Department's 'Bank Total' input here, because that might be specific to the department (if needed).
+        // Actually, lines 572 in loadClosing02DeptData sets bankTotal from state.
+
+        // HOWEVER, if the user sees a "Bank Total" field in the form, they might expect it to autosum from the table?
+        // But the table is potentially global.
+        // Let's stick to just populating the TABLE as requested.
 
     } catch (error) {
         console.error('Error loading bank data:', error);
@@ -464,6 +585,346 @@ function calcClosing01Totals() {
     document.getElementById(id)?.addEventListener('input', calcClosing01Totals);
 });
 
+// --- Closing 02 Logic ---
+
+// Helper to refresh Daily Cash AND Cash Sales Data globally
+async function refreshDailyCashData() {
+    const branch = document.getElementById('branch').value;
+    const date = document.getElementById('date').value;
+    const token = localStorage.getItem('token');
+    try {
+        const [dcResp, csResp] = await Promise.all([
+            fetch(`/api/v1/daily-cash?date=${date}&branch=${branch}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            }),
+            fetch(`/api/v1/cash-sales?startDate=${date}&endDate=${date}&branch=${branch}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+        ]);
+
+        const dcJson = await dcResp.json();
+        const csJson = await csResp.json();
+
+        if (dcJson.success) {
+            currentDailyCashData = dcJson.data;
+            console.log('Daily Cash Data Refreshed');
+        }
+        if (csJson.success) {
+            currentCashSalesData = csJson.data;
+            console.log('Cash Sales Data Refreshed');
+        }
+    } catch (e) { console.error('Error refreshing data:', e); }
+}
+
+// Helper to update Closing 02 derived fields without resetting manual inputs
+function updateClosing02Derived(deptId) {
+    if (!currentDailyCashData) return;
+
+    // 1. Counter Closing (Cash Only)
+    let dailyCashTotal = 0;
+    const deptCashRecords = currentDailyCashData.filter(r =>
+        ((r.department && r.department._id === deptId) || r.department === deptId) &&
+        r.mode === 'Cash'
+    );
+    dailyCashTotal = deptCashRecords.reduce((sum, r) => sum + (r.totalAmount || 0), 0);
+    document.getElementById('counterClosing').value = dailyCashTotal;
+
+    // 2. Bank Total
+    let deptBankTotal = 0;
+    const deptBankRecords = currentDailyCashData.filter(r =>
+        ((r.department && r.department._id === deptId) || r.department === deptId) &&
+        r.mode === 'Bank'
+    );
+    deptBankTotal = deptBankRecords.reduce((sum, r) => sum + (r.totalAmount || r.amount || 0), 0);
+    document.getElementById('bankTotal').value = deptBankTotal;
+
+    // 3. Recalc Totals
+    calcClosing02Totals();
+}
+
+function updateState(key, value) {
+    const deptId = document.getElementById('closing02Dept').value;
+    if (deptId) {
+        if (!closing02State[deptId]) closing02State[deptId] = {};
+        closing02State[deptId][key] = parseFloat(value) || 0;
+    }
+}
+function handleClosing02DeptChange() {
+    const deptId = document.getElementById('closing02Dept').value;
+    if (!deptId) {
+        clearClosing02Form();
+        return;
+    }
+    loadClosing02DeptData(deptId);
+}
+
+async function loadClosing02DeptData(deptId) {
+    const branch = document.getElementById('branch').value;
+    const dateStr = document.getElementById('date').value;
+
+    // 1. Calculate Counter Closing from Daily Cash (Cash Mode Only)
+    // User Request: Match "Daily Cash List" Department Total for Cash entries.
+    let dailyCashTotal = 0;
+    if (currentDailyCashData) {
+        // Filter for this Dept AND mode='Cash'
+        const deptCashRecords = currentDailyCashData.filter(r =>
+            ((r.department && r.department._id === deptId) || r.department === deptId) &&
+            r.mode === 'Cash'
+        );
+        dailyCashTotal = deptCashRecords.reduce((sum, r) => sum + (r.totalAmount || 0), 0);
+    }
+
+    // 2. Fetch Previous Day's Closing for Opening (-)
+    let prevOpening = 0;
+    try {
+        const dateObj = new Date(dateStr);
+        dateObj.setDate(dateObj.getDate() - 1);
+        const prevDateStr = dateObj.toISOString().split('T')[0];
+
+        const token = localStorage.getItem('token');
+        const resp = await fetch(`/api/v1/closing-sheets?date=${prevDateStr}&branch=${branch}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const json = await resp.json();
+        if (json.success && json.data && json.data.closing02 && json.data.closing02.data) {
+            const prevData = json.data.closing02.data[deptId];
+            if (prevData) {
+                // The previous day's "Counter Closing" (or Balance?) 
+                // User Request: "today counter closing... next day closing 2 will show opening (-)"
+                // This implies Previous Counter Closing -> Current Opening Minus
+                // But typically Opening comes from Closing Balance. 
+                // Let's assume 'counterClosing' field of previous day.
+                prevOpening = prevData.counterClosing || 0;
+
+                // OR if they meant the Difference/Balance:
+                // prevOpening = prevData.difference || 0;
+                // Based on phrasing "today counter closing ... will show opening", I stick to counterClosing.
+            }
+        }
+    } catch (e) {
+        console.error('Error fetching previous closing:', e);
+    }
+
+    // 3. Load Saved State (if any)
+    const savedState = closing02State[deptId] || {};
+
+    // Populate Form
+    document.getElementById('counterClosing').value = dailyCashTotal; // Always from Daily Cash
+    document.getElementById('openingMinus').value = prevOpening;      // Always from Prev Day
+
+    // Load others from state or default to 0
+    document.getElementById('lp').value = savedState.lp || 0;
+    document.getElementById('misc').value = savedState.misc || 0;
+
+    // Check if Medicine to auto-populate Received Cash from Closing 01 Total
+    const deptSelect = document.getElementById('closing02Dept');
+    const deptName = deptSelect.options[deptSelect.selectedIndex]?.text?.toUpperCase();
+
+    let receivedCashVal = savedState.receivedCash || 0;
+
+    if (deptName === 'MEDICINE') {
+        if (!savedState.receivedCash) {
+            // If no saved state, pull from Closing 01 Grand Total (Red Bar)
+            const c01TotalEl = document.getElementById('grandTotal');
+            if (c01TotalEl) {
+                receivedCashVal = parseFloat(c01TotalEl.textContent) || 0;
+            }
+        }
+    } else {
+        // For OTHER Departments (Per User Request)
+        // Formula: (DailyClosing BigCash + Slips) - Deduct_UG_Sale
+        // "Deduct_UG_Sale": check which department have [deductUgSale flag] 
+        // and if so, less amount from counter sale cash counter drop down [CashSale where cashCounter == DeptName]
+
+        let initialCash = 0;
+        if (currentDailyCashData) {
+            const deptRecords = currentDailyCashData.filter(r =>
+                (r.department && r.department._id === deptId) || r.department === deptId
+            );
+            // Sum BigCash + Slip
+            // User: "daily closing big cash + slips"
+            // Previous logic included totalAmount (denominations), but user implies specific fields.
+            // Also user complained "slips total not inclde".
+            // So we MUST add 'slip'. And likely 'totalAmount' is NOT 'Received Cash' (it's Counter Cash?).
+            initialCash = deptRecords.reduce((sum, r) => {
+                const bc = Number(r.bigCash) || 0;
+                // Parse slip string to number
+                const slipVal = parseFloat(r.slip) || 0;
+
+                return sum + bc + slipVal;
+            }, 0);
+        }
+
+        // Deduction Logic
+        let deduction = 0;
+        // Find the current department object to check flag
+        const currentDeptObj = currentDepartments.find(d => d._id === deptId);
+
+        if (currentDeptObj && currentDeptObj.deductUgSale) {
+            // Find Sales where cashCounter == Dept Name
+            if (currentCashSalesData) {
+                const counterSales = currentCashSalesData.filter(s =>
+                    s.cashCounter === currentDeptObj.name
+                );
+                deduction = counterSales.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
+            }
+        }
+
+        receivedCashVal = initialCash - deduction;
+
+        // If not explicit override in saved state, use calculated.
+        if (!savedState.receivedCash) {
+            // Apply calculation
+            // Allow manual override? User formula usually implies auto.
+        } else {
+            // If saved state exists, maybe keep it? the user said "formula", usually implying automatic.
+            // I'll update it to calculated value to be responsive.
+        }
+    }
+    document.getElementById('receivedCashC02').value = receivedCashVal;
+
+    document.getElementById('totalSaleComputer').value = savedState.totalSaleComputer || 0;
+    document.getElementById('grossSale').value = savedState.grossSale || 0;
+    document.getElementById('discountPer').value = savedState.discountPer || 0;
+
+    // Calculate Bank Total for THIS department from Daily Cash
+    let deptBankTotal = 0;
+    if (currentDailyCashData) {
+        const deptBankRecords = currentDailyCashData.filter(r =>
+            (r.department && (r.department._id === deptId || r.department === deptId)) && r.mode === 'Bank'
+        );
+        deptBankTotal = deptBankRecords.reduce((sum, r) => sum + (r.totalAmount || r.amount || 0), 0);
+    }
+    // Set Bank Total to calculated value (or saved if we want to allow manual override? No, usually auto from daily cash)
+    document.getElementById('bankTotal').value = deptBankTotal;
+
+    document.getElementById('coin').value = savedState.coin || 0;
+    document.getElementById('divCS').value = savedState.divCS || 0;
+    document.getElementById('tSaleManual').value = savedState.tSaleManual || 0;
+    document.getElementById('discountValue').value = savedState.discountValue || 0;
+
+    calcClosing02Totals();
+}
+
+function updateClosing02State(deptId) {
+    if (!deptId) return;
+
+    closing02State[deptId] = {
+        counterClosing: parseFloat(document.getElementById('counterClosing').value) || 0,
+        lp: parseFloat(document.getElementById('lp').value) || 0,
+        misc: parseFloat(document.getElementById('misc').value) || 0,
+        openingMinus: parseFloat(document.getElementById('openingMinus').value) || 0,
+        receivedCash: parseFloat(document.getElementById('receivedCashC02').value) || 0,
+        totalSaleComputer: parseFloat(document.getElementById('totalSaleComputer').value) || 0,
+        grossSale: parseFloat(document.getElementById('grossSale').value) || 0,
+        discountPer: parseFloat(document.getElementById('discountPer').value) || 0,
+        bankTotal: parseFloat(document.getElementById('bankTotal').value) || 0,
+        coin: parseFloat(document.getElementById('coin').value) || 0,
+        divCS: parseFloat(document.getElementById('divCS').value) || 0,
+        tSaleManual: parseFloat(document.getElementById('tSaleManual').value) || 0,
+        discountValue: parseFloat(document.getElementById('discountValue').value) || 0,
+        // Save calculated totals too if needed
+        closing02Total: parseFloat(document.getElementById('closing02Total').value) || 0,
+        grandTotal: parseFloat(document.getElementById('closing02GrandTotal').value) || 0,
+        totalC02: parseFloat(document.getElementById('totalC02').value) || 0,
+        difference: parseFloat(document.getElementById('difference').value) || 0
+    };
+}
+
+function clearClosing02Form() {
+    const inputs = [
+        'counterClosing', 'lp', 'misc', 'closing02Total', 'closing02GrandTotal',
+        'receivedCashC02', 'openingMinus', 'totalSaleComputer', 'grossSale',
+        'discountPer', 'bankTotal', 'coin', 'divCS', 'totalC02', 'tSaleManual',
+        'difference', 'discountValue'
+    ];
+    inputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = 0;
+    });
+}
+
+function calcClosing02Totals() {
+    // 1. Total (First Block) = Counter Closing + Bank Total (User Request: 1 + 2 Sum)
+    const counterClosing = parseFloat(document.getElementById('counterClosing').value) || 0;
+    const bankTotal = parseFloat(document.getElementById('bankTotal').value) || 0;
+    const block1Total = counterClosing + bankTotal;
+    document.getElementById('closing02Total').value = block1Total;
+
+    // 2. Grand Total (Second Block) = Block 1 Total + LP - Misc
+    // Propagating the Bank Total inclusion from specific User request.
+    const lp = parseFloat(document.getElementById('lp').value) || 0;
+    const misc = parseFloat(document.getElementById('misc').value) || 0;
+    const grandTotal = block1Total + lp - misc;
+    document.getElementById('closing02GrandTotal').value = grandTotal;
+
+    // 3. Total (Right Side Green Field) = Grand Total (Left Green) - Received Cash
+    // User Diagram arrow: Total (Green Left) -> Received Cash -> Total (Green Right)
+    // Interpretation: The Total on the right is the result of subtraction.
+    const recCash = parseFloat(document.getElementById('receivedCashC02').value) || 0;
+
+    // Formula per latest user request: Left Total (Grand Total) + Received Cash = Right Total
+    const rightSideTotal = grandTotal + recCash;
+    document.getElementById('totalC02').value = rightSideTotal;
+    /*
+       Logic:
+       1. Total (Left Green) = Counter Closing
+       2. Grand Total (Left Green 2) = Counter Closing + LP - Misc
+       3. Total (Right Green) = Grand Total (Left Green 2) - Received Cash
+       4. Difference = (Total Sale Manual + Discount Value) - Total (Right Green)
+    */
+
+    // Formula: Total (Right Green) - Opening (-) = T.Sale Manual
+    const openingMinus = parseFloat(document.getElementById('openingMinus').value) || 0;
+    const calcTSaleManual = rightSideTotal - openingMinus;
+    document.getElementById('tSaleManual').value = calcTSaleManual;
+
+    /*
+       Logic:
+       1. Total (Left Green) = Counter Closing
+       2. Grand Total (Left Green 2) = Counter Closing + LP - Misc
+       3. Total (Right Green) = Grand Total (Left Green 2) + Received Cash
+       4. T.Sale Manual = Total (Right Green) - Opening (-)
+       5. Difference = T.Sale Manual - Total (Right Green) (This will effectively be -Opening)
+    */
+
+    // Discount Percentage Calculation
+    // Formula: Discount Value / Gross Sale * 100
+    const grossSale = parseFloat(document.getElementById('grossSale').value) || 0;
+    const discountVal = parseFloat(document.getElementById('discountValue').value) || 0;
+    let discountPer = 0;
+    if (grossSale !== 0) {
+        discountPer = (discountVal / grossSale) * 100;
+        // Optional logic: if discountPer has many decimals, fix it. But user input normally implies integer or 2 decimals.
+        // Let's keep it clean:
+        discountPer = parseFloat(discountPer.toFixed(2));
+    }
+    document.getElementById('discountPer').value = discountPer;
+
+    // Difference Calculation
+    // We use the NEW calculated T.Sale Manual
+    const tSaleManual = calcTSaleManual;
+
+    // User Request: T.Sale Manual - Total Sale Computer = Difference
+    const totalSaleComputer = parseFloat(document.getElementById('totalSaleComputer').value) || 0;
+    const diff = tSaleManual - totalSaleComputer;
+    document.getElementById('difference').value = diff;
+
+    // Save state on calc
+    const deptId = document.getElementById('closing02Dept').value;
+    if (deptId) updateClosing02State(deptId);
+}
+
+// Add listeners for calc
+const c02Inputs = [
+    'counterClosing', 'lp', 'misc', 'receivedCashC02', 'openingMinus',
+    'totalSaleComputer', 'bankTotal', 'coin', 'divCS', 'tSaleManual',
+    'grossSale', 'discountValue'
+];
+c02Inputs.forEach(id => {
+    document.getElementById(id)?.addEventListener('input', calcClosing02Totals);
+});
+
 
 async function saveSheet() {
     const branch = document.getElementById('branch').value;
@@ -504,6 +965,14 @@ async function saveSheet() {
         departmentOpening,
         closing01
     };
+
+    // Add Closing 02 Data
+    // Save the current form state to state object before saving
+    const currentC02Dept = document.getElementById('closing02Dept').value;
+    if (currentC02Dept) {
+        updateClosing02State(currentC02Dept);
+    }
+    payload.closing02 = { data: closing02State };
 
     try {
         const token = localStorage.getItem('token');

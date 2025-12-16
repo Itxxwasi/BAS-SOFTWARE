@@ -128,7 +128,10 @@ async function createInitialData() {
     for (const party of parties) {
         const exists = await Party.findOne({ email: party.email });
         if (!exists) {
-            await Party.create(party);
+            await Party.create({
+                ...party,
+                code: party.partyType === 'customer' ? 'CUST-001' : 'SUPP-001'
+            });
         }
     }
     console.log('Created sample parties');
