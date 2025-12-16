@@ -469,9 +469,10 @@ app.use((err, req, res, next) => {
   res.status(500).json({ success: false, message: err && err.message ? err.message : 'Something went wrong!' });
 });
 
-const PORT = process.env.PORT || 5001;
-const server = app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+const PORT = process.env.PORT || 5000;
+const HOST = '0.0.0.0';
+const server = app.listen(PORT, HOST, () => {
+  console.log(`Server is running on ${HOST}:${PORT}`);
   console.log(`Visit: http://localhost:${PORT}`);
 });
 
