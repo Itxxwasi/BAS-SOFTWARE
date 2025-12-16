@@ -173,7 +173,17 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/sales-inven
         }
 
         for (const party of partiesWithoutCode) {
-          const newCode = `CUST-${String(nextCode).padStart(3, '0')}`;
+          let newCode = '';
+          let isUnique = false;
+          while (!isUnique) {
+            newCode = `CUST-${String(nextCode).padStart(3, '0')}`;
+            const exists = await Party.findOne({ code: newCode });
+            if (!exists) {
+              isUnique = true;
+            } else {
+              nextCode++;
+            }
+          }
           party.code = newCode;
           await party.save();
           console.log(`Assigned code ${newCode} to party ${party.name}`);
