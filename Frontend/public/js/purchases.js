@@ -39,6 +39,7 @@ function initPurchasesPage() {
     // Load data
     loadSuppliers();
     loadItems();
+    loadCategories();
     // Don't load purchases on init - only when List button is clicked
     generateInvoiceNumber();
 
@@ -47,6 +48,29 @@ function initPurchasesPage() {
     document.getElementById('startDate').addEventListener('change', loadPurchases);
     document.getElementById('endDate').addEventListener('change', loadPurchases);
     document.getElementById('statusFilter').addEventListener('change', loadPurchases);
+
+    // Prevent page jumping when using Tab to navigate inputs inside the item entry section.
+    // Capture Tab key scroll position and restore it on focusin inside the item-entry-section.
+    let tabScrollPos = null;
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Tab') {
+            tabScrollPos = { x: window.scrollX, y: window.scrollY };
+        }
+    });
+
+    document.addEventListener('focusin', function (e) {
+        if (!tabScrollPos) return;
+        // Only restore when focusing inside item-entry-section
+        if (e.target && e.target.closest && e.target.closest('.item-entry-section')) {
+            const pos = tabScrollPos;
+            setTimeout(() => {
+                try { window.scrollTo(pos.x, pos.y); } catch (err) { /* ignore */ }
+                tabScrollPos = null;
+            }, 0);
+        } else {
+            tabScrollPos = null;
+        }
+    });
 
     // Supplier change event
     document.getElementById('supplier').addEventListener('change', function () {
@@ -70,6 +94,355 @@ function initPurchasesPage() {
         }
     });
 
+    // Item name autocomplete (instant dropdown with all items)
+    const itemNameInput = document.getElementById('itemName');
+    const suggestionsBox = document.getElementById('itemSuggestions');
+    let allItemsForDropdown = []; // Cache all items for quick filtering
+
+    // Helper to escape HTML
+    window.escapeHtml = function(text) {
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+        return text.replace(/[&<>"']/g, m => map[m]);
+    };
+
+    if (itemNameInput) {
+        // Show all items on focus (instant dropdown)
+        itemNameInput.addEventListener('focus', async function (e) {
+            // If we already loaded items, just show them
+            if (allItemsForDropdown.length > 0) {
+                showAllSuggestions();
+                return;
+            }
+
+            // Otherwise fetch all items
+            try {
+                const token = localStorage.getItem('token');
+                const resp = await fetch(`/api/v1/items?limit=1000`, {
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                });
+                if (!resp.ok) {
+                    suggestionsBox.style.display = 'none';
+                    return;
+                }
+
+                const data = await resp.json();
+                allItemsForDropdown = data.data || [];
+                showAllSuggestions();
+            } catch (err) {
+                console.error('Error loading items:', err);
+                suggestionsBox.style.display = 'none';
+            }
+        });
+
+        // Filter items as user types
+        itemNameInput.addEventListener('input', function (e) {
+            const q = this.value.trim();
+            const categoryFilter = document.getElementById('categoryFilter');
+            const selectedCategory = categoryFilter ? categoryFilter.value : '';
+
+            if (!q) {
+                showAllSuggestions();
+                return;
+            }
+
+            // Filter items by substring anywhere in name, sku or barcode
+            const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(esc, 'i');
+            const filtered = allItemsForDropdown.filter(it => {
+                const matchesCategory = !selectedCategory || it.category === selectedCategory;
+                const matchesSearch = regex.test(it.name || '') || regex.test(it.sku || '') || regex.test(it.barcode || '');
+                return matchesCategory && matchesSearch;
+            });
+            
+            if (filtered.length === 0) {
+                suggestionsBox.style.display = 'none';
+                suggestionsBox.innerHTML = '';
+                return;
+            }
+
+            // Render filtered suggestions
+            suggestionsBox.innerHTML = filtered.map(it => `
+                <div tabindex="0" class="suggestion-item" data-id="${it._id}" data-name="${window.escapeHtml(it.name)}" data-sku="${it.sku || ''}" data-stock="${it.stockQty || 0}" data-purchase="${it.purchasePrice || 0}" data-sale="${it.salePrice || 0}">
+                    <strong>${window.escapeHtml(it.name)}</strong> <span style="color:#666">(${window.escapeHtml(it.sku || '')})</span>
+                </div>
+            `).join('');
+            suggestionsBox.style.display = 'block';
+        });
+
+        // Add category filter change listener
+        const categoryFilter = document.getElementById('categoryFilter');
+        if (categoryFilter) {
+            categoryFilter.addEventListener('change', function() {
+                // If search box is focused or has value, trigger search/suggestion update
+                if (document.activeElement === itemNameInput || itemNameInput.value.trim()) {
+                    itemNameInput.dispatchEvent(new Event('input'));
+                } else if (document.activeElement === itemNameInput) {
+                    showAllSuggestions();
+                }
+            });
+        }
+
+        // Helper function to show all items
+        let activeSuggestionIndex = -1;
+
+        function setActiveSuggestion(index) {
+            const items = suggestionsBox.querySelectorAll('.suggestion-item');
+            items.forEach((el, i) => el.classList.toggle('active', i === index));
+            activeSuggestionIndex = index;
+            if (index >= 0 && items[index]) {
+                items[index].scrollIntoView({ block: 'nearest' });
+            }
+        }
+
+        // Helper function to select item from suggestion
+        function selectItemFromSuggestion(el) {
+            const id = el.getAttribute('data-id');
+            const name = el.getAttribute('data-name');
+            const sku = el.getAttribute('data-sku');
+            const stock = el.getAttribute('data-stock');
+            const purchase = el.getAttribute('data-purchase');
+            const sale = el.getAttribute('data-sale');
+
+            // Set values
+            const itemSelect = document.getElementById('itemSelect');
+            if (itemSelect) itemSelect.value = id;
+            itemNameInput.value = name || '';
+            document.getElementById('itemCode').value = sku || '';
+            document.getElementById('costPrice').value = purchase || 0;
+            document.getElementById('salePrice').value = sale || 0;
+            document.getElementById('stock').value = stock || 0;
+            document.getElementById('taxPercent').value = 0;
+            calculateItemTotal();
+
+            // Hide suggestions
+            suggestionsBox.style.display = 'none';
+            suggestionsBox.innerHTML = '';
+            activeSuggestionIndex = -1;
+        }
+
+        function showAllSuggestions() {
+            const categoryFilter = document.getElementById('categoryFilter');
+            const selectedCategory = categoryFilter ? categoryFilter.value : '';
+            
+            let items = allItemsForDropdown;
+            if (selectedCategory) {
+                items = items.filter(it => it.category === selectedCategory);
+            }
+
+            if (items.length === 0) {
+                suggestionsBox.style.display = 'none';
+                return;
+            }
+            suggestionsBox.innerHTML = items.map(it => `
+                <div tabindex="0" class="suggestion-item" data-id="${it._id}" data-name="${window.escapeHtml(it.name)}" data-sku="${it.sku || ''}" data-stock="${it.stockQty || 0}" data-purchase="${it.purchasePrice || 0}" data-sale="${it.salePrice || 0}">
+                    <strong>${window.escapeHtml(it.name)}</strong> <span style="color:#666">(${window.escapeHtml(it.sku || '')})</span>
+                </div>
+            `).join('');
+            suggestionsBox.style.display = 'block';
+            activeSuggestionIndex = -1;
+        }
+
+        // Selection via mousedown (fires before input blur) — more reliable for mouse
+        suggestionsBox.addEventListener('mousedown', function (ev) {
+            const el = ev.target.closest('.suggestion-item');
+            if (!el) return;
+            ev.preventDefault();
+            selectItemFromSuggestion(el);
+        });
+
+        // Update active suggestion on mouseover
+        suggestionsBox.addEventListener('mousemove', function (ev) {
+            const el = ev.target.closest('.suggestion-item');
+            if (!el) return;
+            const items = suggestionsBox.querySelectorAll('.suggestion-item');
+            const idx = Array.prototype.indexOf.call(items, el);
+            if (idx >= 0) setActiveSuggestion(idx);
+        });
+
+        // Direct click on suggestion item
+        suggestionsBox.addEventListener('click', function (ev) {
+            const el = ev.target.closest('.suggestion-item');
+            if (!el) return;
+            ev.preventDefault();
+            selectItemFromSuggestion(el);
+        });
+
+        // Keyboard navigation: up/down + Enter to select
+        itemNameInput.addEventListener('keydown', function (e) {
+            const visible = suggestionsBox.style.display === 'block' || suggestionsBox.innerHTML.trim() !== '';
+            if (!visible) return;
+            const items = suggestionsBox.querySelectorAll('.suggestion-item');
+            if (!items || items.length === 0) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                const next = activeSuggestionIndex < items.length - 1 ? activeSuggestionIndex + 1 : 0;
+                setActiveSuggestion(next);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                const prev = activeSuggestionIndex > 0 ? activeSuggestionIndex - 1 : items.length - 1;
+                setActiveSuggestion(prev);
+            } else if (e.key === 'Enter') {
+                if (activeSuggestionIndex >= 0 && items[activeSuggestionIndex]) {
+                    e.preventDefault();
+                    selectItemFromSuggestion(items[activeSuggestionIndex]);
+                }
+            }
+        });
+
+        // Also handle Enter when suggestions or document have focus
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter') return;
+            const visible = suggestionsBox.style.display === 'block' || suggestionsBox.innerHTML.trim() !== '';
+            if (!visible) return;
+            const focused = document.activeElement;
+            const focusedSuggestion = focused && focused.classList && focused.classList.contains('suggestion-item');
+            if (focusedSuggestion) {
+                e.preventDefault();
+                selectItemFromSuggestion(focused);
+                return;
+            }
+            const items = suggestionsBox.querySelectorAll('.suggestion-item');
+            if (activeSuggestionIndex >= 0 && items[activeSuggestionIndex]) {
+                e.preventDefault();
+                selectItemFromSuggestion(items[activeSuggestionIndex]);
+            }
+        });
+
+        // Allow keyboard Enter when a suggestion has focus inside the suggestions box
+        suggestionsBox.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                const el = document.activeElement;
+                if (el && el.classList && el.classList.contains('suggestion-item')) {
+                    e.preventDefault();
+                    selectItemFromSuggestion(el);
+                }
+            }
+        });
+
+        // Hide suggestions on blur after small delay to allow click
+        let suggestionsBlurTimeout = null;
+        itemNameInput.addEventListener('blur', function () {
+            suggestionsBlurTimeout = setTimeout(() => {
+                suggestionsBox.style.display = 'none';
+            }, 200);
+        });
+
+        // If user presses inside suggestions, clear the blur timeout so selection works
+        suggestionsBox.addEventListener('mousedown', function () {
+            if (suggestionsBlurTimeout) {
+                clearTimeout(suggestionsBlurTimeout);
+                suggestionsBlurTimeout = null;
+            }
+        });
+    }
+
+        // Barcode scanning / manual entry on itemCode
+    const itemCodeInput = document.getElementById('itemCode');
+    let lastLookedUpCode = '';
+
+    if (itemCodeInput) {
+        // Trigger lookup on Enter (barcode scanners usually send Enter)
+        itemCodeInput.addEventListener('keydown', async function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const code = this.value.trim();
+                if (!code) return;
+                
+                // Always lookup on Enter, even if same code (maybe they want to reset)
+                await handleBarcodeLookup(code);
+                lastLookedUpCode = code;
+            }
+        });
+
+        // Lookup when focus leaves the field (for manual typing + Tab)
+        itemCodeInput.addEventListener('blur', async function () {
+            const code = this.value.trim();
+            if (!code) return;
+            
+            // Avoid double lookup if we just did it via Enter
+            if (code === lastLookedUpCode) return;
+            
+            await handleBarcodeLookup(code);
+            lastLookedUpCode = code;
+        });
+    }
+
+
+    // Handle barcode lookup and populate item fields
+    async function handleBarcodeLookup(code) {
+        try {
+            const token = localStorage.getItem('token');
+            const resp = await fetch(`/api/v1/items/barcode/${encodeURIComponent(code)}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!resp.ok) {
+                // Try query-based endpoint fallback
+                const resp2 = await fetch(`/api/v1/items/barcode?code=${encodeURIComponent(code)}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!resp2.ok) {
+                    showError(`Item not found for code: ${code}`);
+                    // Optional: Clear fields if not found?
+                    // clearItemFields(); 
+                    // But keep the code so they can correct it
+                    return;
+                }
+                const data2 = await resp2.json();
+                populateItemFromLookup(data2.data);
+                return;
+            }
+
+            const data = await resp.json();
+            populateItemFromLookup(data.data);
+        } catch (err) {
+            console.error('Barcode lookup error:', err);
+            showError('Error looking up barcode');
+        }
+    }
+
+    function populateItemFromLookup(item) {
+        if (!item) return;
+        
+        // Ensure item is in availableItems and dropdown
+        const itemSelect = document.getElementById('itemSelect');
+        let found = availableItems.find(i => i._id === item._id);
+        
+        if (!found) {
+            // Add to local list
+            availableItems.push(item);
+            // Add option to dropdown
+            if (itemSelect) {
+                const option = document.createElement('option');
+                option.value = item._id;
+                option.textContent = `${item.name} (Stock: ${item.stockQty || 0})`;
+                itemSelect.appendChild(option);
+            }
+            found = item;
+        }
+
+        if (itemSelect) {
+            itemSelect.value = item._id;
+        }
+
+        document.getElementById('itemCode').value = item.barcode || item.sku || '';
+        document.getElementById('costPrice').value = item.purchasePrice || 0;
+        document.getElementById('salePrice').value = item.salePrice || 0;
+        document.getElementById('stock').value = item.stockQty || 0;
+        document.getElementById('taxPercent').value = item.taxPercent || 0;
+        const itemNameInput = document.getElementById('itemName');
+        if (itemNameInput) itemNameInput.value = item.name || '';
+        
+        calculateItemTotal();
+        
+        // Move focus to Pack (Quantity) field for quick entry
+        const packInput = document.getElementById('pack');
+        if (packInput) {
+            packInput.focus();
+            packInput.select();
+        }
+    }
     // Calculation events
     document.getElementById('pack').addEventListener('input', calculateItemTotal);
     document.getElementById('costPrice').addEventListener('input', calculateItemTotal);
@@ -81,6 +454,26 @@ function initPurchasesPage() {
     document.getElementById('misc').addEventListener('input', calculateTotals);
     document.getElementById('freight').addEventListener('input', calculateTotals);
     document.getElementById('paid').addEventListener('input', calculateTotals);
+
+    // Keyboard navigation: Enter on discount field adds item and focuses on next item's name field
+    document.getElementById('discPercent').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addItemToPurchase();
+            // Focus on itemName field for next item
+            setTimeout(() => {
+                const itemNameInput = document.getElementById('itemName');
+                if (itemNameInput) {
+                    try {
+                        itemNameInput.focus({ preventScroll: true });
+                    } catch (err) {
+                        // Older browsers may not support preventScroll
+                        itemNameInput.focus();
+                    }
+                }
+            }, 100);
+        }
+    });
 }
 
 // Load suppliers
@@ -285,6 +678,10 @@ function clearItemFields() {
     document.getElementById('discRs').value = '';
     document.getElementById('itemTotal').value = '';
     document.getElementById('itemNetTotal').value = '';
+    const itemNameInput = document.getElementById('itemName');
+    if (itemNameInput) itemNameInput.value = '';
+    const suggestionsBox = document.getElementById('itemSuggestions');
+    if (suggestionsBox) { suggestionsBox.style.display = 'none'; suggestionsBox.innerHTML = ''; }
 }
 
 // Calculate totals
@@ -759,6 +1156,12 @@ function debounce(func, wait) {
     };
 }
 
+// Simple HTML escape to avoid injecting HTML into suggestions
+function escapeHtml(text) {
+    if (!text) return '';
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
 // Format date
 function formatDate(dateString) {
     const options = { year: 'numeric', month: 'short', day: 'numeric' };
@@ -780,4 +1183,30 @@ function showSupplierList() {
 
 function showItemList() {
     window.location.href = '/items.html';
+}
+
+// Load categories for filter
+async function loadCategories() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/v1/categories', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const categorySelect = document.getElementById('categoryFilter');
+            if (categorySelect) {
+                categorySelect.innerHTML = '<option value="">All Categories</option>';
+
+                if (data.data) {
+                    data.data.forEach(cat => {
+                        categorySelect.innerHTML += `<option value="${cat.name}">${cat.name}</option>`;
+                    });
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error loading categories:', error);
+    }
 }

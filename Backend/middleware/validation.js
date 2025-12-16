@@ -63,7 +63,7 @@ const userValidations = {
 const itemValidations = {
   create: [
     commonValidations.name,
-    body('sku').trim().notEmpty().withMessage('SKU is required'),
+    body('sku').optional().trim(),
     body('category').trim().notEmpty().withMessage('Category is required'),
     body('purchasePrice').isFloat({ min: 0 }).withMessage('Purchase price must be positive'),
     body('salePrice').isFloat({ min: 0 }).withMessage('Sale price must be positive'),

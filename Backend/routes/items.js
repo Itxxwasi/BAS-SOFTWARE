@@ -9,6 +9,8 @@ const {
   getItemsByCategory,
   getCategories,
   getLowStockItems
+  ,getItemByBarcode
+  ,searchItems
 } = require('../controllers/itemController');
 const { protect, authorize } = require('../middleware/auth');
 const { itemValidations, handleValidationErrors } = require('../middleware/validation');
@@ -27,6 +29,21 @@ router
 router
   .route('/categories')
   .get(getCategories);
+
+// Search items by name (public)
+router
+  .route('/search')
+  .get(searchItems);
+
+// Lookup by barcode (must come before generic /:id route)
+router
+  .route('/barcode/:code')
+  .get(protect, getItemByBarcode);
+
+// Lookup by barcode with query param (fallback)
+router
+  .route('/barcode')
+  .get(protect, getItemByBarcode);
 
 router
   .route('/category/:category')

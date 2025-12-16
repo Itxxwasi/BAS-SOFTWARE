@@ -451,7 +451,7 @@ async function saveUser() {
             .map(cb => cb.value);
 
         const formData = {
-            name: document.getElementById('userName').value,
+            name: document.getElementById('userFormName').value,
             email: document.getElementById('userEmail').value,
             role: document.getElementById('userRole').value,
             phone: document.getElementById('userPhone').value,
@@ -525,7 +525,7 @@ async function editUser(userId) {
             // Populate form
             document.getElementById('userModalTitle').textContent = 'Edit User';
             document.getElementById('userId').value = user._id;
-            document.getElementById('userName').value = user.name;
+            document.getElementById('userFormName').value = user.name;
             document.getElementById('userEmail').value = user.email;
             document.getElementById('userPhone').value = user.phone || '';
             document.getElementById('userRole').value = user.role;

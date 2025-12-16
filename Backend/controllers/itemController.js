@@ -120,6 +120,78 @@ const getLowStockItems = asyncHandler(async (req, res, next) => {
   });
 });
 
+// @desc    Get item by barcode
+// @route   GET /api/v1/items/barcode/:code
+// @access  Public
+const getItemByBarcode = asyncHandler(async (req, res, next) => {
+  const code = req.params.code || req.query.code;
+
+  if (!code) {
+    return next(new ErrorResponse('Barcode is required', 400));
+  }
+  // Try exact barcode match first
+  let item = await Item.findOne({ barcode: code })
+    .populate('company')
+    .populate('class')
+    .populate('subclass')
+    .populate('supplier');
+
+  // Fallback: exact SKU match
+  if (!item) {
+    item = await Item.findOne({ sku: code })
+      .populate('company')
+      .populate('class')
+      .populate('subclass')
+      .populate('supplier');
+  }
+
+  // Fallback: partial search on barcode or sku
+  if (!item) {
+    const regex = new RegExp(code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    item = await Item.findOne({ $or: [{ barcode: { $regex: regex } }, { sku: { $regex: regex } }] })
+      .populate('company')
+      .populate('class')
+      .populate('subclass')
+      .populate('supplier');
+  }
+
+  if (!item) {
+    return next(new ErrorResponse(`Item not found for code ${code}`, 404));
+  }
+
+  res.status(200).json({ success: true, data: item });
+});
+
+// @desc    Search items by name (starts with)
+// @route   GET /api/v1/items/search?q=term&limit=20
+// @access  Public
+const searchItems = asyncHandler(async (req, res, next) => {
+  const q = req.query.q || '';
+  const limit = parseInt(req.query.limit, 10) || 20;
+
+  if (!q) {
+    return res.status(200).json({ success: true, count: 0, data: [] });
+  }
+
+  // Escape regex special chars
+  const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // Match substring anywhere in name, sku, or barcode (case-insensitive)
+  const regex = new RegExp(esc, 'i');
+
+  const items = await Item.find({
+    $or: [
+      { name: { $regex: regex } },
+      { sku: { $regex: regex } },
+      { barcode: { $regex: regex } }
+    ]
+  })
+    .limit(limit)
+    .select('name sku barcode stockQty purchasePrice salePrice')
+    .lean();
+
+  res.status(200).json({ success: true, count: items.length, data: items });
+});
+
 module.exports = {
   getItems,
   getItem,
@@ -129,4 +201,6 @@ module.exports = {
   getItemsByCategory,
   getCategories,
   getLowStockItems
+  ,getItemByBarcode
+  ,searchItems
 };

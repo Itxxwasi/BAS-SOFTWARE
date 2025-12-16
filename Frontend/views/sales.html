@@ -179,15 +179,20 @@
                             <div class="item-entry-section">
                                 <div class="form-row">
                                     <div class="form-field w-150">
+                                        <label>Category</label>
+                                        <select id="categoryFilter">
+                                            <option value="">All Categories</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-field w-150">
                                         <label>Code</label>
                                         <input type="text" id="itemCode">
                                     </div>
                                     <div class="form-field flex-2">
                                         <label>Name</label>
-                                        <div class="input-group">
-                                            <select id="itemSelect">
-                                                <option value="">-- Select Item --</option>
-                                            </select>
+                                        <div class="input-group" style="position: relative;">
+                                            <input type="text" id="itemName" placeholder="Type to search item..." autocomplete="off">
+                                            <input type="hidden" id="itemSelect">
                                             <button type="button" class="btn-add-new" onclick="openItemModal()">
                                                 <i class="fas fa-plus"></i>
                                             </button>
@@ -195,6 +200,7 @@
                                                 onclick="showItemList()">
                                                 <i class="fas fa-list"></i>
                                             </button>
+                                            <div id="itemSuggestions" class="suggestions-box" style="display:none;"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -212,7 +218,7 @@
                                     </div>
                                     <div class="form-field w-100 calc-field-light">
                                         <label>Stock</label>
-                                        <input type="number" id="stock" readonly>
+                                        <input type="number" id="stock" readonly tabindex="-1">
                                     </div>
                                     <div class="form-field w-100">
                                         <label>Tax %</label>
@@ -220,7 +226,7 @@
                                     </div>
                                     <div class="form-field w-100 calc-field-light">
                                         <label>Rs</label>
-                                        <input type="number" id="taxRs" readonly>
+                                        <input type="number" id="taxRs" readonly tabindex="-1">
                                     </div>
                                 </div>
 
@@ -231,11 +237,11 @@
                                     </div>
                                     <div class="form-field w-150 calc-field-light">
                                         <label>Total</label>
-                                        <input type="number" id="itemTotal" readonly>
+                                        <input type="number" id="itemTotal" readonly tabindex="-1">
                                     </div>
                                     <div class="form-field w-150 calc-field-light">
                                         <label>NetTotal</label>
-                                        <input type="number" id="itemNetTotal" readonly>
+                                        <input type="number" id="itemNetTotal" readonly tabindex="-1">
                                     </div>
                                     <div class="form-field w-100">
                                         <label>Incentive</label>

@@ -74,6 +74,48 @@
             font-size: 15px;
         }
 
+        /* Item autocomplete suggestions */
+        .item-name-wrapper {
+            position: relative;
+        }
+
+        .autocomplete-suggestions {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            border-radius: 4px;
+            background: white;
+            z-index: 2000 !important;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 2px;
+            display: none !important;
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+        }
+
+        .autocomplete-suggestions[style*="display: block"] {
+            display: block !important;
+        }
+
+        .suggestion-item {
+            padding: 10px 12px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.15s;
+            font-size: 13px;
+        }
+
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+
+        .suggestion-item:hover,
+        .suggestion-item.active {
+            background-color: #f0f4ff;
+        }
+
         .item-entry-section {
             background: white;
             padding: 15px;
@@ -173,15 +215,23 @@
                             <div class="item-entry-section">
                                 <div class="form-row">
                                     <div class="form-field w-150">
+                                        <label>Category</label>
+                                        <select id="categoryFilter">
+                                            <option value="">All Categories</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-field w-150">
                                         <label>Code</label>
                                         <input type="text" id="itemCode">
                                     </div>
                                     <div class="form-field flex-2">
                                         <label>Name</label>
-                                        <div class="input-group">
-                                            <select id="itemSelect">
+                                        <div class="input-group item-name-wrapper">
+                                            <input type="text" id="itemName" placeholder="Type to search item name...">
+                                            <select id="itemSelect" style="display: none;">
                                                 <option value="">-- Select Item --</option>
                                             </select>
+                                            <div id="itemSuggestions" class="autocomplete-suggestions"></div>
                                             <button type="button" class="btn-add-new" onclick="openItemModal()">
                                                 <i class="fas fa-plus"></i>
                                             </button>
