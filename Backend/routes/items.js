@@ -40,6 +40,11 @@ router
   .route('/barcode/:code')
   .get(protect, getItemByBarcode);
 
+// Lookup by barcode with query param (fallback)
+router
+  .route('/barcode')
+  .get(protect, getItemByBarcode);
+
 router
   .route('/category/:category')
   .get(getItemsByCategory);
