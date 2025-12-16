@@ -472,14 +472,18 @@
                         <!-- Row: T.Sale Comp | Difference -->
                         <div class="row mb-2">
                             <div class="col-sm-6">
-                                <div class="row"> <!-- Add Plus button here if needed -->
-                                    <label class="col-sm-6 fw-bold small" style="white-space:nowrap;">Total Sale
-                                        Computer</label>
-                                    <div class="col-sm-6 input-group input-group-sm">
-                                        <button class="btn btn-primary px-2" type="button"><i
-                                                class="fas fa-plus"></i></button>
+                                <div class="row">
+                                    <div class="col-sm-6 d-flex align-items-center justify-content-between">
+                                        <label class="fw-bold small mb-0" style="white-space:nowrap;">Total Sale
+                                            Computer</label>
+                                        <button class="btn btn-primary px-2 py-0 me-1" type="button"
+                                            onclick="openDepartmentSalesModal()" style="height: 24px; line-height: 1;">
+                                            <i class="fas fa-plus" style="font-size: 0.7rem;"></i>
+                                        </button>
+                                    </div>
+                                    <div class="col-sm-6">
                                         <input type="number" id="totalSaleComputer"
-                                            class="form-control bg-info text-white" value="0">
+                                            class="form-control form-control-sm bg-info text-white" value="0">
                                     </div>
                                 </div>
                             </div>
@@ -537,6 +541,8 @@
                                 Save (alt+S)</button>
                             <button class="btn btn-primary btn-sm" onclick="printSheet('closing02')"><i
                                     class="fas fa-print"></i> Print</button>
+                            <button class="btn btn-info btn-sm text-white ms-1" onclick="openWarehouseSaleModal()"><i
+                                    class="fas fa-warehouse"></i> Warehouse Sale</button>
                         </div>
                     </div>
 
@@ -784,6 +790,107 @@
 
                 <div id="reportOutput" class="border p-3 bg-white" style="min-height: 400px;">
                     <p class="text-muted text-center">Select a report type and date range to generate report</p>
+                </div>
+            </div>
+        </div>
+        <!-- Department Sales Modal -->
+        <div class="modal fade" id="departmentSalesModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">Closing2_Department_Sales</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-sm" id="deptSalesTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Department</th>
+                                        <th>Total Sale Computer</th>
+                                        <th>Cost Sale</th>
+                                        <th style="width: 50px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- JS Generated -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <button class="btn btn-sm btn-info mb-3" onclick="addDeptSaleRow()"><i class="fas fa-plus"></i>
+                            Add
+                            Row</button>
+
+                        <div class="row align-items-center justify-content-end">
+                            <label class="col-auto fw-bold">Total Amount:</label>
+                            <div class="col-3">
+                                <input type="number" id="modalTotalAmount" class="form-control form-control-sm" readonly
+                                    value="0">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-success" onclick="saveDepartmentSalesModal()">Save</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Warehouse Sale Modal -->
+        <div class="modal fade" id="warehouseSaleModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-info text-white">
+                        <h5 class="modal-title"><i class="fas fa-warehouse me-2"></i>Warehouse Sale</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-sm" id="warehouseSaleTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Category</th>
+                                        <th>Sale Amount</th>
+                                        <th>Cost Amount</th>
+                                        <th>Profit</th>
+                                        <th style="width: 50px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- JS Generated -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <button class="btn btn-sm btn-info mb-3 text-white" onclick="addWarehouseRow()"><i
+                                class="fas fa-plus"></i>
+                            Add Row</button>
+
+                        <div class="row align-items-center justify-content-end gx-2">
+                            <label class="col-auto fw-bold">Total Sale:</label>
+                            <div class="col-2">
+                                <input type="number" id="warehouseTotalAmount"
+                                    class="form-control form-control-sm fw-bold bg-success text-white" readonly
+                                    value="0">
+                            </div>
+                            <label class="col-auto fw-bold">Total Cost:</label>
+                            <div class="col-2">
+                                <input type="number" id="warehouseTotalCost"
+                                    class="form-control form-control-sm fw-bold bg-warning text-dark" readonly
+                                    value="0">
+                            </div>
+                            <label class="col-auto fw-bold">Total Profit:</label>
+                            <div class="col-2">
+                                <input type="number" id="warehouseTotalProfit"
+                                    class="form-control form-control-sm fw-bold bg-info text-white" readonly value="0">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-success" onclick="saveWarehouseSale()">Save</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
                 </div>
             </div>
         </div>

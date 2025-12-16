@@ -58,6 +58,7 @@ exports.saveClosingSheet = async (req, res) => {
 
         res.status(200).json({ success: true, data: sheet });
     } catch (err) {
+        console.error('Save Sheet Error:', err);
         res.status(400).json({ success: false, message: err.message });
     }
 };

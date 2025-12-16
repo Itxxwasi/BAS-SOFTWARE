@@ -25,6 +25,8 @@ const DepartmentSchema = new mongoose.Schema({
     deductUgSaleFromAllDep: { type: Boolean, default: false },
     closing: { type: Boolean, default: false },
     isCashCounter: { type: Boolean, default: false },
+    closing2CompSale: { type: Boolean, default: false },
+    closing2DeptDropDown: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now }
 });

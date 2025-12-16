@@ -111,6 +111,8 @@ async function saveDepartment() {
         deductUgSaleFromAllDep: document.getElementById('deductUgSaleFromAllDep').checked,
         closing: document.getElementById('closing').checked,
         isCashCounter: document.getElementById('isCashCounter').checked,
+        closing2CompSale: document.getElementById('closing2CompSale').checked,
+        closing2DeptDropDown: document.getElementById('closing2DeptDropDown').checked,
         isActive: document.getElementById('isActive').checked
     };
 
@@ -169,6 +171,8 @@ async function editDepartment(id) {
             document.getElementById('deductUgSaleFromAllDep').checked = d.deductUgSaleFromAllDep;
             document.getElementById('closing').checked = d.closing;
             document.getElementById('isCashCounter').checked = d.isCashCounter || false;
+            document.getElementById('closing2CompSale').checked = d.closing2CompSale || false;
+            document.getElementById('closing2DeptDropDown').checked = d.closing2DeptDropDown || false;
             document.getElementById('isActive').checked = d.isActive;
         }
     } catch (e) { console.error(e); }

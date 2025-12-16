@@ -6,6 +6,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('userName').textContent = user.name;
 
     await loadBranches();
+
+    // Auto-load on Date or Branch change
+    document.getElementById('date')?.addEventListener('change', loadSheet);
+    document.getElementById('branch')?.addEventListener('change', loadSheet);
+
     loadSheet();
 
     // Fix: Manually handle tab switching cleanup to prevent overlap
@@ -350,6 +355,7 @@ async function loadSheet() {
         if (closing02DeptSelect) {
             closing02DeptSelect.innerHTML = '<option value="">Select Department</option>';
             filteredDepts.forEach(d => {
+                if (!d.closing2DeptDropDown) return; // User Request: Only show 'Closing 2 Dept Drop Down' checked departments
                 const opt = document.createElement('option');
                 opt.value = d._id;
                 opt.text = d.name;
@@ -376,6 +382,7 @@ async function loadSheet() {
 }
 
 // Load Department Sales Table for Closing 02
+// Load Department Sales Table for Closing 02
 function loadClosing02DeptTable(departments) {
     const tbody = document.getElementById('closing02DeptTable');
     const totalEl = document.getElementById('closing02DeptTotal');
@@ -384,21 +391,50 @@ function loadClosing02DeptTable(departments) {
 
     tbody.innerHTML = '';
     let total = 0;
+    let hasRows = false;
 
     if (departments && departments.length > 0) {
         departments.forEach(dept => {
-            const sale = dept.sale || 0; // You can fetch actual sales data from API
-            total += sale;
+            // Filter: Only show departments meant for Main Dropdown (Parent/Visible)
+            // This hides 'Child' departments (like Surgical/Cosmetics which are part of Medicine's popup)
+            if (!dept.closing2DeptDropDown) return;
 
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td class="fw-bold">${dept.name}</td>
-                <td class="text-end">${sale.toLocaleString()}</td>
-            `;
-            tbody.appendChild(tr);
+            // 1. Manual Entry from Modal/State
+            let manualSale = 0;
+            if (closing02State[dept._id]) {
+                manualSale = closing02State[dept._id].totalSaleComputer || 0;
+            }
+
+            // 2. Auto Entry from Cash Counter (Cash Sales)
+            let autoSale = 0;
+            if (currentCashSalesData) {
+                // Filter by Department ID
+                const deptSales = currentCashSalesData.filter(s =>
+                    (s.department && (s.department._id === dept._id || s.department === dept._id))
+                );
+                autoSale = deptSales.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
+            }
+
+            // Total Sale for this Dept
+            const finalSale = manualSale + autoSale;
+
+            // Only show if finalSale > 0
+            if (finalSale > 0) {
+                total += finalSale;
+                hasRows = true;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="fw-bold">${dept.name}</td>
+                    <td class="text-end">${finalSale.toLocaleString()}</td>
+                `;
+                tbody.appendChild(tr);
+            }
         });
-    } else {
-        tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">No departments</td></tr>';
+    }
+
+    if (!hasRows) {
+        tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">No sales data</td></tr>';
     }
 
     if (totalEl) {
@@ -809,7 +845,9 @@ async function loadClosing02DeptData(deptId) {
 function updateClosing02State(deptId) {
     if (!deptId) return;
 
+    const currentState = closing02State[deptId] || {};
     closing02State[deptId] = {
+        ...currentState,
         counterClosing: parseFloat(document.getElementById('counterClosing').value) || 0,
         lp: parseFloat(document.getElementById('lp').value) || 0,
         misc: parseFloat(document.getElementById('misc').value) || 0,
@@ -985,11 +1023,22 @@ async function saveSheet() {
             body: JSON.stringify(payload)
         });
 
-        const data = await response.json();
+        let data;
+        try {
+            data = await response.json();
+        } catch (err) {
+            // If JSON parse fails, try text
+            const text = await response.text();
+            console.error('Non-JSON response:', text);
+            alert('Server Error (Non-JSON): ' + text.substring(0, 200));
+            return;
+        }
+
         if (data.success) {
-            alert('Saved successfully');
+            showNotification('Saved successfully');
         } else {
-            alert('Error: ' + data.message);
+            console.error('Save Error Data:', data);
+            showNotification('Error: ' + (data.message || 'Unknown Error'), true);
         }
     } catch (e) { console.error(e); }
 }
@@ -1053,11 +1102,10 @@ function sendSMS() {
 // Report Generation Functions
 async function generateReport(reportType) {
     const fromDate = document.getElementById('reportFromDate')?.value;
-    const toDate = document.getElementById('reportToDate')?.value;
     const branch = document.getElementById('branch').value;
 
-    if (!fromDate || !toDate) {
-        alert('Please select date range');
+    if (!fromDate) {
+        alert('Please select date');
         return;
     }
 
@@ -1069,49 +1117,236 @@ async function generateReport(reportType) {
     try {
         const token = localStorage.getItem('token');
 
-        // Fetch data based on report type
+        // 1. Fetch Closing Sheet Data for the Date
+        const response = await fetch(`/api/v1/closing-sheets?date=${fromDate}&branch=${branch}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const json = await response.json();
+        const sheet = json.data || {};
+        const closing02 = sheet.closing02 && sheet.closing02.data ? sheet.closing02.data : {};
+
+        // 2. Fetch Departments to iterate
+        // Use global `currentDepartments` if available, else fetch
+        let departments = currentDepartments;
+        if (!departments || departments.length === 0) {
+            const dResp = await fetch('/api/v1/departments', { headers: { 'Authorization': `Bearer ${token}` } });
+            const dData = await dResp.json();
+            departments = dData.data || [];
+        }
+
+        // Filter valid departments (e.g. Active)
+        departments = departments.filter(d => d.isActive).sort((a, b) => (parseInt(a.code) || 99).toString().localeCompare((parseInt(b.code) || 99).toString())); // Simple sort
+
         let reportHTML = '';
 
         if (reportType === 'openingBalance') {
-            reportHTML = `
-                <h5>Opening Balance & Received Cash Detail</h5>
-                <p>Branch: ${branch}</p>
-                <p>Period: ${fromDate} to ${toDate}</p>
-                <table class="table table-bordered table-sm">
-                    <thead class="table-primary">
-                        <tr>
-                            <th>Date</th>
-                            <th>Opening Balance</th>
-                            <th>Received Cash</th>
-                            <th>Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td colspan="4" class="text-center text-muted">No data available for selected period</td>
-                        </tr>
-                    </tbody>
-                </table>
+            // 1. Fetch Cash Sales for the Date (for Counter Sales integration)
+            const csResp = await fetch(`/api/v1/cash-sales?date=${fromDate}&branch=${branch}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const csJson = await csResp.json();
+            const cashSales = csJson.data || [];
+
+            // User Request: All Cash Counter Sales should be summed into OPTICS department
+            const totalCounterSales = cashSales.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
+
+            // Pre-calculate Total % Cash Rec (Deduction Sum) for PERCENTAGE CASH Department
+            let totalPercentageCashSum = 0;
+            departments.forEach(d => {
+                if (d.name.toUpperCase() === 'PERCENTAGE CASH') return;
+                const state = closing02[d._id] || {};
+                const sale = state.totalSaleComputer || 0;
+                const rate = d.deduction || 0;
+                const ded = Math.round((sale * rate) / 100);
+                totalPercentageCashSum += ded;
+            });
+
+            // Build Rows
+            let rowsHTML = '';
+
+            // Totals
+            let totalOpening = 0;
+            let totalReceived = 0;
+            let totalPercCash = 0;
+            let totalGrand = 0;
+            let totalSaleComp = 0;
+            let totalDed = 0;
+            let totalNet = 0;
+            let totalRate = 0; // Sum of rates? Reference shows 45.00 sum.
+
+            departments.forEach(dept => {
+                const dId = dept._id;
+                const dName = dept.name;
+                const state = closing02[dId] || {};
+
+                // Map Fields
+                // Opening Amount: In UI it is 'Opening (-)' which is usually Previous Closing.
+                // In reference: negative values shown. 
+                // Let's use `openingMinus` from state.
+                // Note: If user entered positive `openingMinus`, it means subtract positive. 
+                // Reference has NEGATIVE "Opening Amount". 
+                // User Ref: "Opening Amount" column.
+                // Let's just take `openingMinus`. If it matches the input, good.
+                // Actually, `openingMinus` in Closing 02 is "Opening (-)".
+                // Let's assume the value in DB is what we show.
+                // HOWEVER, Reference image has "Medicine: -471,304".
+                // If the UI input was 471304 (positive because label says (-)), then we might need to negate it.
+                // But let's check one row logic: (-471304) + 367334 = -103970.
+                // Logic: Opening + Received = GrandTotal.
+                // So if `openingMinus` is positive 471304, we should treat it as -471304.
+
+                // 1. Opening Amount (From Department Opening Tab)
+                let opAmt = 0;
+                if (Array.isArray(sheet.departmentOpening)) {
+                    const found = sheet.departmentOpening.find(x => (x.department === dId || (x.department && x.department._id === dId)));
+                    if (found) opAmt = Number(found.amount) || 0;
+                } else if (sheet.departmentOpening && sheet.departmentOpening[dId]) {
+                    opAmt = Number(sheet.departmentOpening[dId].amount) || Number(sheet.departmentOpening[dId].openingBalance) || 0;
+                }
+
+                // Filter: Hide department if Opening Amount is 0 (not available in plus or minus)
+                if (opAmt === 0 && dName.toUpperCase() !== 'OPTICS') return;
+
+                // 2. Received Cash
+                // Part A: From Closing Sheet 2 Received Cash Column (Manual Entry)
+                const recCashSheet = Number(state.receivedCash) || 0;
+
+                // Part B: From Cash Counter Cash Sale (Auto Entry)
+                // User Request: All Cash Sales go to OPTICS. Others get 0.
+                let recCashCounter = 0;
+                if (dName.toUpperCase() === 'OPTICS') {
+                    recCashCounter = totalCounterSales;
+                }
+
+                // Total Received Cash
+                const totalRecCashForDept = recCashSheet + recCashCounter;
+
+                // For legacy variable support in later code
+                let recCash = totalRecCashForDept;
+
+                // Rate: From Department Settings (Deduction field)
+                const rate = dept.deduction || 0;
+
+                // Total Sale Computer
+                const saleComp = state.totalSaleComputer || 0;
+
+                // Ded (Deduction) = Sale * Rate / 100
+                const ded = Math.round((saleComp * rate) / 100);
+
+                // % Cash Rec From Dept Formula: Only Rate % Calculation Value (Deduction)
+                let percCashRec = ded;
+
+                // Logic: For "PERCENTAGE CASH" department, show sum of all other departments' deductions
+                if (dName.toUpperCase() === 'PERCENTAGE CASH') {
+                    percCashRec = totalPercentageCashSum;
+                    recCash = 0;
+                }
+
+                // GrandTotal: Only PERCENTAGE CASH dept includes the % Cash Rec amount in its total. Exception: CASH REC FROM COUNTER is always 0.
+                let grandTotal = Math.round(opAmt + recCash + (dName.toUpperCase() === 'PERCENTAGE CASH' ? percCashRec : 0));
+                if (dName.toUpperCase() === 'CASH REC FROM COUNTER') grandTotal = 0;
+
+                // Net_Total = GrandTotal - Ded
+                const netTotal = Math.round(grandTotal - ded);
+
+                // Update Totals
+                totalOpening += opAmt;
+                totalReceived += recCash;
+                if (dName.toUpperCase() !== 'PERCENTAGE CASH') totalPercCash += percCashRec;
+                totalGrand += grandTotal;
+                totalSaleComp += saleComp;
+                totalDed += ded;
+                totalNet += netTotal;
+                totalRate += rate;
+
+                // Rows
+                rowsHTML += `
+                    <tr>
+                        <td>${dName}</td>
+                        <td class="text-end">${opAmt.toLocaleString()}</td> <!-- Watches Removed -->
+                        <td class="text-end">${recCash.toLocaleString()}</td>
+                        <td class="text-end">${dName.toUpperCase() === 'PERCENTAGE CASH' && percCashRec !== 0 ? percCashRec.toLocaleString() : ''}</td>
+                        <td class="text-end">${grandTotal.toLocaleString()}</td>
+                        <td class="text-center">${rate > 0 ? rate.toFixed(2) : ''}</td>
+                        <td class="text-end">${saleComp.toLocaleString()}</td>
+                        <td class="text-end">${ded.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                        <td class="text-end fw-bold">${netTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                    </tr>
+                `;
+            });
+
+            // Format Totals
+            const footerHTML = `
+                <tr class="fw-bold" style="background-color: black; color: white;">
+                    <td>Total</td>
+                    <td class="text-end">${totalOpening.toLocaleString()}</td>
+                    <td class="text-end">${totalReceived.toLocaleString()}</td>
+                    <td class="text-end">${totalPercCash.toLocaleString()}</td>
+                    <td class="text-end">${totalGrand.toLocaleString()}</td>
+                    <td class="text-center"></td>
+                    <td class="text-end">${totalSaleComp.toLocaleString()}</td>
+                    <td class="text-end">${totalDed.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                    <td class="text-end">${totalNet.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                </tr>
             `;
-        } else if (reportType === 'deptWisePercentage') {
+
             reportHTML = `
-                <h5>Daily Department Wise Percentage Cash Detail</h5>
-                <p>Branch: ${branch}</p>
-                <p>Period: ${fromDate} to ${toDate}</p>
-                <table class="table table-bordered table-sm">
-                    <thead class="table-primary">
-                        <tr>
-                            <th>Department</th>
-                            <th>Cash Amount</th>
-                            <th>Percentage</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td colspan="3" class="text-center text-muted">No data available for selected period</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div id="printArea">
+                    <style>
+                        @media print {
+                            body * { visibility: hidden; }
+                            #printArea, #printArea * { visibility: visible; }
+                            #printArea { position: absolute; left: 0; top: 0; width: 100%; }
+                            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                            th, td { border: 1px solid black; padding: 4px; }
+                            th { background-color: #ccc !important; color: black !important; -webkit-print-color-adjust: exact; }
+                            tfoot tr, tfoot td { background-color: transparent !important; color: black !important; border: 1px solid black !important; }
+                        }
+                        .report-header { text-align: center; margin-bottom: 20px; }
+                        .report-meta { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: bold; }
+                        table { width: 100%; border-collapse: collapse; }
+                        th { border: 1px solid black; padding: 5px; text-align: center; }
+                        @media screen {
+                            th { background-color: #007bff !important; color: white !important; }
+                            tfoot tr { background-color: black !important; color: white !important; }
+                            tfoot td { background-color: black !important; color: white !important; border: 1px solid white !important; }
+                        }
+                        td { border: 1px solid black; padding: 5px; }
+                    </style>
+                    
+                    <div class="report-header">
+                        <h3>Opening Balance and Received Cash Detail</h3>
+                    </div>
+                    <div class="report-meta">
+                        <span>${new Date(fromDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                        <span>(${branch})</span>
+                    </div>
+
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Department</th>
+                                <th>Opening Amount</th>
+                                <th>Received Cash</th>
+                                <th>% Cash Rec From Dept</th>
+                                <th>GrandTotal</th>
+                                <th>Rate</th>
+                                <th>Total Sale Computer</th>
+                                <th>Ded</th>
+                                <th>Net_Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHTML}
+                        </tbody>
+                        <tfoot>
+                            ${footerHTML}
+                        </tfoot>
+                    </table>
+                </div>
+                <div class="mt-3 text-end section-no-print">
+                    <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Print Report</button>
+                </div>
             `;
         }
 
@@ -1119,7 +1354,7 @@ async function generateReport(reportType) {
 
     } catch (e) {
         console.error('Error generating report:', e);
-        reportOutput.innerHTML = '<p class="text-danger">Error generating report. Please try again.</p>';
+        reportOutput.innerHTML = '<p class="text-danger">Error generating report. Please check console.</p>';
     }
 }
 
@@ -1139,3 +1374,316 @@ document.addEventListener('DOMContentLoaded', () => {
     if (reportFromDate) reportFromDate.value = today;
     if (reportToDate) reportToDate.value = today;
 });
+
+// --- Modal Logic ---
+
+function openDepartmentSalesModal() {
+    const tbody = document.querySelector('#deptSalesTable tbody');
+    tbody.innerHTML = '';
+
+    const currentDeptId = document.getElementById('closing02Dept').value;
+    if (!currentDeptId) {
+        alert('Please select a department first');
+        return;
+    }
+
+    console.log('Opening Modal for:', currentDeptId);
+    console.log('Current State:', closing02State[currentDeptId]);
+
+    let hasRows = false;
+    const deptState = closing02State[currentDeptId] || {};
+    let breakdown = deptState.salesBreakdown || {};
+
+    // MIGRATION: If no scoped breakdown exists, check for Global Legacy Data
+    if (Object.keys(breakdown).length === 0) {
+        const legacyBreakdown = {};
+        let foundLegacy = false;
+        if (typeof currentDepartments !== 'undefined') {
+            currentDepartments.forEach(d => {
+                // Check global scope for this department
+                const globalData = closing02State[d._id];
+                if (globalData && (globalData.totalSaleComputer > 0 || globalData.computerSaleComponent > 0 || globalData.costSale > 0)) {
+                    // Include if it's the Current Department OR a 'Pure' Child Component (Not a Main Dept)
+                    // This prevents other Main Departments (like Grocery) from appearing in Medicine's popup during migration
+                    if (d._id === currentDeptId || (d.closing2CompSale && !d.closing2DeptDropDown)) {
+                        const sale = globalData.computerSaleComponent || globalData.totalSaleComputer || 0;
+                        const cost = globalData.costSale || 0;
+                        if (sale > 0 || cost > 0) {
+                            legacyBreakdown[d._id] = { sale, cost };
+                            foundLegacy = true;
+                        }
+                    }
+                }
+            });
+        }
+        if (foundLegacy) {
+            console.log('Legacy Data Detected. Migrating view for:', currentDeptId);
+            breakdown = legacyBreakdown; // Use legacy data for this view
+        }
+    }
+
+    Object.keys(breakdown).forEach(subDeptId => {
+        const data = breakdown[subDeptId];
+        addDeptSaleRow(subDeptId, data.sale || 0, data.cost || 0);
+        hasRows = true;
+    });
+
+    // If no existing data found, add default row for current dept
+    if (!hasRows) {
+        addDeptSaleRow(currentDeptId);
+    }
+
+    // Update Total
+    calcModalTotal();
+
+    // Show Modal
+    const modal = new bootstrap.Modal(document.getElementById('departmentSalesModal'));
+    modal.show();
+}
+
+function addDeptSaleRow(deptId = '', sale = 0, cost = 0) {
+    // Default to currently selected department if not provided
+    if (!deptId) {
+        deptId = document.getElementById('closing02Dept').value;
+    }
+
+    const tbody = document.querySelector('#deptSalesTable tbody');
+    const tr = document.createElement('tr');
+
+    // Build Department Options
+    let options = '<option value="">Select Department</option>';
+    currentDepartments.forEach(d => {
+        if (!d.closing2CompSale) return; // User Request: Only show 'Closing 2 Comp Sale' departments
+        const selected = d._id === deptId ? 'selected' : '';
+        options += `<option value="${d._id}" ${selected}>${d.name}</option>`;
+    });
+
+    tr.innerHTML = `
+        <td>
+            <select class="form-select form-select-sm modal-dept-select">
+                ${options}
+            </select>
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm modal-sale-input" value="${sale}" oninput="calcModalTotal()">
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm modal-cost-input" value="${cost}">
+        </td>
+        <td class="text-center">
+            <button class="btn btn-sm btn-danger" onclick="removeDeptSaleRow(this)"><i class="fas fa-trash"></i></button>
+        </td>
+    `;
+    tbody.appendChild(tr);
+}
+
+function removeDeptSaleRow(btn) {
+    btn.closest('tr').remove();
+    calcModalTotal();
+}
+
+function calcModalTotal() {
+    let total = 0;
+    document.querySelectorAll('.modal-sale-input').forEach(inp => {
+        total += parseFloat(inp.value) || 0;
+    });
+    document.getElementById('modalTotalAmount').value = total;
+}
+
+function saveDepartmentSalesModal() {
+    const currentDeptId = document.getElementById('closing02Dept').value;
+    if (!currentDeptId) {
+        alert('Error: No active department found');
+        return;
+    }
+
+    // 1. Accumulate Data from Modal
+    const breakdown = {};
+    let grandTotalSale = 0;
+
+    document.querySelectorAll('#deptSalesTable tbody tr').forEach(tr => {
+        const deptId = tr.querySelector('.modal-dept-select').value;
+        const sale = parseFloat(tr.querySelector('.modal-sale-input').value) || 0;
+        const cost = parseFloat(tr.querySelector('.modal-cost-input').value) || 0;
+
+        if (deptId) {
+            if (!breakdown[deptId]) breakdown[deptId] = { sale: 0, cost: 0 };
+            breakdown[deptId].sale += sale;
+            breakdown[deptId].cost += cost;
+            grandTotalSale += sale;
+        }
+    });
+
+    // 2. Save to State (Scoped to Current Department)
+    if (!closing02State[currentDeptId]) closing02State[currentDeptId] = {};
+
+    closing02State[currentDeptId].salesBreakdown = breakdown;
+    closing02State[currentDeptId].totalSaleComputer = grandTotalSale;
+
+    // 3. Update UI
+    document.getElementById('totalSaleComputer').value = grandTotalSale;
+    calcClosing02Totals();
+
+    // CRITICAL: Re-assign breakdown in case calcClosing02Totals/updateClosing02State wiped it
+    if (closing02State[currentDeptId]) {
+        closing02State[currentDeptId].salesBreakdown = breakdown;
+        console.log('Saved Breakdown for', currentDeptId, breakdown);
+    }
+
+    // Refresh Side Table
+    loadClosing02DeptTable(currentDepartments);
+
+    // 4. Close Modal
+    const el = document.getElementById('departmentSalesModal');
+    const modal = bootstrap.Modal.getInstance(el);
+    modal.hide();
+}
+
+function showNotification(message, isError = false) {
+    const div = document.createElement('div');
+    div.style.position = 'fixed';
+    div.style.top = '20px';
+    div.style.right = '20px';
+    div.style.padding = '10px 20px';
+    div.style.backgroundColor = isError ? '#dc3545' : '#28a745';
+    div.style.color = 'white';
+    div.style.borderRadius = '5px';
+    div.style.zIndex = '9999';
+    div.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+    div.style.fontWeight = 'bold';
+    div.textContent = message;
+    document.body.appendChild(div);
+
+    setTimeout(() => {
+        div.remove();
+    }, 2000);
+}
+
+// --- Warehouse Sale Logic ---
+
+let warehouseCategories = [];
+
+async function loadWarehouseCategories() {
+    if (warehouseCategories.length > 0) return;
+    try {
+        const res = await fetch('/api/v1/categories');
+        const json = await res.json();
+        warehouseCategories = json.data || [];
+    } catch (err) {
+        console.error('Failed to load categories', err);
+        showNotification('Error loading categories', true);
+    }
+}
+
+async function openWarehouseSaleModal() {
+    await loadWarehouseCategories();
+
+    const tbody = document.querySelector('#warehouseSaleTable tbody');
+    tbody.innerHTML = '';
+
+    const savedData = closing02State.warehouseSale || [];
+
+    if (savedData.length > 0) {
+        savedData.forEach(item => {
+            addWarehouseRow(item.category, item.sale, item.cost);
+        });
+    } else {
+        addWarehouseRow();
+    }
+
+    calcWarehouseTotal();
+
+    const modal = new bootstrap.Modal(document.getElementById('warehouseSaleModal'));
+    modal.show();
+}
+
+function addWarehouseRow(catId = '', sale = 0, cost = 0) {
+    const tbody = document.querySelector('#warehouseSaleTable tbody');
+    const tr = document.createElement('tr');
+
+    let options = '<option value="">Select Category</option>';
+    warehouseCategories.forEach(c => {
+        const selected = c._id === catId ? 'selected' : '';
+        options += `<option value="${c._id}" ${selected}>${c.name}</option>`;
+    });
+
+    const profit = (sale || 0) - (cost || 0);
+
+    tr.innerHTML = `
+        <td>
+            <select class="form-select form-select-sm warehouse-cat-select">
+                ${options}
+            </select>
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm warehouse-sale-input" value="${sale}" oninput="calcWarehouseTotal()">
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm warehouse-cost-input" value="${cost}" oninput="calcWarehouseTotal()">
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm warehouse-profit-input bg-light fw-bold" value="${profit}" readonly>
+        </td>
+        <td class="text-center">
+            <button class="btn btn-sm btn-danger" onclick="removeWarehouseRow(this)"><i class="fas fa-trash"></i></button>
+        </td>
+    `;
+    tbody.appendChild(tr);
+}
+
+function removeWarehouseRow(btn) {
+    btn.closest('tr').remove();
+    calcWarehouseTotal();
+}
+
+function calcWarehouseTotal() {
+    let totalSale = 0;
+    let totalCost = 0;
+
+    const rows = document.querySelectorAll('#warehouseSaleTable tbody tr');
+    rows.forEach(tr => {
+        const saleInp = tr.querySelector('.warehouse-sale-input');
+        const costInp = tr.querySelector('.warehouse-cost-input');
+        const profitInp = tr.querySelector('.warehouse-profit-input');
+
+        const sale = parseFloat(saleInp.value) || 0;
+        const cost = parseFloat(costInp.value) || 0;
+        const profit = sale - cost;
+
+        if (profitInp) profitInp.value = profit;
+
+        totalSale += sale;
+        totalCost += cost;
+    });
+
+    const totalProfit = totalSale - totalCost;
+
+    const tSaleEl = document.getElementById('warehouseTotalAmount');
+    const tCostEl = document.getElementById('warehouseTotalCost');
+    const tProfitEl = document.getElementById('warehouseTotalProfit');
+
+    if (tSaleEl) tSaleEl.value = totalSale;
+    if (tCostEl) tCostEl.value = totalCost;
+    if (tProfitEl) tProfitEl.value = totalProfit;
+}
+
+
+
+function saveWarehouseSale() {
+    const data = [];
+    document.querySelectorAll('#warehouseSaleTable tbody tr').forEach(tr => {
+        const catId = tr.querySelector('.warehouse-cat-select').value;
+        const sale = parseFloat(tr.querySelector('.warehouse-sale-input').value) || 0;
+        const cost = parseFloat(tr.querySelector('.warehouse-cost-input').value) || 0;
+        if (catId) {
+            data.push({ category: catId, sale, cost });
+        }
+    });
+
+    closing02State.warehouseSale = data;
+    showNotification('Warehouse Sale Saved (In Memory). Click Main Save to Persist.');
+
+    const el = document.getElementById('warehouseSaleModal');
+    const modal = bootstrap.Modal.getInstance(el);
+    modal.hide();
+}
