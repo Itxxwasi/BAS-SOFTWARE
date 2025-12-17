@@ -71,23 +71,32 @@ exports.saveClosingSheet = async (req, res) => {
 // @access  Private
 exports.getIncomeStatementData = async (req, res) => {
     try {
-        const { date, branch } = req.query;
+        const { date, branch, viewType } = req.query; // viewType can be 'daily' or 'monthly'
         if (!date) return res.status(400).json({ success: false, message: 'Date is required' });
 
         const queryDate = new Date(date);
-        // Start of month
-        const startOfMonth = new Date(queryDate.getFullYear(), queryDate.getMonth(), 1);
-        startOfMonth.setHours(0, 0, 0, 0);
+        let start, end;
 
-        // End of month
-        const endOfMonth = new Date(queryDate.getFullYear(), queryDate.getMonth() + 1, 0);
-        endOfMonth.setHours(23, 59, 59, 999);
+        if (viewType === 'daily') {
+            // Start of Day (UTC)
+            start = new Date(date);
+            start.setUTCHours(0, 0, 0, 0);
+            // End of Day (UTC)
+            end = new Date(date);
+            end.setUTCHours(23, 59, 59, 999);
+        } else {
+            // Default to Monthly
+            start = new Date(queryDate.getFullYear(), queryDate.getMonth(), 1);
+            start.setHours(0, 0, 0, 0);
+            end = new Date(queryDate.getFullYear(), queryDate.getMonth() + 1, 0);
+            end.setHours(23, 59, 59, 999);
+        }
 
-        // 1. Fetch Cash Sales (Total Amount for 'Cash' mode in current month)
+        // 1. Fetch Cash Sales (Total Amount for 'Cash' mode)
         const cashSalesResult = await CashSale.aggregate([
             {
                 $match: {
-                    date: { $gte: startOfMonth, $lte: endOfMonth },
+                    date: { $gte: start, $lte: end },
                     branch: branch || 'F-6',
                     mode: 'Cash'
                 }
@@ -101,11 +110,11 @@ exports.getIncomeStatementData = async (req, res) => {
         ]);
         const cashSaleTotal = cashSalesResult.length > 0 ? cashSalesResult[0].total : 0;
 
-        // 2. Fetch Bank Sales (Total Amount for NON-Cash mode in current month)
+        // 2. Fetch Bank Sales (Total Amount for NON-Cash mode)
         const bankSalesResult = await CashSale.aggregate([
             {
                 $match: {
-                    date: { $gte: startOfMonth, $lte: endOfMonth },
+                    date: { $gte: start, $lte: end },
                     branch: branch || 'F-6',
                     mode: { $ne: 'Cash' }
                 }
@@ -120,26 +129,15 @@ exports.getIncomeStatementData = async (req, res) => {
         const bankSaleTotal = bankSalesResult.length > 0 ? bankSalesResult[0].total : 0;
 
         // 3. Fetch Expenses (Pay) - Type: 'expense'
-        // Note: Expense model has 'branch' field, ensuring we filter by it.
-        // Assuming Expenses linked to 'branch' (e.g. F-6). If default is 'Shop', might need to handle.
-        // The user hasn't specified Expense branch logic, but usually expenses are branch specific.
         const payExpenses = await Expense.find({
-            date: { $gte: startOfMonth, $lte: endOfMonth },
-            // branch: branch || 'F-6', // Temporarily commented out branch filter for Expenses if schema defaults to 'Shop' or differs.
-            // But strict filtering is safer. Let's check Expense model again. default: 'Shop'.
-            // If the user selects F-6, we expect expenses for F-6.
+            date: { $gte: start, $lte: end },
             branch: branch || 'F-6',
             type: 'expense'
         }).select('date createdAt description head subHead amount expenseNo notes');
 
-        console.log('DEBUG: PayExpenses count:', payExpenses.length);
-        if (payExpenses.length > 0) {
-            console.log('DEBUG: First PayExpense:', JSON.stringify(payExpenses[0], null, 2));
-        }
-
         // 4. Fetch Income (Received) - Type: 'receipt'
         const incomeExpenses = await Expense.find({
-            date: { $gte: startOfMonth, $lte: endOfMonth },
+            date: { $gte: start, $lte: end },
             branch: branch || 'F-6',
             type: 'receipt'
         });

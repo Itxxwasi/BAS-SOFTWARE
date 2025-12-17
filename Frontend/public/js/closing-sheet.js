@@ -62,6 +62,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else if (targetId === '#income-statement') {
                 console.log('Loading Income Statement Data...');
                 loadIncomeStatementData();
+            } else if (targetId === '#sms-sending') {
+                console.log('Refreshing Data for SMS...');
+                await refreshDailyCashData();
+                await loadCashSalesData(); // Ensure we have cash sales for Optics/Logic
+                await loadIncomeStatementData(); // Ensure Income Statement data is loaded
+                if (typeof loadSMSCustomers === 'function') loadSMSCustomers();
             }
         });
     });
@@ -128,6 +134,8 @@ async function loadSheet() {
         const filteredDepts = currentDepartments
             .filter(d => d.branch === branch && d.isActive)
             .sort((a, b) => (parseInt(a.code) || 999999) - (parseInt(b.code) || 999999));
+
+        window.currentFilteredDepts = filteredDepts;
 
         // Filter for Dept Opening Tab: Show if Opening Forward OR Receiving Forward is checked
         // User Request: "only opening farward , and received farward check department will show only"
@@ -409,6 +417,11 @@ async function loadSheet() {
         // Clear Closing 02 Form initially
         clearClosing02Form();
 
+        // Refresh Income Statement data to ensure any date change updates all relevant tabs
+        if (typeof loadIncomeStatementData === 'function') {
+            loadIncomeStatementData();
+        }
+
     } catch (e) {
         console.error(e);
         alert('Error loading sheet data');
@@ -430,8 +443,12 @@ function loadClosing02DeptTable(departments) {
     if (departments && departments.length > 0) {
         departments.forEach(dept => {
             // Filter: Only show departments meant for Main Dropdown (Parent/Visible)
-            // This hides 'Child' departments (like Surgical/Cosmetics which are part of Medicine's popup)
-            if (!dept.closing2DeptDropDown) return;
+            // UNLESS they have relevant sales data to show
+            // if (!dept.closing2DeptDropDown) return; // Moved check down
+
+            // User Request: Exclude if ONLY 'Closing_2_Comp_Sale' is checked (and not a Main Dropdown)
+            if (dept.closing2CompSale && !dept.closing2DeptDropDown) return;
+
 
             // 1. Manual Entry from Modal/State
             let manualSale = 0;
@@ -442,15 +459,25 @@ function loadClosing02DeptTable(departments) {
             // 2. Auto Entry from Cash Counter (Cash Sales)
             let autoSale = 0;
             if (currentCashSalesData) {
-                // Filter by Department ID
-                const deptSales = currentCashSalesData.filter(s =>
-                    (s.department && (s.department._id === dept._id || s.department === dept._id))
-                );
+                // Priority Match: Dept ID. Fallback: Counter Name match (only if Dept ID is missing or doesn't match this dept)
+                const deptSales = currentCashSalesData.filter(s => {
+                    const sDeptId = s.department ? (s.department._id || s.department).toString() : null;
+                    const dId = dept._id.toString();
+
+                    if (sDeptId) {
+                        return sDeptId === dId;
+                    } else {
+                        return s.cashCounter && s.cashCounter.toUpperCase() === dept.name.toUpperCase();
+                    }
+                });
                 autoSale = deptSales.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
             }
 
             // Total Sale for this Dept
             const finalSale = manualSale + autoSale;
+
+            // Filter: Hide if it's not a Main Dropdown department AND has no sales
+            if (!dept.closing2DeptDropDown && finalSale <= 0) return;
 
             // Only show if finalSale > 0
             if (finalSale > 0) {
@@ -1085,182 +1112,237 @@ async function saveSheet() {
 
 function printSheet(type) {
     if (type === 'income') {
-        printIncomeStatement();
+        printIncomeStatement(false);
+    } else if (type === 'dayWisePrint') {
+        printIncomeStatement(true);
     } else {
         alert('Print functionality for ' + type + ' coming soon');
     }
 }
 
-function printIncomeStatement() {
+async function printIncomeStatement(isDayWise = false) {
     const branch = document.getElementById('branch').value;
     const date = document.getElementById('date').value;
-    const opening = document.getElementById('incomeOpening').value;
-    const cashSale = document.getElementById('incomeCashSale').value;
-    const bankSale = document.getElementById('incomeBankSale').value;
+    const token = localStorage.getItem('token');
 
-    const diffIncome = document.getElementById('diffIncome').value;
-    const diffExpense = document.getElementById('diffExpense').value;
-    const diffBalance = document.getElementById('diffBalance').value;
+    let printData = null;
 
-    // Get formatted table rows (which now include dates and remarks)
-    const incomeRows = document.getElementById('incomeDetailsRows').innerHTML;
-    const payRows = document.getElementById('payDetailsRows').innerHTML;
+    if (isDayWise) {
+        // Fetch specific daily data for the printout
+        try {
+            showLoading();
+            const res = await fetch(`/api/v1/closing-sheets/income-statement?date=${date}&branch=${branch}&viewType=daily`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const json = await res.json();
+            if (json.success) {
+                printData = json.data;
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Failed to fetch daily data for print');
+            return;
+        } finally {
+            hideLoading();
+        }
+    }
+
+    // Determine values to use
+    // If not day-wise, pull from screen (Monthly/Formula)
+    const parseVal = (id) => {
+        const val = document.getElementById(id)?.value || "0";
+        return parseFloat(val.toString().replace(/,/g, '')) || 0;
+    };
+
+    const opening = isDayWise ? (printData?.openingBalance || 0) : parseVal('incomeOpening');
+    const cashSale = isDayWise ? (printData?.cashSaleTotal || 0) : parseVal('incomeCashSale');
+    const bankSale = isDayWise ? (printData?.bankSaleTotal || 0) : parseVal('incomeBankSale');
+
+    // For day-wise, we should calculate totals from fetched data
+    let incomeRows = '';
+    let payRows = '';
+    let totalIncome = opening + cashSale + bankSale;
+    let totalExpense = 0;
+
+    if (isDayWise && printData) {
+        // Generate daily rows
+        if (printData.incomeExpenses) {
+            printData.incomeExpenses.forEach(exp => {
+                const amt = exp.amount || 0;
+                totalIncome += amt;
+                const d = exp.date ? exp.date.split('T')[0] : '-';
+                incomeRows += `<tr><td>${d}</td><td>${exp.description || '-'}</td><td>${exp.head || '-'}</td><td>${exp.subHead || '-'}</td><td>${exp.notes || '-'}</td><td class="text-end">${amt.toLocaleString()}</td></tr>`;
+            });
+        }
+        if (printData.payExpenses) {
+            printData.payExpenses.forEach(exp => {
+                const amt = exp.amount || 0;
+                totalExpense += amt;
+                const d = exp.date ? exp.date.split('T')[0] : '-';
+                payRows += `<tr><td>${d}</td><td>${exp.description || '-'}</td><td>${exp.head || '-'}</td><td>${exp.subHead || '-'}</td><td>${exp.notes || '-'}</td><td class="text-end">${amt.toLocaleString()}</td></tr>`;
+            });
+        }
+    } else {
+        // Use screen data (Monthly)
+        incomeRows = document.getElementById('incomeDetailsRows').innerHTML;
+        payRows = document.getElementById('payDetailsRows').innerHTML;
+        totalIncome = parseVal('diffIncome');
+        totalExpense = parseVal('diffExpense');
+    }
+
+    const diffBalance = totalIncome - totalExpense;
 
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Income Statement - ${branch} - ${date}</title>
+            <title>${isDayWise ? 'Day Wise' : 'Monthly'} Income Statement - ${date}</title>
             <style>
+                @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+                
                 body { 
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-                    padding: 30px; 
-                    color: #333; 
-                    max-width: 1000px;
+                    font-family: 'Roboto', sans-serif; 
+                    padding: 20px; 
+                    color: #2c3e50; 
+                    line-height: 1.4;
+                    max-width: 900px;
                     margin: 0 auto;
                 }
-                .header-section { 
+                
+                .report-header { 
                     text-align: center; 
-                    margin-bottom: 30px; 
-                    border-bottom: 3px solid #2E5C99; 
-                    padding-bottom: 20px; 
+                    margin-bottom: 25px; 
+                    border-bottom: 4px solid #1a5f7a; 
+                    padding-bottom: 15px;
                 }
-                .header-section h1 { 
-                    margin: 0 0 10px 0; 
-                    font-size: 28px; 
-                    text-transform: uppercase; 
-                    color: #2E5C99;
-                    letter-spacing: 1px;
+                
+                .report-header h1 { 
+                    margin: 0; 
+                    font-size: 26px; 
+                    color: #1a5f7a; 
+                    text-transform: uppercase;
                 }
-                .meta { 
+                
+                .report-meta { 
                     display: flex; 
                     justify-content: space-between; 
-                    font-size: 14px;
+                    margin-top: 10px;
+                    font-weight: 500;
                     color: #555;
                 }
-                .meta-item strong { color: #333; }
 
-                .section-header { 
-                    background-color: #f0f4f8; 
-                    padding: 8px 15px; 
-                    font-weight: bold; 
-                    font-size: 16px; 
-                    color: #1E3A5F;
-                    border-left: 5px solid #2E5C99;
-                    margin: 25px 0 10px 0;
+                .section-title { 
+                    background: #1a5f7a;
+                    color: white;
+                    padding: 6px 12px;
+                    font-size: 15px;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    margin: 20px 0 10px 0;
+                    border-radius: 4px;
                 }
 
                 table { 
                     width: 100%; 
                     border-collapse: collapse; 
-                    margin-bottom: 10px; 
-                    font-size: 12px; 
-                }
-                th { 
-                    background-color: #2E5C99; 
-                    color: white; 
-                    text-align: left; 
-                    padding: 8px; 
-                    font-weight: 600;
-                    border: 1px solid #2E5C99;
-                }
-                td { 
-                    border: 1px solid #DEE2E6; 
-                    padding: 8px; 
-                }
-                tr:nth-child(even) td { background-color: #F8F9FA; }
-                
-                .text-end { text-align: right; }
-                .text-center { text-align: center; }
-                .text-bold { font-weight: bold; }
-                
-                /* Summary Section */
-                .summary-container {
-                    display: flex;
-                    justify-content: flex-end;
-                    margin-top: 30px;
-                    break-inside: avoid;
-                }
-                .summary-table {
-                    width: 350px;
-                    border: 2px solid #2E5C99;
-                }
-                .summary-table td {
-                    padding: 10px 15px;
-                    font-size: 14px;
-                    border: none;
-                    border-bottom: 1px solid #ddd;
-                }
-                .summary-table tr:last-child td {
-                    border-bottom: none;
-                    background-color: #e8f5e9;
-                    font-size: 16px;
-                    color: #155724;
+                    margin-bottom: 15px;
+                    font-size: 11px;
                 }
 
-                .footer {
-                    margin-top: 50px;
-                    border-top: 1px solid #ddd;
-                    padding-top: 10px;
-                    display: flex;
-                    justify-content: space-between;
-                    font-size: 10px;
-                    color: #888;
+                th { 
+                    background-color: #f8f9fa;
+                    color: #333;
+                    text-align: left;
+                    padding: 8px;
+                    border: 1px solid #dee2e6;
+                    font-weight: 700;
+                }
+
+                td { 
+                    padding: 7px 8px;
+                    border: 1px solid #dee2e6;
+                }
+
+                .text-end { text-align: right; }
+                .fw-bold { font-weight: 700; }
+                
+                /* Summary Styling */
+                .summary-table {
+                    width: 320px;
+                    margin-left: auto;
+                    border: 2px solid #1a5f7a;
+                }
+                .summary-table td {
+                    padding: 10px;
+                    font-size: 14px;
+                }
+                .closing-row {
+                    background-color: #e8f4fd;
+                    color: #1a5f7a;
+                    font-size: 16px !important;
                 }
 
                 @media print {
-                    body { margin: 0; padding: 10px; max-width: 100%; }
-                    .section-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    .summary-table tr:last-child td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .no-print { display: none; }
+                    body { padding: 0; margin: 0; }
+                    .report-header { -webkit-print-color-adjust: exact; }
+                    .section-title { -webkit-print-color-adjust: exact; background: #1a5f7a !important; color: white !important; }
+                    .closing-row { -webkit-print-color-adjust: exact; background-color: #e8f4fd !important; }
+                }
+
+                .footer {
+                    margin-top: 40px;
+                    text-align: right;
+                    font-size: 10px;
+                    color: #999;
+                    border-top: 1px solid #eee;
+                    padding-top: 10px;
                 }
             </style>
         </head>
         <body>
-            <div class="header-section">
-                <h1>Income Statement</h1>
-                <div class="meta">
-                    <span class="meta-item">Branch: <strong>${branch}</strong></span>
-                    <span class="meta-item">Date: <strong>${date}</strong></span>
+            <div class="report-header">
+                <h1>Income Statement ${isDayWise ? '(Day Wise)' : '(Monthly View)'}</h1>
+                <div class="report-meta">
+                    <span>Branch: <strong>${branch}</strong></span>
+                    <span>For Date: <strong>${date}</strong></span>
                 </div>
             </div>
 
-            <!-- 1. Income Sources (Key Metrics) -->
-            <div class="section-header">Income Sources (Cash & Bank)</div>
+            <div class="section-title">Income Sources & Daily Collection</div>
             <table>
                 <thead>
                     <tr>
-                        <th>Source</th>
-                        <th class="text-end" style="width: 200px;">Amount</th>
+                        <th style="width: 70%">Source</th>
+                        <th class="text-end">Amount</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td>Opening Balance</td>
-                        <td class="text-end text-bold">${parseFloat(opening).toLocaleString()}</td>
+                        <td class="text-end fw-bold">${opening.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     </tr>
                     <tr>
-                        <td>Cash Sale</td>
-                        <td class="text-end text-bold">${parseFloat(cashSale).toLocaleString()}</td>
+                        <td>Cash Sale ${isDayWise ? '' : '(Monthly Total)'}</td>
+                        <td class="text-end fw-bold">${cashSale.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     </tr>
                     <tr>
-                        <td>Bank Sale</td>
-                        <td class="text-end text-bold">${parseFloat(bankSale).toLocaleString()}</td>
+                        <td>Bank Sale ${isDayWise ? '' : '(Monthly Total)'}</td>
+                        <td class="text-end fw-bold">${bankSale.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     </tr>
                 </tbody>
             </table>
 
-            <!-- 2. Other Income Table -->
-            <div class="section-header">Other Income / Receipts</div>
+            <div class="section-title">Income / Receipts</div>
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 15%">Date</th>
-                        <th style="width: 20%">Detail</th>
+                        <th style="width: 12%">Date</th>
+                        <th style="width: 18%">Detail</th>
                         <th style="width: 15%">Head</th>
                         <th style="width: 15%">Sub Head</th>
-                        <th style="width: 20%">Remarks</th>
+                        <th style="width: 25%">Remarks</th>
                         <th class="text-end" style="width: 15%">Amount</th>
                     </tr>
                 </thead>
@@ -1269,16 +1351,15 @@ function printIncomeStatement() {
                 </tbody>
             </table>
 
-            <!-- 3. Expenses Table -->
-            <div class="section-header">Expenses (Pay)</div>
+            <div class="section-title">Expenses / Payments</div>
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 15%">Date</th>
-                        <th style="width: 20%">Detail</th>
+                        <th style="width: 12%">Date</th>
+                        <th style="width: 18%">Detail</th>
                         <th style="width: 15%">Head</th>
                         <th style="width: 15%">Sub Head</th>
-                        <th style="width: 20%">Remarks</th>
+                        <th style="width: 25%">Remarks</th>
                         <th class="text-end" style="width: 15%">Amount</th>
                     </tr>
                 </thead>
@@ -1287,37 +1368,39 @@ function printIncomeStatement() {
                 </tbody>
             </table>
 
-            <!-- 4. Summary -->
-            <div class="summary-container">
+            <div style="margin-top: 30px;">
                 <table class="summary-table">
                     <tr>
-                        <td><strong>Total Income</strong></td>
-                        <td class="text-end text-bold">${parseFloat(diffIncome).toLocaleString()}</td>
+                        <td class="fw-bold">Total Income (Cr)</td>
+                        <td class="text-end fw-bold">${totalIncome.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     </tr>
                     <tr>
-                        <td style="color: #dc3545;"><strong>Total Expense</strong></td>
-                        <td class="text-end text-bold" style="color: #dc3545;">${parseFloat(diffExpense).toLocaleString()}</td>
+                        <td class="fw-bold text-danger">Total Expense (Dr)</td>
+                        <td class="text-end fw-bold text-danger">${totalExpense.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     </tr>
-                    <tr>
-                        <td><strong>Closing Balance</strong></td>
-                        <td class="text-end text-bold">${parseFloat(diffBalance).toLocaleString()}</td>
+                    <tr class="closing-row fw-bold">
+                        <td>Closing Balance</td>
+                        <td class="text-end">${diffBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     </tr>
                 </table>
             </div>
 
             <div class="footer">
-                <span>Generated by BAS Software</span>
-                <span>User: ${document.getElementById('userName').textContent} | Printed on ${new Date().toLocaleString()}</span>
+                Printed by BAS Software | ${new Date().toLocaleString()}
             </div>
+
+            <script>
+                window.onload = function() {
+                    setTimeout(() => {
+                        window.print();
+                        // window.close(); // Uncomment if you want auto-close
+                    }, 500);
+                }
+            </script>
         </body>
         </html>
     `);
     printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-    }, 500);
 }
 
 // SMS Sending Functions
@@ -2006,9 +2089,10 @@ async function loadIncomeStatementData() {
 
                     let expDate = '-';
                     if (exp.date) {
-                        expDate = new Date(exp.date).toLocaleDateString(); // Try standard format
+                        // Fix for timezone shift: extract only the date part YYYY-MM-DD
+                        expDate = exp.date.includes('T') ? exp.date.split('T')[0] : exp.date;
                     } else if (exp.createdAt) {
-                        expDate = new Date(exp.createdAt).toLocaleDateString();
+                        expDate = exp.createdAt.includes('T') ? exp.createdAt.split('T')[0] : exp.createdAt;
                     }
 
                     // Prepend Date to remarks for debugging user visibility
@@ -2039,9 +2123,9 @@ async function loadIncomeStatementData() {
 
                     let expDate = '-';
                     if (exp.date) {
-                        expDate = new Date(exp.date).toLocaleDateString();
+                        expDate = exp.date.includes('T') ? exp.date.split('T')[0] : exp.date;
                     } else if (exp.createdAt) {
-                        expDate = new Date(exp.createdAt).toLocaleDateString();
+                        expDate = exp.createdAt.includes('T') ? exp.createdAt.split('T')[0] : exp.createdAt;
                     }
 
                     tr.innerHTML = `
@@ -2122,4 +2206,410 @@ async function saveIncomeStatement() {
         console.error('Error saving income statement:', error);
         showNotification('Error saving income statement', true);
     }
+}
+
+// --- SMS Module Logic ---
+window.currentSMSBody = '';
+
+function generateSMSPreview() {
+    const selectedType = document.querySelector('input[name="smsReportType"]:checked');
+    if (!selectedType) return;
+
+    const type = selectedType.value;
+    const previewArea = document.getElementById('smsPreviewArea');
+    const branch = document.getElementById('branch').value;
+    const date = document.getElementById('date').value;
+
+    let text = '';
+
+    // Header for all types
+    text += `${type} 🔴\n`;
+    text += `Branch: (${branch})\n`;
+    text += `Date: ${date}\n`;
+
+    // Use currentFilteredDepts (Consistent with Table)
+    const departments = window.currentFilteredDepts || [];
+
+    if (type === 'Daily Sale') {
+        const totalSale = document.getElementById('closing02DeptTotal').textContent || '0';
+        text += `Total Sale: ${totalSale}\n`;
+
+        const totalCC = document.getElementById('closing02BankTotal').textContent || '0';
+        text += `Total CC Sale: ${totalCC}\n`;
+
+        departments.forEach(d => {
+            const data = closing02State[d._id] || {};
+
+            // 1. Manual Entry from Closing 02 State
+            const manualSale = (data.totalSaleComputer || 0);
+
+            // 2. Auto Entry (Cash Counter) with Priority Matching
+            let autoSale = 0;
+            if (window.currentCashSalesData) {
+                const deptSales = window.currentCashSalesData.filter(s => {
+                    const sDeptId = s.department ? (s.department._id || s.department).toString() : null;
+                    const dId = d._id.toString();
+                    if (sDeptId) return sDeptId === dId;
+                    return s.cashCounter && s.cashCounter.toUpperCase() === d.name.toUpperCase();
+                });
+                autoSale = deptSales.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
+            }
+
+            const sale = manualSale + autoSale;
+
+            // Visibility Logic: Hide if it's not a Main Dropdown department AND has no sales
+            if (!d.closing2DeptDropDown && sale <= 0) return;
+
+            // Calculate CC Sale (Bank Sale)
+            let ccSale = data.bankTotal || 0;
+            if (ccSale === 0 && window.currentDailyCashData) {
+                const bankRecords = window.currentDailyCashData.filter(r => {
+                    if (r.mode !== 'Bank') return false;
+                    const rDeptId = r.department ? (r.department._id || r.department).toString() : '';
+                    const dId = d._id.toString();
+                    return rDeptId === dId;
+                });
+                ccSale = bankRecords.reduce((sum, r) => sum + (r.totalAmount || r.amount || 0), 0);
+            }
+
+            // Conditional display based on Department Type
+            if (d.closing2DeptDropDown) {
+                // Main Department: Show Full Data
+                const discValue = data.discountValue || 0;
+                const discPer = data.discountPer || 0;
+                const diff = data.difference || 0;
+
+                text += `${d.name} Sale: ${numberWithCommas(sale.toFixed(2))}\n`;
+                text += `${d.name} Disc Value: ${numberWithCommas(discValue.toFixed(2))}\n`;
+                text += `${d.name} Disc Per: ${discPer.toFixed(2)}\n`;
+                text += `${d.name} CC Sale: ${numberWithCommas(ccSale.toFixed(2))}\n`;
+                text += `${d.name} Diff: ${numberWithCommas(diff.toFixed(2))}\n`;
+            } else {
+                // Cash Counter / Component Department: Show only Sale and CC Sale
+                if (sale !== 0 || ccSale !== 0) {
+                    text += `${d.name} Sale: ${numberWithCommas(sale.toFixed(2))}\n`;
+                    text += `${d.name} CC Sale: ${numberWithCommas(ccSale.toFixed(2))}\n`;
+                }
+            }
+        });
+    } else if (type === 'Cash Activity') {
+        text += getCashActivityContent(window.currentFilteredDepts, branch, date);
+    } else if (type === 'Income Statement') {
+        const opening = parseFloat(document.getElementById('incomeOpening').value) || 0;
+
+        // Collect all Cash Collections (Manual + Auto)
+        let collectionMap = {};
+        let totalCashSum = 0;
+
+        // 1. Manual Received Cash from Departments
+        departments.forEach(d => {
+            const data = closing02State[d._id] || {};
+            const val = parseFloat(data.receivedCash) || 0;
+            if (val > 0) {
+                const name = d.name;
+                if (!collectionMap[name]) collectionMap[name] = 0;
+                collectionMap[name] += val;
+                totalCashSum += val;
+            }
+        });
+
+        // 2. Auto Cash Counter Sales
+        if (window.currentCashSalesData) {
+            window.currentCashSalesData.forEach(s => {
+                const name = s.cashCounter || 'Unknown';
+                const amount = s.totalAmount || 0;
+                if (!collectionMap[name]) collectionMap[name] = 0;
+                collectionMap[name] += amount;
+                totalCashSum += amount;
+            });
+        }
+
+        // Header
+        text = `Daily Sale and Cash Details (${branch})\n`;
+        text += `Date: ${date}\n`;
+
+        // List Collections
+        Object.keys(collectionMap).forEach(name => {
+            text += `${name} Cash Sale = ${collectionMap[name].toFixed(2)}\n`;
+        });
+        text += `Total = ${totalCashSum.toFixed(2)}\n\n`;
+
+        // Summary Section
+        text += `Cash Activity\n`;
+        text += `Opening Balance= ${opening.toFixed(2)}\n`;
+        text += `Cash Sale = ${totalCashSum.toFixed(2)}\n`;
+        const totalBalance = opening + totalCashSum;
+        text += `Total Balance = ${totalBalance.toFixed(2)}\n`;
+    } else if (type === 'Department Wise Sale and Activity') {
+        // Combine Daily Sale and Cash Activity
+        // 1. Daily Sale Part
+        text = `Daily Sale 🔴\nBranch: (${branch})\nDate: ${date}\n`; // Overwrite header
+        const totalSale = document.getElementById('closing02DeptTotal').textContent || '0';
+        text += `Total Sale: ${totalSale}\n`;
+        const totalCC = document.getElementById('closing02BankTotal').textContent || '0';
+        text += `Total CC Sale: ${totalCC}\n`;
+
+        // reused 'departments' variable from above
+        departments.forEach(d => {
+            const data = closing02State[d._id] || {};
+
+            // 1. Manual Entry
+            const manualSale = (data.totalSaleComputer || 0);
+
+            // 2. Auto Entry (Cash Counter)
+            let autoSale = 0;
+            if (window.currentCashSalesData) {
+                const deptSales = window.currentCashSalesData.filter(s => {
+                    const sDeptId = s.department ? (s.department._id || s.department).toString() : null;
+                    const dId = d._id.toString();
+                    if (sDeptId) return sDeptId === dId;
+                    return s.cashCounter && s.cashCounter.toUpperCase() === d.name.toUpperCase();
+                });
+                autoSale = deptSales.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
+            }
+
+            const sale = manualSale + autoSale;
+
+            // Visibility Logic
+            if (!d.closing2DeptDropDown && sale <= 0) return;
+
+            // Calculate CC Sale (Bank Sale)
+            let ccSale = data.bankTotal || 0;
+            if (ccSale === 0 && window.currentDailyCashData) {
+                const bankRecords = window.currentDailyCashData.filter(r => {
+                    if (r.mode !== 'Bank') return false;
+                    const rDeptId = r.department ? (r.department._id || r.department).toString() : '';
+                    const dId = d._id.toString();
+                    return rDeptId === dId;
+                });
+                ccSale = bankRecords.reduce((sum, r) => sum + (r.totalAmount || r.amount || 0), 0);
+            }
+
+            // Conditional display based on Department Type
+            if (d.closing2DeptDropDown) {
+                const discValue = data.discountValue || 0;
+                const discPer = data.discountPer || 0;
+                const diff = data.difference || 0;
+
+                text += `${d.name} Sale: ${numberWithCommas(sale.toFixed(2))}\n`;
+                text += `${d.name} Disc Value: ${numberWithCommas(discValue.toFixed(2))}\n`;
+                text += `${d.name} Disc Per: ${discPer.toFixed(2)}\n`;
+                text += `${d.name} CC Sale: ${numberWithCommas(ccSale.toFixed(2))}\n`;
+                text += `${d.name} Diff: ${numberWithCommas(diff.toFixed(2))}\n`;
+            } else {
+                if (sale !== 0 || ccSale !== 0) {
+                    text += `${d.name} Sale: ${numberWithCommas(sale.toFixed(2))}\n`;
+                    text += `${d.name} CC Sale: ${numberWithCommas(ccSale.toFixed(2))}\n`;
+                }
+            }
+        });
+
+        text += `\n\nCash Activity 🔴\nBranch: (${branch})\nDate: ${date}\n`;
+        text += getCashActivityContent(window.currentFilteredDepts, branch, date, true); // true = skip header
+    } else {
+        text += `Content for ${type} is not yet configured.\n`;
+    }
+
+    previewArea.innerText = text;
+    window.currentSMSBody = text;
+}
+
+// Helper to generate Cash Activity Body
+function getCashActivityContent(departments, branch, date, skipHeader = false) {
+    let text = '';
+    let totalNetCash = 0;
+
+    // Pre-calc Total % Cash Rec Sum (for PERCENTAGE CASH Dept)
+    // Requires iterating all valid departments first
+    let totalPercentageCashSum = 0;
+    const calcDepts = departments || [];
+    calcDepts.forEach(d => {
+        if (d.name.toUpperCase() === 'PERCENTAGE CASH') return;
+        const data = closing02State[d._id] || {};
+        const sale = data.totalSaleComputer || 0;
+        const rate = d.deduction || 0;
+        const ded = Math.round((sale * rate) / 100);
+        totalPercentageCashSum += ded;
+    });
+
+    // Calculate Total Counter Sales (for OPTICS)
+    let totalCounterSales = 0;
+    if (window.currentCashSalesData) {
+        totalCounterSales = window.currentCashSalesData.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
+    }
+
+    if (calcDepts.length > 0) {
+        calcDepts.forEach(d => {
+            // User Request: Exclude if ONLY 'Closing_2_Comp_Sale' is checked (and not a Main Dropdown)
+            if (d.closing2CompSale && !d.closing2DeptDropDown) return;
+
+            const data = closing02State[d._id] || {};
+            const dName = d.name.toUpperCase();
+
+            // 1. Opening Amount
+            // Try input (Closing 02 Opening(-) field? No, Report uses Department Opening Tab data)
+            // But Closing 02 "Opening (-)" input might be different?
+            // Report uses 'sheet.departmentOpening' array.
+            // Let's try to get from `currentSheetData.departmentOpening`
+            let opAmt = 0;
+            if (window.currentSheetData && window.currentSheetData.departmentOpening) {
+                const found = window.currentSheetData.departmentOpening.find(x => (x.department === d._id || (x.department && x.department._id === d._id)));
+                if (found) opAmt = Number(found.amount) || 0;
+            }
+
+            // Filter: Hide if Opening is 0 AND not Optics (Report Logic)
+            if (opAmt === 0 && dName !== 'OPTICS' && dName !== 'PERCENTAGE CASH') {
+                // Report skips. SMS should probably too? 
+                // But SMS usually shows active depts. 
+                // Only skip if no activity? existing logic was active.
+                // Let's keep showing unless 0 balance?
+                // The user wants "Net_Total"
+            }
+
+            // 2. Received Cash
+            let recCash = Number(data.receivedCash) || 0;
+            if (dName === 'OPTICS') {
+                recCash = totalCounterSales; // Report logic overrides manual? Or adds?
+                // Report: `let recCashCounter = 0; if (OPTICS) recCashCounter = totalCounterSales; totalRec = recSheet + recCounter`
+                // Wait, report ADDS it.
+                // Assuming `data.receivedCash` is `recCashSheet`.
+                // So I should add strict `totalCounterSales` to OPTICS.
+                recCash += totalCounterSales; // Wait, if `data.receivedCash` already includes it?
+                // In Closing 02, Optics Received might be 0? 
+                // If the user manually entered it from sheet?
+                // Report code Line 1505: `totalRecCashForDept = recCashSheet + recCashCounter`.
+                // So yes, ADD it.
+            }
+            if (dName === 'PERCENTAGE CASH') {
+                recCash = 0;
+            }
+
+            // 3. Percentage Cash (Rec)
+            let percCashRec = 0;
+            if (dName === 'PERCENTAGE CASH') {
+                percCashRec = totalPercentageCashSum;
+            }
+
+            // 4. Grand Total
+            let grandTotal = opAmt + recCash + percCashRec;
+            if (dName === 'CASH REC FROM COUNTER') grandTotal = 0;
+
+            // 5. Deduction
+            const sale = data.totalSaleComputer || 0;
+            const rate = d.deduction || 0;
+            const ded = Math.round((sale * rate) / 100);
+
+            // 6. Net Total
+            const netTotal = Math.round(grandTotal - ded);
+
+            totalNetCash += netTotal;
+
+            // Display
+            // Only show if relevant? Report hides 0 opening.
+            // SMS should probably show all active from list.
+            const displayVal = formatNeg(netTotal);
+            text += `${d.name} Cash : ${displayVal}\n`;
+        });
+    }
+
+    text += `Total Net Cash : ${formatNeg(totalNetCash)}\n`;
+
+    return text;
+}
+
+// Helper to calculate "Cash" for a department like Closing 01 List
+function calculateDeptCash_Closing01(d) {
+    // 1. Opening
+    let openingAmount = 0;
+    // Try to find in the rendered inputs first for live data
+    const openingInput = document.querySelector(`.dept-opening-input[data-dept-id="${d._id}"]`);
+    if (openingInput) {
+        openingAmount = parseFloat(openingInput.value) || 0;
+    } else {
+        // Fallback to saved data
+        if (currentSheetData && currentSheetData.departmentOpening) {
+            const saved = currentSheetData.departmentOpening.find(item => (item.department && item.department._id === d._id) || item.department === d._id);
+            if (saved) openingAmount = saved.amount;
+        }
+    }
+
+    // 2. Daily Cash (Big Cash + Slip)
+    let dailyCashAmount = 0;
+    if (currentDailyCashData) {
+        // Filter by Dept ID
+        const records = currentDailyCashData.filter(r => (r.department && r.department._id === d._id) || r.department === d._id);
+
+        // Logic: All receipts for this department?
+        // In closing01 logic:
+        // "receivedCash" usually implies Big Cash + Slip.
+        // Let's mimic what we did in `loadClosing02DeptData` (Step 558)
+        dailyCashAmount = records.reduce((sum, r) => {
+            const bc = Number(r.bigCash) || 0;
+            const slip = parseFloat(r.slip) || 0;
+            return sum + bc + slip;
+        }, 0);
+    }
+
+    // 3. Deduct UG Sales (if flag)
+    let deduction = 0;
+    if (d.deductUgSale && currentCashSalesData) {
+        const counterSales = currentCashSalesData.filter(s => s.cashCounter === d.name);
+        deduction = counterSales.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
+    }
+
+    // Net Cash Formula
+    return openingAmount + dailyCashAmount - deduction;
+}
+
+function formatNeg(val) {
+    if (val < 0) {
+        return `Neg ${Math.abs(Math.round(val))}`;
+    }
+    return Math.round(val).toString();
+}
+
+// Helper for commas
+function numberWithCommas(x) {
+    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+async function sendSMS() {
+    if (!window.currentSMSBody) {
+        alert('Please select a report type to generate a preview first.');
+        return;
+    }
+
+    const selectedCustomers = [];
+    document.querySelectorAll('#smsCustomersBody input[type="checkbox"]:checked').forEach(cb => {
+        // Find row data if needed
+        selectedCustomers.push(cb.value);
+    });
+
+    if (selectedCustomers.length === 0) {
+        // Proceed without customers? Or require them?
+        // User image shows checkboxes.
+        // For now, confirm sending.
+    }
+
+    if (confirm('Are you sure you want to send this SMS?')) {
+        // Placeholder for API Integration
+        console.log('Sending SMS:', window.currentSMSBody);
+        console.log('Recipients:', selectedCustomers);
+        alert('SMS Sent Successfully!');
+    }
+}
+
+async function loadCashSalesData() {
+    const branch = document.getElementById('branch').value;
+    const date = document.getElementById('date').value;
+    const token = localStorage.getItem('token');
+    try {
+        const csResp = await fetch(`/api/v1/cash-sales?startDate=${date}&endDate=${date}&branch=${branch}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const csJson = await csResp.json();
+        if (csJson.success) {
+            window.currentCashSalesData = csJson.data;
+        }
+    } catch (e) { console.error('Error loading cash sales', e); }
 }

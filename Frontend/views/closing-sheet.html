@@ -215,16 +215,16 @@
                     type="button" role="tab">Closing 02</button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="sms-sending-tab" data-bs-toggle="tab" data-bs-target="#sms-sending"
-                    type="button" role="tab">SMS Sending</button>
-            </li>
-            <li class="nav-item" role="presentation">
                 <button class="nav-link" id="income-statement-tab" data-bs-toggle="tab"
                     data-bs-target="#income-statement" type="button" role="tab">Income Statement</button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="reporting-tab" data-bs-toggle="tab" data-bs-target="#reporting"
                     type="button" role="tab">Reporting</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="sms-sending-tab" data-bs-toggle="tab" data-bs-target="#sms-sending"
+                    type="button" role="tab">SMS Sending</button>
             </li>
         </ul>
 
@@ -614,49 +614,7 @@
                     </div>
                 </div>
             </div>
-            <!-- Tab 6: SMS Sending -->
-            <div class="tab-pane fade" id="sms-sending" role="tabpanel">
-                <div class="blue-header mb-3">Customer SMS</div>
 
-                <div class="row mb-3">
-                    <div class="col-md-4">
-                        <label class="fw-bold">Type</label>
-                        <select id="smsType" class="form-select form-select-sm">
-                            <option value="Daily Sale">Daily Sale</option>
-                            <option value="Cash Activity">Cash Activity</option>
-                            <option value="Bank Activity">Bank Activity</option>
-                            <option value="Salesman Sale">Salesman Sale</option>
-                            <option value="Income Statement">Income Statement</option>
-                            <option value="Daily Change">Daily Change</option>
-                            <option value="Zakat">Zakat</option>
-                            <option value="Department Wise Sale and Activity">Department Wise Sale and Activity</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="table-responsive">
-                    <table class="table table-bordered table-sm">
-                        <thead class="table-primary">
-                            <tr>
-                                <th width="50"><input type="checkbox" id="selectAllSMS"></th>
-                                <th>Customer Name</th>
-                                <th>Phone No</th>
-                                <th>Mobile No</th>
-                                <th>Address</th>
-                            </tr>
-                        </thead>
-                        <tbody id="smsCustomersBody">
-                            <tr>
-                                <td colspan="5" class="text-center text-muted">Loading customers...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="mt-3">
-                    <button class="btn btn-success btn-sm" onclick="sendSMS()">Send SMS</button>
-                </div>
-            </div>
             <!-- Tab 7: Income Statement -->
             <div class="tab-pane fade ps-3" id="income-statement" role="tabpanel">
                 <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
@@ -823,6 +781,99 @@
 
                 <div id="reportOutput" class="border p-3 bg-white" style="min-height: 400px;">
                     <p class="text-muted text-center">Select a report type and date range to generate report</p>
+                </div>
+            </div>
+
+            <!-- Tab 6: SMS Sending -->
+            <div class="tab-pane fade" id="sms-sending" role="tabpanel">
+                <div class="blue-header mb-3">Customer SMS</div>
+
+                <div class="row mb-3 align-items-center justify-content-center">
+                    <label class="col-auto fw-bold">Type</label>
+                    <div class="col-md-4">
+                        <select id="smsCustomerType" class="form-select form-select-sm">
+                            <option value="">Select Type</option>
+                            <option value="All">All</option>
+                            <!-- Add other customer categories if needed -->
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-responsive mb-3" style="max-height: 300px; overflow-y: auto;">
+                    <table class="table table-bordered table-sm">
+                        <thead class="blue-header text-white sticky-top">
+                            <tr>
+                                <th width="40" class="text-center"><input type="checkbox" id="selectAllSMS"></th>
+                                <th>Customer Name</th>
+                                <th>Phone No</th>
+                                <th>Mobile No</th>
+                                <th>Address</th>
+                            </tr>
+                        </thead>
+                        <tbody id="smsCustomersBody">
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">Loading customers...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Control Bar -->
+                <div class="d-flex flex-wrap align-items-center justify-content-between bg-light p-2 border mb-3">
+                    <div class="d-flex flex-wrap gap-3 align-items-center" id="smsReportOptions">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="smsReportType" id="smsDailySale"
+                                value="Daily Sale" onchange="generateSMSPreview()">
+                            <label class="form-check-label fw-bold" for="smsDailySale">Daily Sale</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="smsReportType" id="smsCashActivity"
+                                value="Cash Activity" onchange="generateSMSPreview()">
+                            <label class="form-check-label" for="smsCashActivity">Cash Activity</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="smsReportType" id="smsBankActivity"
+                                value="Bank Activity" onchange="generateSMSPreview()">
+                            <label class="form-check-label" for="smsBankActivity">Bank Activity</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="smsReportType" id="smsSalesmanSale"
+                                value="Salesman Sale" onchange="generateSMSPreview()">
+                            <label class="form-check-label" for="smsSalesmanSale">Salesman Sale</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="smsReportType" id="smsIncomeStatement"
+                                value="Income Statement" onchange="generateSMSPreview()">
+                            <label class="form-check-label" for="smsIncomeStatement">Income Statement</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="smsReportType" id="smsDailyChange"
+                                value="Daily Change" onchange="generateSMSPreview()">
+                            <label class="form-check-label" for="smsDailyChange">Daily Change</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="smsReportType" id="smsZakat"
+                                value="Zakat" onchange="generateSMSPreview()">
+                            <label class="form-check-label" for="smsZakat">Zakat</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="smsReportType" id="smsDeptWise"
+                                value="Department Wise Sale and Activity" onchange="generateSMSPreview()">
+                            <label class="form-check-label" for="smsDeptWise">Department Wise Sale and Activity</label>
+                        </div>
+                    </div>
+                    <div>
+                        <button class="btn btn-primary btn-sm px-4" onclick="sendSMS()">Send SMS</button>
+                    </div>
+                </div>
+
+                <!-- Preview Area -->
+                <div class="card">
+                    <div class="card-body bg-light">
+                        <h6 class="card-subtitle mb-2 text-muted">Message Preview</h6>
+                        <pre id="smsPreviewArea" class="mb-0"
+                            style="font-family: monospace; font-size: 0.9rem; white-space: pre-wrap; color: black;"></pre>
+                    </div>
                 </div>
             </div>
         </div>

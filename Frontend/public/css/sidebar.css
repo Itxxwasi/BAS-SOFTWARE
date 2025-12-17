@@ -16,7 +16,7 @@
     position: fixed;
     top: 0;
     left: 0;
-    z-index: 2000;
+    z-index: 1040;
     /* Increased to stay above sticky-top elements (1020) */
     transition: width 0.3s;
     display: flex;
