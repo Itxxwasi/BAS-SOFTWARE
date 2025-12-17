@@ -16,7 +16,8 @@ const itemSchema = new mongoose.Schema({
   barcode: {
     type: String,
     trim: true,
-    sparse: true
+    sparse: true,
+    unique: true
   },
   category: {
     type: String,
@@ -118,12 +119,16 @@ itemSchema.pre('save', async function () {
     // Generate SKU if missing
     if (!this.sku) {
       const lastItem = await this.constructor.findOne({}, {}, { sort: { 'createdAt': -1 } });
-      let nextId = 1001;
+      let nextId = 1;
 
       if (lastItem && lastItem.sku && !isNaN(parseInt(lastItem.sku))) {
+        // Continue sequence from last item, or start restart if logically appropriate?
+        // User asked for "0001" format. If existing is "1001", next will be "1002".
+        // If existing is "0001", next is "0002".
         nextId = parseInt(lastItem.sku) + 1;
       }
-      this.sku = nextId.toString();
+      // Format as 4-digit string (e.g. 0001)
+      this.sku = nextId.toString().padStart(4, '0');
     }
 
     // Generate Barcode if missing (default to SKU)

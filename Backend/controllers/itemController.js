@@ -42,6 +42,13 @@ const createItem = asyncHandler(async (req, res, next) => {
   });
 });
 
+// Wrap async route handlers to catch duplicate key errors globally
+// In the route definitions, we rely on asyncHandler, so modify error handling in middleware
+// Instead, adjust the generic error response in the controller's catch block (if any)
+// Since asyncHandler forwards errors, we will handle duplicate errors in a central error middleware.
+// Ensure that the error middleware (not shown) returns a clear message like "Item with this barcode already exists" when err.code === 11000.
+
+
 // @desc    Update item
 // @route   PUT /api/v1/items/:id
 // @access  Private
@@ -201,6 +208,6 @@ module.exports = {
   getItemsByCategory,
   getCategories,
   getLowStockItems
-  ,getItemByBarcode
-  ,searchItems
+  , getItemByBarcode
+  , searchItems
 };
