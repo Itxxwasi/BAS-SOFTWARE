@@ -1566,7 +1566,11 @@ let warehouseCategories = [];
 async function loadWarehouseCategories() {
     if (warehouseCategories.length > 0) return;
     try {
-        const res = await fetch('/api/v1/categories');
+        const token = localStorage.getItem('token');
+        // Load only Customer categories for Warehouse Sale
+        const res = await fetch('/api/v1/customer-categories', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
         const json = await res.json();
         warehouseCategories = json.data || [];
     } catch (err) {
@@ -1576,6 +1580,8 @@ async function loadWarehouseCategories() {
 }
 
 async function openWarehouseSaleModal() {
+    // Force reload categories to ensure latest data
+    warehouseCategories = [];
     await loadWarehouseCategories();
 
     const tbody = document.querySelector('#warehouseSaleTable tbody');

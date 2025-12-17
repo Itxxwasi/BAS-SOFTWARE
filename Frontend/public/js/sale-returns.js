@@ -28,7 +28,7 @@ function setUserName() {
     }
 }
 
-// Initialize sales page
+// Initialize sale returns page
 function initSalesPage() {
     // Set date range (First day of month to Today)
     const todayDate = new Date();
@@ -37,60 +37,65 @@ function initSalesPage() {
     // Format to YYYY-MM-DD
     const formatDateInput = (date) => date.toISOString().split('T')[0];
 
-    document.getElementById('saleDate').value = formatDateInput(todayDate);
-    document.getElementById('startDate').value = formatDateInput(firstDay);
-    document.getElementById('endDate').value = formatDateInput(todayDate);
+    // Use returnDate for sale returns page (not saleDate)
+    const returnDateEl = document.getElementById('returnDate');
+    if (returnDateEl) returnDateEl.value = formatDateInput(todayDate);
+
+    const startDateEl = document.getElementById('startDate');
+    if (startDateEl) startDateEl.value = formatDateInput(firstDay);
+
+    const endDateEl = document.getElementById('endDate');
+    if (endDateEl) endDateEl.value = formatDateInput(todayDate);
 
     // Load data
     loadCustomers();
     loadItems();
-    loadCategories();
-    // Don't load sales on init - only when List button is clicked
-    generateInvoiceNumber();
+    // Don't load on init - only when List button is clicked
+    generateReturnNumber();
 
-    // Event listeners
-    document.getElementById('searchInput').addEventListener('input', debounce(handleSearch, 300));
-    document.getElementById('startDate').addEventListener('change', loadSales);
-    document.getElementById('endDate').addEventListener('change', loadSales);
-    document.getElementById('statusFilter').addEventListener('change', loadSales);
+    // Event listeners with null checks
+    document.getElementById('searchInput')?.addEventListener('input', debounce(handleSearch, 300));
+    document.getElementById('startDate')?.addEventListener('change', loadReturns);
+    document.getElementById('endDate')?.addEventListener('change', loadReturns);
+    document.getElementById('statusFilter')?.addEventListener('change', loadReturns);
 
     // Customer change event
-    document.getElementById('customer').addEventListener('change', function () {
+    document.getElementById('customer')?.addEventListener('change', function () {
         const selectedCustomer = customers.find(c => c._id === this.value);
         if (selectedCustomer) {
-            document.getElementById('customerContact').value = selectedCustomer.phone || selectedCustomer.mobile || '';
-            document.getElementById('preBalance').value = selectedCustomer.currentBalance || 0;
+            const preBalanceEl = document.getElementById('preBalance');
+            if (preBalanceEl) preBalanceEl.value = selectedCustomer.currentBalance || 0;
+            loadCustomerSales(this.value);
             calculateTotals();
         }
     });
 
-    // Item selection event
-    document.getElementById('itemSelect').addEventListener('change', function () {
+    // Item selection event (hidden select used for storing item ID)
+    document.getElementById('itemSelect')?.addEventListener('change', function () {
         const selectedItem = availableItems.find(item => item._id === this.value);
         if (selectedItem) {
-            document.getElementById('itemCode').value = selectedItem.sku || '';
-            document.getElementById('price').value = selectedItem.salePrice || 0;
-            document.getElementById('stock').value = selectedItem.stockQty || 0;
-            document.getElementById('taxPercent').value = selectedItem.taxPercent || 0;
+            const itemCodeEl = document.getElementById('itemCode');
+            const salePriceEl = document.getElementById('salePrice');
+            const stockEl = document.getElementById('stock');
+            const taxPercentEl = document.getElementById('taxPercent');
+
+            if (itemCodeEl) itemCodeEl.value = selectedItem.sku || '';
+            if (salePriceEl) salePriceEl.value = selectedItem.salePrice || 0;
+            if (stockEl) stockEl.value = selectedItem.stockQty || 0;
+            if (taxPercentEl) taxPercentEl.value = selectedItem.taxPercent || 0;
             calculateItemTotal();
         }
     });
 
-    // Calculation events
-    document.getElementById('pack').addEventListener('input', calculateItemTotal);
-    document.getElementById('price').addEventListener('input', calculateItemTotal);
-    document.getElementById('taxPercent').addEventListener('input', calculateItemTotal);
-    document.getElementById('discPercent').addEventListener('input', calculateItemTotal);
-    document.getElementById('discountPercent').addEventListener('input', calculateTotals);
-    document.getElementById('discountRs').addEventListener('input', calculateTotals);
-    document.getElementById('totalTaxPercent').addEventListener('input', calculateTotals);
-    document.getElementById('misc').addEventListener('input', calculateTotals);
-    document.getElementById('freight').addEventListener('input', calculateTotals);
-    document.getElementById('paid').addEventListener('input', calculateTotals);
+    // Calculation events with null checks
+    document.getElementById('quantity')?.addEventListener('input', calculateItemTotal);
+    document.getElementById('salePrice')?.addEventListener('input', calculateItemTotal);
+    document.getElementById('taxPercent')?.addEventListener('input', calculateItemTotal);
+    document.getElementById('refunded')?.addEventListener('input', calculateTotals);
 }
 
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Prevent page jumping when using Tab to navigate inputs inside the item entry section.
     // Capture Tab key scroll position and restore it on focusin inside the item-entry-section.
     let tabScrollPos = null;
@@ -120,14 +125,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Using global availableItems for filtering
 
     // Helper to escape HTML
-    window.escapeHtml = function(text) {
+    window.escapeHtml = function (text) {
         const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
         return text.replace(/[&<>"']/g, m => map[m]);
     };
 
     if (itemNameInput) {
         // Expose function for button click
-        window.showItemList = function() {
+        window.showItemList = function () {
             itemNameInput.focus();
         };
 
@@ -158,7 +163,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const filtered = availableItems.filter(it => {
                 return regex.test(it.name || '') || regex.test(it.sku || '') || regex.test(it.barcode || '');
             });
-            
+
             if (filtered.length === 0) {
                 suggestionsBox.style.display = 'none';
                 suggestionsBox.innerHTML = '';
@@ -195,20 +200,32 @@ document.addEventListener('DOMContentLoaded', function() {
             const sale = el.getAttribute('data-sale');
             const tax = el.getAttribute('data-tax');
 
-            // Set values
+            // Set values with null checks
             const itemSelect = document.getElementById('itemSelect');
+            const itemCodeEl = document.getElementById('itemCode');
+            const salePriceEl = document.getElementById('salePrice');
+            const stockEl = document.getElementById('stock');
+            const taxPercentEl = document.getElementById('taxPercent');
+
             if (itemSelect) itemSelect.value = id;
-            itemNameInput.value = name || '';
-            document.getElementById('itemCode').value = sku || '';
-            document.getElementById('price').value = sale || 0;
-            document.getElementById('stock').value = stock || 0;
-            document.getElementById('taxPercent').value = tax || 0;
+            if (itemNameInput) itemNameInput.value = name || '';
+            if (itemCodeEl) itemCodeEl.value = sku || '';
+            if (salePriceEl) salePriceEl.value = sale || 0;
+            if (stockEl) stockEl.value = stock || 0;
+            if (taxPercentEl) taxPercentEl.value = tax || 0;
             calculateItemTotal();
 
             // Hide suggestions
             suggestionsBox.style.display = 'none';
             suggestionsBox.innerHTML = '';
             activeSuggestionIndex = -1;
+
+            // Focus on quantity field for quick entry
+            const quantityInput = document.getElementById('quantity');
+            if (quantityInput) {
+                quantityInput.focus();
+                quantityInput.select();
+            }
         }
 
         function showAllSuggestions() {
@@ -331,7 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 e.preventDefault();
                 const code = this.value.trim();
                 if (!code) return;
-                
+
                 // Always lookup on Enter, even if same code (maybe they want to reset)
                 await handleBarcodeLookup(code);
                 lastLookedUpCode = code;
@@ -342,20 +359,20 @@ document.addEventListener('DOMContentLoaded', function() {
         itemCodeInput.addEventListener('blur', async function () {
             const code = this.value.trim();
             if (!code) return;
-            
+
             // Avoid double lookup if we just did it via Enter
             if (code === lastLookedUpCode) return;
-            
+
             await handleBarcodeLookup(code);
             lastLookedUpCode = code;
         });
     }
 
-    // Keyboard navigation: Enter on discount field adds item and focuses on next item's name field
-    document.getElementById('discPercent').addEventListener('keydown', function (e) {
+    // Keyboard navigation: Enter on tax field adds item and focuses on next item's name field
+    document.getElementById('taxPercent')?.addEventListener('keydown', function (e) {
         if (e.key === 'Enter') {
             e.preventDefault();
-            addItemToSale();
+            addItemToReturn();
             // Focus on itemName field for next item
             setTimeout(() => {
                 const itemNameInput = document.getElementById('itemName');
@@ -437,6 +454,135 @@ async function loadItems() {
     }
 }
 
+// Generate return number
+async function generateReturnNumber() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/v1/sale-returns?limit=1&sort=-createdAt', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const lastReturn = data.data?.[0];
+            let newReturnNo = 'SRT-001';
+
+            const lastReturnNo = lastReturn?.returnNumber || lastReturn?.returnNo;
+
+            if (lastReturnNo) {
+                const parts = lastReturnNo.split('-');
+                if (parts.length === 2) {
+                    const lastNumber = parseInt(parts[1]) || 0;
+                    newReturnNo = `SRT-${String(lastNumber + 1).padStart(3, '0')}`;
+                }
+            }
+
+            const returnNoEl = document.getElementById('returnNo');
+            if (returnNoEl) returnNoEl.value = newReturnNo;
+        }
+    } catch (error) {
+        console.error('Error generating return number:', error);
+        const returnNoEl = document.getElementById('returnNo');
+        if (returnNoEl) returnNoEl.value = 'SRT-' + Date.now().toString().slice(-4);
+    }
+}
+
+// Load customer's sales for selection
+async function loadCustomerSales(customerId) {
+    try {
+        if (!customerId) return;
+
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/v1/sales?party=${customerId}&limit=100`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const saleInvoiceSelect = document.getElementById('saleInvoice');
+            if (saleInvoiceSelect) {
+                saleInvoiceSelect.innerHTML = '<option value="">-- Select Invoice --</option>';
+
+                (data.data || []).forEach(sale => {
+                    const invoiceNo = sale.invoiceNumber || sale.invoiceNo;
+                    const option = document.createElement('option');
+                    option.value = sale._id;
+                    option.textContent = `${invoiceNo} - ${new Date(sale.date).toLocaleDateString()}`;
+                    saleInvoiceSelect.appendChild(option);
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error loading customer sales:', error);
+    }
+}
+
+// Load sale returns for list
+async function loadReturns(page = 1, limit = 10) {
+    try {
+        showLoading();
+
+        currentPage = page;
+        currentLimit = limit;
+
+        const token = localStorage.getItem('token');
+        const search = document.getElementById('searchInput')?.value || '';
+        const startDate = document.getElementById('startDate')?.value || '';
+        const endDate = document.getElementById('endDate')?.value || '';
+        const status = document.getElementById('statusFilter')?.value || '';
+
+        let queryParams = `?page=${page}&limit=${limit}`;
+        if (search) queryParams += `&search=${search}`;
+        if (startDate) queryParams += `&startDate=${startDate}`;
+        if (endDate) queryParams += `&endDate=${endDate}`;
+        if (status) queryParams += `&status=${status}`;
+
+        const response = await fetch(`/api/v1/sale-returns${queryParams}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            updateReturnsTable(data.data || []);
+            updatePagination(data.pagination);
+        }
+    } catch (error) {
+        console.error('Error loading returns:', error);
+    } finally {
+        hideLoading();
+    }
+}
+
+// Update returns table in list modal
+function updateReturnsTable(returns) {
+    const tbody = document.getElementById('returnsTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    returns.forEach(ret => {
+        const row = tbody.insertRow();
+        const returnNo = ret.returnNumber || ret.returnNo || '';
+        const partyName = ret.party?.name || 'N/A';
+        const saleInv = ret.saleInvoice?.invoiceNumber || ret.saleInvoice?.invoiceNo || 'N/A';
+
+        row.innerHTML = `
+            <td><button class="icon-btn" onclick="editReturn('${ret._id}')" title="Edit"><i class="fas fa-edit"></i></button></td>
+            <td>${returnNo}</td>
+            <td>${ret.date ? new Date(ret.date).toLocaleDateString() : ''}</td>
+            <td>${partyName}</td>
+            <td>${saleInv}</td>
+            <td>${ret.items?.length || 0}</td>
+            <td class="text-right">${(ret.totalAmount || 0).toFixed(2)}</td>
+            <td class="text-center">${ret.paymentMode || 'cash'}</td>
+            <td class="text-center"><span class="badge ${ret.status === 'completed' ? 'bg-success' : 'bg-warning'}">${ret.status || 'draft'}</span></td>
+            <td class="text-center">
+                <button class="icon-btn danger" onclick="deleteReturn('${ret._id}')" title="Delete"><i class="fas fa-trash"></i></button>
+            </td>
+        `;
+    });
+}
+
 // Load categories
 async function loadCategories() {
     try {
@@ -500,33 +646,30 @@ async function generateInvoiceNumber() {
 
 // Calculate item total
 function calculateItemTotal() {
-    const pack = parseFloat(document.getElementById('pack').value) || 0;
-    const price = parseFloat(document.getElementById('price').value) || 0;
-    const taxPercent = parseFloat(document.getElementById('taxPercent').value) || 0;
-    const discPercent = parseFloat(document.getElementById('discPercent').value) || 0;
+    const quantity = parseFloat(document.getElementById('quantity')?.value) || 0;
+    const salePrice = parseFloat(document.getElementById('salePrice')?.value) || 0;
+    const taxPercent = parseFloat(document.getElementById('taxPercent')?.value) || 0;
 
-    const subtotal = pack * price;
+    const subtotal = quantity * salePrice;
     const taxAmount = (subtotal * taxPercent) / 100;
     const total = subtotal + taxAmount;
-    const discAmount = (total * discPercent) / 100;
-    const netTotal = total - discAmount;
 
-    document.getElementById('itemTotal').value = total.toFixed(2);
-    document.getElementById('taxRs').value = taxAmount.toFixed(2);
-    document.getElementById('itemNetTotal').value = netTotal.toFixed(2);
+    const itemTotalEl = document.getElementById('itemTotal');
+    const taxRsEl = document.getElementById('taxRs');
+
+    if (itemTotalEl) itemTotalEl.value = total.toFixed(2);
+    if (taxRsEl) taxRsEl.value = taxAmount.toFixed(2);
 }
 
-// Add item to sale
+// Add item to return
 function addItemToReturn() {
-    const itemId = document.getElementById('itemSelect').value;
-    const itemCode = document.getElementById('itemCode').value;
-    const pack = parseFloat(document.getElementById('pack').value) || 0;
-    const price = parseFloat(document.getElementById('price').value) || 0;
-    const taxPercent = parseFloat(document.getElementById('taxPercent').value) || 0;
-    const discPercent = parseFloat(document.getElementById('discPercent').value) || 0;
-    const incentive = parseFloat(document.getElementById('incentive').value) || 0;
+    const itemId = document.getElementById('itemSelect')?.value;
+    const itemCode = document.getElementById('itemCode')?.value || '';
+    const quantity = parseFloat(document.getElementById('quantity')?.value) || 0;
+    const salePrice = parseFloat(document.getElementById('salePrice')?.value) || 0;
+    const taxPercent = parseFloat(document.getElementById('taxPercent')?.value) || 0;
 
-    if (!itemId || pack <= 0) {
+    if (!itemId || quantity <= 0) {
         showError('Please select an item and enter quantity');
         return;
     }
@@ -537,26 +680,20 @@ function addItemToReturn() {
         return;
     }
 
-    const subtotal = pack * price;
+    const subtotal = quantity * salePrice;
     const taxAmount = (subtotal * taxPercent) / 100;
     const total = subtotal + taxAmount;
-    const discAmount = (total * discPercent) / 100;
-    const netTotal = total - discAmount;
 
     const item = {
         id: itemId,
         code: itemCode,
         name: selectedItem.name,
-        pack: pack,
-        price: price,
+        quantity: quantity,
+        salePrice: salePrice,
         subtotal: subtotal,
         taxPercent: taxPercent,
         taxAmount: taxAmount,
-        total: total,
-        discPercent: discPercent,
-        discAmount: discAmount,
-        netTotal: netTotal,
-        incentive: incentive
+        total: total
     };
 
     saleItems.push(item);
@@ -567,7 +704,8 @@ function addItemToReturn() {
 
 // Update items table
 function updateItemsTable() {
-    const tbody = document.getElementById('saleItemsBody');
+    const tbody = document.getElementById('returnItemsBody');
+    if (!tbody) return;
     tbody.innerHTML = '';
 
     saleItems.forEach((item, index) => {
@@ -576,15 +714,12 @@ function updateItemsTable() {
             <td>${index + 1}</td>
             <td>${item.code}</td>
             <td>${item.name}</td>
-            <td class="text-right">${item.pack}</td>
-            <td class="text-right">${item.price.toFixed(2)}</td>
+            <td class="text-right">${item.quantity}</td>
+            <td class="text-right">${item.salePrice.toFixed(2)}</td>
             <td class="text-right">${item.subtotal.toFixed(2)}</td>
             <td class="text-right">${item.taxPercent.toFixed(2)}</td>
             <td class="text-right">${item.taxAmount.toFixed(2)}</td>
             <td class="text-right">${item.total.toFixed(2)}</td>
-            <td class="text-right">${item.discPercent.toFixed(2)}</td>
-            <td class="text-right">${item.discAmount.toFixed(2)}</td>
-            <td class="text-right">${item.netTotal.toFixed(2)}</td>
             <td class="text-center">
                 <button class="icon-btn danger" onclick="removeItem(${index})" title="Delete">
                     <i class="fas fa-trash"></i>
@@ -597,14 +732,14 @@ function updateItemsTable() {
     const totalSub = saleItems.reduce((sum, item) => sum + item.subtotal, 0);
     const totalTaxRs = saleItems.reduce((sum, item) => sum + item.taxAmount, 0);
     const totalAmount = saleItems.reduce((sum, item) => sum + item.total, 0);
-    const totalDiscRs = saleItems.reduce((sum, item) => sum + item.discAmount, 0);
-    const totalNet = saleItems.reduce((sum, item) => sum + item.netTotal, 0);
 
-    document.getElementById('footerSub').textContent = totalSub.toFixed(2);
-    document.getElementById('footerTaxRs').textContent = totalTaxRs.toFixed(2);
-    document.getElementById('footerTotal').textContent = totalAmount.toFixed(2);
-    document.getElementById('footerDiscRs').textContent = totalDiscRs.toFixed(2);
-    document.getElementById('footerNetTotal').textContent = totalNet.toFixed(2);
+    const footerSubEl = document.getElementById('footerSub');
+    const footerTaxRsEl = document.getElementById('footerTaxRs');
+    const footerTotalEl = document.getElementById('footerTotal');
+
+    if (footerSubEl) footerSubEl.textContent = totalSub.toFixed(2);
+    if (footerTaxRsEl) footerTaxRsEl.textContent = totalTaxRs.toFixed(2);
+    if (footerTotalEl) footerTotalEl.textContent = totalAmount.toFixed(2);
 }
 
 // Remove item from sale
@@ -616,58 +751,58 @@ function removeItem(index) {
 
 // Clear item fields
 function clearItemFields() {
-    document.getElementById('itemSelect').value = '';
+    const itemSelectEl = document.getElementById('itemSelect');
     const itemNameInput = document.getElementById('itemName');
+    const itemCodeEl = document.getElementById('itemCode');
+    const quantityEl = document.getElementById('quantity');
+    const salePriceEl = document.getElementById('salePrice');
+    const stockEl = document.getElementById('stock');
+    const taxPercentEl = document.getElementById('taxPercent');
+    const taxRsEl = document.getElementById('taxRs');
+    const itemTotalEl = document.getElementById('itemTotal');
+    const suggestionsBox = document.getElementById('itemSuggestions');
+
+    if (itemSelectEl) itemSelectEl.value = '';
     if (itemNameInput) itemNameInput.value = '';
-    document.getElementById('itemCode').value = '';
-    document.getElementById('pack').value = 1;
-    document.getElementById('price').value = '';
-    document.getElementById('stock').value = '';
-    document.getElementById('taxPercent').value = 0;
-    document.getElementById('taxRs').value = '';
-    document.getElementById('itemTotal').value = '';
-    document.getElementById('itemNetTotal').value = '';
-    document.getElementById('incentive').value = 0;
-    document.getElementById('discPercent').value = 0;
+    if (itemCodeEl) itemCodeEl.value = '';
+    if (quantityEl) quantityEl.value = 1;
+    if (salePriceEl) salePriceEl.value = '';
+    if (stockEl) stockEl.value = '';
+    if (taxPercentEl) taxPercentEl.value = 0;
+    if (taxRsEl) taxRsEl.value = '';
+    if (itemTotalEl) itemTotalEl.value = '';
+
+    // Clear suggestions box
+    if (suggestionsBox) {
+        suggestionsBox.style.display = 'none';
+        suggestionsBox.innerHTML = '';
+    }
 }
 
 // Calculate totals
 function calculateTotals() {
-    const itemsTotal = saleItems.reduce((sum, item) => sum + item.netTotal, 0);
-    const discountPercent = parseFloat(document.getElementById('discountPercent').value) || 0;
-    const discountRs = parseFloat(document.getElementById('discountRs').value) || 0;
-    const totalTaxPercent = parseFloat(document.getElementById('totalTaxPercent').value) || 0;
-    const misc = parseFloat(document.getElementById('misc').value) || 0;
-    const freight = parseFloat(document.getElementById('freight').value) || 0;
-    const paid = parseFloat(document.getElementById('paid').value) || 0;
-    const preBalance = parseFloat(document.getElementById('preBalance').value) || 0;
-
-    // Calculate discount
-    let totalDiscount = discountRs;
-    if (discountPercent > 0) {
-        totalDiscount = (itemsTotal * discountPercent) / 100;
-        document.getElementById('discountRs').value = totalDiscount.toFixed(2);
-    }
-
-    // Calculate after discount
-    const afterDiscount = itemsTotal - totalDiscount;
-
-    // Calculate tax
-    const taxAmount = (afterDiscount * totalTaxPercent) / 100;
-
-    // Calculate net total
-    const netTotal = afterDiscount + taxAmount + misc + freight;
+    const itemsTotal = saleItems.reduce((sum, item) => sum + item.total, 0);
+    const itemsSubtotal = saleItems.reduce((sum, item) => sum + item.subtotal, 0);
+    const itemsTax = saleItems.reduce((sum, item) => sum + item.taxAmount, 0);
+    const refunded = parseFloat(document.getElementById('refunded')?.value) || 0;
+    const preBalance = parseFloat(document.getElementById('preBalance')?.value) || 0;
 
     // Calculate balances
-    const invBalance = netTotal - paid;
-    const newBalance = preBalance + invBalance;
+    const balance = itemsTotal - refunded;
+    const newBalance = preBalance - itemsTotal + refunded;
 
     // Update fields
-    document.getElementById('totalAmount').value = itemsTotal.toFixed(2);
-    document.getElementById('totalTaxRs').value = taxAmount.toFixed(2);
-    document.getElementById('netTotal').value = netTotal.toFixed(2);
-    document.getElementById('invBalance').value = invBalance.toFixed(2);
-    document.getElementById('newBalance').value = newBalance.toFixed(2);
+    const subTotalEl = document.getElementById('subTotal');
+    const totalTaxRsEl = document.getElementById('totalTaxRs');
+    const grandTotalEl = document.getElementById('grandTotal');
+    const balanceEl = document.getElementById('balance');
+    const newBalanceEl = document.getElementById('newBalance');
+
+    if (subTotalEl) subTotalEl.value = itemsSubtotal.toFixed(2);
+    if (totalTaxRsEl) totalTaxRsEl.value = itemsTax.toFixed(2);
+    if (grandTotalEl) grandTotalEl.value = itemsTotal.toFixed(2);
+    if (balanceEl) balanceEl.value = balance.toFixed(2);
+    if (newBalanceEl) newBalanceEl.value = newBalance.toFixed(2);
 }
 
 // Save sale
@@ -891,11 +1026,11 @@ async function handleBarcodeLookup(code) {
 
 function populateItemFromLookup(item) {
     if (!item) return;
-    
+
     // Ensure item is in availableItems and dropdown
     const itemSelect = document.getElementById('itemSelect');
     let found = availableItems.find(i => i._id === item._id);
-    
+
     if (!found) {
         // Add to local list
         availableItems.push(item);
@@ -906,21 +1041,25 @@ function populateItemFromLookup(item) {
         itemSelect.value = item._id;
     }
 
-    document.getElementById('itemCode').value = item.barcode || item.sku || '';
-    document.getElementById('price').value = item.salePrice || 0;
-    document.getElementById('stock').value = item.stockQty || 0;
-    document.getElementById('taxPercent').value = item.taxPercent || 0;
-    
+    const itemCodeEl = document.getElementById('itemCode');
+    const salePriceEl = document.getElementById('salePrice');
+    const stockEl = document.getElementById('stock');
+    const taxPercentEl = document.getElementById('taxPercent');
     const itemNameInput = document.getElementById('itemName');
+
+    if (itemCodeEl) itemCodeEl.value = item.barcode || item.sku || '';
+    if (salePriceEl) salePriceEl.value = item.salePrice || 0;
+    if (stockEl) stockEl.value = item.stockQty || 0;
+    if (taxPercentEl) taxPercentEl.value = item.taxPercent || 0;
     if (itemNameInput) itemNameInput.value = item.name || '';
-    
+
     calculateItemTotal();
-    
-    // Move focus to Pack (Quantity) field for quick entry
-    const packInput = document.getElementById('pack');
-    if (packInput) {
-        packInput.focus();
-        packInput.select();
+
+    // Move focus to Quantity field for quick entry
+    const quantityInput = document.getElementById('quantity');
+    if (quantityInput) {
+        quantityInput.focus();
+        quantityInput.select();
     }
 }
 

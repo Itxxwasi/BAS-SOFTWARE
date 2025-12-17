@@ -2,10 +2,21 @@ const Category = require('../models/Category');
 
 // @desc    Get all categories
 // @route   GET /api/v1/categories
+// @route   GET /api/v1/categories?type=customer
+// @route   GET /api/v1/categories?type=supplier
+// @route   GET /api/v1/categories?type=item
 // @access  Private
 exports.getCategories = async (req, res) => {
     try {
-        const categories = await Category.find({ isActive: true }).sort('name');
+        // Build filter query
+        let filter = { isActive: true };
+
+        // Filter by categoryType if provided
+        if (req.query.type) {
+            filter.categoryType = req.query.type;
+        }
+
+        const categories = await Category.find(filter).sort('name');
 
         res.status(200).json({
             success: true,

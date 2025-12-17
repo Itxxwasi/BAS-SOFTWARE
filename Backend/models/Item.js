@@ -49,6 +49,11 @@ const itemSchema = new mongoose.Schema({
     required: [true, 'Please provide sale price'],
     min: [0, 'Price cannot be negative']
   },
+  incentive: {
+    type: Number,
+    default: 0,
+    min: [0, 'Incentive cannot be negative']
+  },
   taxPercent: {
     type: Number,
     default: 0,
@@ -157,6 +162,12 @@ itemSchema.methods.checkStock = function (quantity) {
 // Virtual for item's current value
 itemSchema.virtual('currentValue').get(function () {
   return this.stockQty * this.purchasePrice;
+});
+
+// Virtual for cost percentage (incentive/purchasePrice * 100)
+itemSchema.virtual('costPercent').get(function () {
+  if (!this.purchasePrice || this.purchasePrice === 0) return 0;
+  return ((this.incentive || 0) / this.purchasePrice) * 100;
 });
 
 // Indexes for better query performance

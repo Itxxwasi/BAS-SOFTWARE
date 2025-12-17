@@ -96,6 +96,48 @@
                 width: 100%;
             }
         }
+
+        /* Item autocomplete suggestions */
+        .item-name-wrapper {
+            position: relative;
+        }
+
+        .autocomplete-suggestions {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            border-radius: 4px;
+            background: white;
+            z-index: 2000 !important;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 2px;
+            display: none !important;
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+        }
+
+        .autocomplete-suggestions[style*="display: block"] {
+            display: block !important;
+        }
+
+        .suggestion-item {
+            padding: 10px 12px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.15s;
+            font-size: 13px;
+        }
+
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+
+        .suggestion-item:hover,
+        .suggestion-item.active {
+            background-color: #f0f4ff;
+        }
     </style>
 </head>
 
@@ -176,10 +218,12 @@
                                     </div>
                                     <div class="form-field flex-2">
                                         <label>Name</label>
-                                        <div class="input-group">
-                                            <select id="itemSelect">
+                                        <div class="input-group item-name-wrapper">
+                                            <input type="text" id="itemName" placeholder="Type to search item name...">
+                                            <select id="itemSelect" style="display: none;">
                                                 <option value="">-- Select Item --</option>
                                             </select>
+                                            <div id="itemSuggestions" class="autocomplete-suggestions"></div>
                                             <button type="button" class="btn-add-new" style="background: #007BFF;"
                                                 onclick="showItemList()">
                                                 <i class="fas fa-list"></i>
@@ -375,7 +419,7 @@
     <script src="/js/pageAccess.js"></script>
     <script src="/js/sidebar.js"></script>
     <script src="/js/desktop-ui.js?v=12"></script>
-    <script src="/js/purchase-returns.js?v=13"></script>
+    <script src="/js/purchase-returns.js?v=14"></script>
 </body>
 
 </html>

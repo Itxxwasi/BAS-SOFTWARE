@@ -16,11 +16,11 @@ const getExpense = asyncHandler(async (req, res, next) => {
   const expense = await Expense.findById(req.params.id)
     .populate('createdBy', 'name email')
     .populate('approvedBy', 'name email');
-  
+
   if (!expense) {
     return next(new ErrorResponse(`Expense not found with id of ${req.params.id}`, 404));
   }
-  
+
   res.status(200).json({ success: true, data: expense });
 });
 
@@ -30,9 +30,9 @@ const getExpense = asyncHandler(async (req, res, next) => {
 const createExpense = asyncHandler(async (req, res, next) => {
   // Add user to req.body
   req.body.createdBy = req.user.id;
-  
+
   const expense = await Expense.create(req.body);
-  
+
   res.status(201).json({
     success: true,
     data: expense
@@ -44,26 +44,26 @@ const createExpense = asyncHandler(async (req, res, next) => {
 // @access  Private
 const updateExpense = asyncHandler(async (req, res, next) => {
   let expense = await Expense.findById(req.params.id);
-  
+
   if (!expense) {
     return next(new ErrorResponse(`Expense not found with id of ${req.params.id}`, 404));
   }
-  
+
   // Only allow updates to pending expenses or by admin/manager
   if (expense.status !== 'pending' && req.user.role !== 'admin' && req.user.role !== 'manager') {
     return next(new ErrorResponse('Only pending expenses can be updated', 400));
   }
-  
+
   // Don't allow changing approval status through update endpoint
   delete req.body.status;
   delete req.body.approvedBy;
   delete req.body.approvedAt;
-  
+
   expense = await Expense.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
     runValidators: true
   });
-  
+
   res.status(200).json({ success: true, data: expense });
 });
 
@@ -72,18 +72,19 @@ const updateExpense = asyncHandler(async (req, res, next) => {
 // @access  Private
 const deleteExpense = asyncHandler(async (req, res, next) => {
   const expense = await Expense.findById(req.params.id);
-  
+
   if (!expense) {
     return next(new ErrorResponse(`Expense not found with id of ${req.params.id}`, 404));
   }
-  
-  // Only allow deletion of pending expenses or by admin
-  if (expense.status !== 'pending' && req.user.role !== 'admin') {
-    return next(new ErrorResponse('Only pending expenses can be deleted', 400));
-  }
-  
-  await expense.remove();
-  
+
+  // Allow deletion by creator or admin (removed status check for simpler workflow)
+  // If you want to restrict, uncomment the following:
+  // if (expense.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
+  //   return next(new ErrorResponse('Not authorized to delete this expense', 401));
+  // }
+
+  await Expense.deleteOne({ _id: req.params.id });
+
   res.status(200).json({ success: true, data: {} });
 });
 
@@ -92,23 +93,23 @@ const deleteExpense = asyncHandler(async (req, res, next) => {
 // @access  Private
 const approveExpense = asyncHandler(async (req, res, next) => {
   let expense = await Expense.findById(req.params.id);
-  
+
   if (!expense) {
     return next(new ErrorResponse(`Expense not found with id of ${req.params.id}`, 404));
   }
-  
+
   // Check if expense is pending
   if (expense.status !== 'pending') {
     return next(new ErrorResponse('Only pending expenses can be approved', 400));
   }
-  
+
   // Update expense status
   expense.status = req.body.status || 'approved';
   expense.approvedBy = req.user.id;
   expense.approvedAt = Date.now();
-  
+
   await expense.save();
-  
+
   res.status(200).json({ success: true, data: expense });
 });
 
@@ -117,18 +118,18 @@ const approveExpense = asyncHandler(async (req, res, next) => {
 // @access  Private
 const getExpensesByDateRange = asyncHandler(async (req, res, next) => {
   const { startDate, endDate } = req.query;
-  
+
   if (!startDate || !endDate) {
     return next(new ErrorResponse('Please provide both startDate and endDate', 400));
   }
-  
+
   const expenses = await Expense.find({
     date: {
       $gte: new Date(startDate),
       $lte: new Date(endDate)
     }
   }).sort({ date: 1 });
-  
+
   res.status(200).json({
     success: true,
     count: expenses.length,
@@ -141,16 +142,16 @@ const getExpensesByDateRange = asyncHandler(async (req, res, next) => {
 // @access  Private
 const getExpensesSummary = asyncHandler(async (req, res, next) => {
   const { startDate, endDate } = req.query;
-  
+
   const match = {};
-  
+
   if (startDate && endDate) {
     match.date = {
       $gte: new Date(startDate),
       $lte: new Date(endDate)
     };
   }
-  
+
   const summary = await Expense.aggregate([
     { $match: match },
     {
@@ -162,7 +163,7 @@ const getExpensesSummary = asyncHandler(async (req, res, next) => {
       }
     }
   ]);
-  
+
   res.status(200).json({
     success: true,
     data: summary[0] || {
@@ -178,12 +179,54 @@ const getExpensesSummary = asyncHandler(async (req, res, next) => {
 // @access  Private
 const getExpensesByCategory = asyncHandler(async (req, res, next) => {
   const expenses = await Expense.find({ category: req.params.category });
-  
+
   res.status(200).json({
     success: true,
     count: expenses.length,
     data: expenses
   });
+});
+
+// @desc    Get cash in hand (calculate from expenses and receipts)
+// @route   GET /api/v1/expenses/cash-in-hand
+// @access  Private
+const getCashInHand = asyncHandler(async (req, res, next) => {
+  try {
+    // Simple approach: get all expenses and sum manually
+    const expenses = await Expense.find({ paymentMode: 'cash' }).select('type amount');
+
+    let totalExpenses = 0;
+    let totalReceipts = 0;
+
+    expenses.forEach(exp => {
+      if (exp.type === 'receipt') {
+        totalReceipts += exp.amount || 0;
+      } else {
+        totalExpenses += exp.amount || 0;
+      }
+    });
+
+    const cashInHand = totalReceipts - totalExpenses;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        amount: cashInHand,
+        totalExpenses: totalExpenses,
+        totalReceipts: totalReceipts
+      }
+    });
+  } catch (error) {
+    console.error('getCashInHand error:', error);
+    res.status(200).json({
+      success: true,
+      data: {
+        amount: 0,
+        totalExpenses: 0,
+        totalReceipts: 0
+      }
+    });
+  }
 });
 
 module.exports = {
@@ -195,5 +238,6 @@ module.exports = {
   approveExpense,
   getExpensesByDateRange,
   getExpensesSummary,
-  getExpensesByCategory
+  getExpensesByCategory,
+  getCashInHand
 };

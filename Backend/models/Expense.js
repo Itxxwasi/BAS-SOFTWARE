@@ -6,6 +6,11 @@ const expenseSchema = new mongoose.Schema({
     unique: true,
     trim: true
   },
+  type: {
+    type: String,
+    enum: ['expense', 'receipt'],
+    default: 'expense'
+  },
   date: {
     type: Date,
     default: Date.now,
@@ -81,8 +86,8 @@ const expenseSchema = new mongoose.Schema({
 });
 
 // Generate expense number before saving
-expenseSchema.pre('save', async function (next) {
-  if (!this.isNew || this.expenseNo) return next();
+expenseSchema.pre('save', async function () {
+  if (!this.isNew || this.expenseNo) return;
 
   try {
     const count = await this.constructor.countDocuments();
@@ -90,9 +95,8 @@ expenseSchema.pre('save', async function (next) {
     const year = date.getFullYear().toString().slice(-2);
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     this.expenseNo = `EXP-${year}${month}-${(count + 1).toString().padStart(4, '0')}`;
-    next();
   } catch (error) {
-    next(error);
+    throw error;
   }
 });
 

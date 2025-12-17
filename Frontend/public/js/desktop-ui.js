@@ -55,11 +55,11 @@ function showQuickAddDialog(type, callback) {
                                             <tr>
                                                 <th>Name</th>
                                                 <th>Code</th>
-                                                <th width="80">Action</th>
+                                                <th width="120" class="text-center">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody id="quickAddListBody">
-                                            <tr><td colspan="3" class="text-center">Loading...</td></tr>
+                                            <tr><td colspan="4" class="text-center">Loading...</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -168,6 +168,9 @@ async function loadQuickAddList(type) {
     const tbody = document.getElementById('quickAddListBody');
     if (!tbody) return;
 
+    // Store type globally for edit/delete functions
+    window._quickAddCurrentType = type;
+
     try {
         const token = localStorage.getItem('token');
         const endpoint = getQuickAddEndpoint(type, true); // true = GET list
@@ -189,7 +192,7 @@ async function loadQuickAddList(type) {
             const items = Array.isArray(data) ? data : (data.data || []);
 
             if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" class="text-center">No records found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center">No records found</td></tr>';
                 return;
             }
 
@@ -202,25 +205,32 @@ async function loadQuickAddList(type) {
                 // Escape quotes for onclick params
                 const safeName = typeof name === 'string' ? name.replace(/'/g, "\\'") : name;
                 const safeId = typeof id === 'string' ? id.replace(/'/g, "\\'") : id;
+                const safeCode = typeof code === 'string' ? code.replace(/'/g, "\\'") : code;
 
                 return `
-                    <tr>
+                    <tr data-id="${id}">
                         <td>${name}</td>
                         <td>${code}</td>
-                        <td>
-                            <button class="btn btn-sm btn-primary py-0" onclick="selectQuickAddItem('${type}', '${safeId}', '${safeName}')">
+                        <td class="text-center" style="white-space: nowrap;">
+                            <button class="btn btn-sm btn-success py-0 px-1 me-1" onclick="selectQuickAddItem('${type}', '${safeId}', '${safeName}')" title="Select">
                                 <i class="fas fa-check"></i>
+                            </button>
+                            <button class="btn btn-sm btn-warning py-0 px-1 me-1" onclick="editQuickAddItem('${type}', '${safeId}', '${safeName}', '${safeCode}')" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger py-0 px-1" onclick="deleteQuickAddItem('${type}', '${safeId}', '${safeName}')" title="Delete">
+                                <i class="fas fa-trash"></i>
                             </button>
                         </td>
                     </tr>
                 `;
             }).join('');
         } else {
-            tbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger">Failed to load data</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Failed to load data</td></tr>';
         }
     } catch (error) {
         console.error('Error loading list:', error);
-        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger">Error loading data</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Error loading data</td></tr>';
     }
 }
 
@@ -258,6 +268,15 @@ async function handleQuickAdd(type) {
             payload.address = { city: payload.city }; // Ensure structure
         } else if (type === 'category') {
             payload.isActive = true;
+            // Determine categoryType based on context
+            // If partyType dropdown exists (Parties page), use it
+            // Otherwise, default to 'item' (Items page)
+            const partyTypeSelect = document.getElementById('partyType');
+            if (partyTypeSelect && partyTypeSelect.value) {
+                payload.categoryType = partyTypeSelect.value; // 'customer' or 'supplier'
+            } else {
+                payload.categoryType = 'item'; // Default to item category (for Items page)
+            }
         }
 
         const response = await fetch(endpoint, {
@@ -366,12 +385,165 @@ function selectQuickAddItem(type, id, name) {
 }
 
 /**
+ * Edit item from quick add list
+ */
+function editQuickAddItem(type, id, name, code) {
+    // Populate the form with the existing values
+    document.getElementById('quickAddName').value = name;
+    document.getElementById('quickAddCode').value = code !== '-' ? code : '';
+
+    // Store the ID for update
+    window._quickAddEditId = id;
+
+    // Change the button text to "Update"
+    const saveBtn = document.querySelector('#quickAddForm button[onclick*="handleQuickAdd"]');
+    if (saveBtn) {
+        saveBtn.innerHTML = '<i class="fas fa-save me-1"></i>Update';
+        saveBtn.setAttribute('onclick', `handleQuickAddUpdate('${type}')`);
+    }
+
+    // Focus on name field
+    document.getElementById('quickAddName').focus();
+
+    showSuccess('Editing: ' + name);
+}
+
+/**
+ * Handle quick add update (Edit mode)
+ */
+async function handleQuickAddUpdate(type) {
+    const id = window._quickAddEditId;
+    if (!id) {
+        showError('No item selected for editing');
+        return;
+    }
+
+    const name = document.getElementById('quickAddName').value.trim();
+    const code = document.getElementById('quickAddCode').value.trim();
+
+    if (!name) {
+        showError('Name is required');
+        return;
+    }
+
+    try {
+        showLoading();
+
+        const token = localStorage.getItem('token');
+        const endpoint = getQuickAddEndpoint(type, false); // Get base endpoint
+        const updateUrl = endpoint.split('?')[0] + '/' + id; // Remove query params and add ID
+
+        // Build Payload
+        let payload = { name };
+        if (code) payload.code = code;
+        if (code) payload.description = code;
+
+        const response = await fetch(updateUrl, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.status === 401) {
+            window.location.href = '/login.html';
+            return;
+        }
+
+        if (response.ok) {
+            showSuccess(`${capitalize(type)} updated successfully`);
+
+            // Clear edit mode
+            window._quickAddEditId = null;
+            document.getElementById('quickAddName').value = '';
+            document.getElementById('quickAddCode').value = '';
+
+            // Reset button back to "Save & Select"
+            const saveBtn = document.querySelector('#quickAddForm button[onclick*="handleQuickAdd"]');
+            if (saveBtn) {
+                saveBtn.innerHTML = '<i class="fas fa-save me-1"></i>Save & Select';
+                saveBtn.setAttribute('onclick', `handleQuickAdd('${type}')`);
+            }
+
+            // Refresh the list
+            loadQuickAddList(type);
+
+            // Trigger callback to refresh main page dropdown
+            if (window._quickAddCallback) {
+                await window._quickAddCallback();
+            }
+        } else {
+            const error = await response.json();
+            showError(error.message || `Failed to update ${type}`);
+        }
+    } catch (error) {
+        console.error(`Error updating ${type}:`, error);
+        showError(`Failed to update ${type}`);
+    } finally {
+        hideLoading();
+    }
+}
+
+/**
+ * Delete item from quick add list
+ */
+async function deleteQuickAddItem(type, id, name) {
+    if (!confirm(`Are you sure you want to delete "${name}"?`)) {
+        return;
+    }
+
+    try {
+        showLoading();
+
+        const token = localStorage.getItem('token');
+        const endpoint = getQuickAddEndpoint(type, false); // Get base endpoint
+        const deleteUrl = endpoint.split('?')[0] + '/' + id; // Remove query params and add ID
+
+        const response = await fetch(deleteUrl, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (response.status === 401) {
+            window.location.href = '/login.html';
+            return;
+        }
+
+        if (response.ok) {
+            showSuccess(`${capitalize(type)} deleted successfully`);
+
+            // Refresh the list
+            loadQuickAddList(type);
+
+            // Trigger callback to refresh main page dropdown
+            if (window._quickAddCallback) {
+                await window._quickAddCallback();
+            }
+        } else {
+            const error = await response.json();
+            showError(error.message || `Failed to delete ${type}`);
+        }
+    } catch (error) {
+        console.error(`Error deleting ${type}:`, error);
+        showError(`Failed to delete ${type}`);
+    } finally {
+        hideLoading();
+    }
+}
+
+/**
  * Get API endpoint for quick add
  */
 function getQuickAddEndpoint(type, isGet) {
     // Base endpoints
     const endpoints = {
         'category': '/api/v1/categories',
+        'customer-category': '/api/v1/customer-categories',
+        'supplier-category': '/api/v1/supplier-categories',
         'company': '/api/v1/companies',
         'supplier': '/api/v1/parties?partyType=supplier', // For GET
         'customer': '/api/v1/parties?partyType=customer', // For GET
@@ -381,6 +553,18 @@ function getQuickAddEndpoint(type, isGet) {
     };
 
     let url = endpoints[type];
+
+    // Handle generic category type - use dedicated endpoints based on partyType context
+    if (type === 'category') {
+        const partyTypeSelect = document.getElementById('partyType');
+        if (partyTypeSelect && partyTypeSelect.value === 'customer') {
+            url = '/api/v1/customer-categories';
+        } else if (partyTypeSelect && partyTypeSelect.value === 'supplier') {
+            url = '/api/v1/supplier-categories';
+        } else {
+            url = '/api/v1/item-categories'; // Default to item categories
+        }
+    }
 
     // Adjust for POST (create) vs GET (list)
     if (!isGet) {
@@ -795,6 +979,7 @@ document.addEventListener('DOMContentLoaded', function () {
 window.DesktopUI = {
     showQuickAddDialog,
     handleQuickAdd,
+    handleQuickAddUpdate,
     getQuickAddFields,
     calculateLineTotal,
     calculateGrandTotal,
@@ -814,6 +999,8 @@ window.DesktopUI = {
     parseFormattedNumber,
     debounce,
     generateUniqueId,
-    // Expose select for onclick used in string template
-    selectQuickAddItem
+    // Expose select, edit, delete for onclick used in string template
+    selectQuickAddItem,
+    editQuickAddItem,
+    deleteQuickAddItem
 };

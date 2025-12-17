@@ -37,6 +37,9 @@ const reportRoutes = require('./routes/reports');
 const settingsRoutes = require('./routes/settings');
 const userRoutes = require('./routes/users');
 const categoryRoutes = require('./routes/categories');
+const itemCategoryRoutes = require('./routes/itemCategories');
+const customerCategoryRoutes = require('./routes/customerCategories');
+const supplierCategoryRoutes = require('./routes/supplierCategories');
 const companyRoutes = require('./routes/companies');
 const classRoutes = require('./routes/classes');
 const subclassRoutes = require('./routes/subclasses');
@@ -46,6 +49,7 @@ const closingSheetRoutes = require('./routes/closingSheets');
 const dailyCashRoutes = require('./routes/dailyCash');
 const cashSaleRoutes = require('./routes/cashSales');
 const healthRoutes = require('./routes/health');
+const expenseHeadRoutes = require('./routes/expenseHeads');
 
 // Error handler
 const errorHandler = require('./middleware/errorHandler');
@@ -229,6 +233,9 @@ app.use('/api/v1/reports', reportRoutes);
 app.use('/api/v1/settings', settingsRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/categories', categoryRoutes);
+app.use('/api/v1/item-categories', itemCategoryRoutes);
+app.use('/api/v1/customer-categories', customerCategoryRoutes);
+app.use('/api/v1/supplier-categories', supplierCategoryRoutes);
 app.use('/api/v1/companies', companyRoutes);
 app.use('/api/v1/classes', classRoutes);
 app.use('/api/v1/subclasses', subclassRoutes);
@@ -238,6 +245,7 @@ app.use('/api/v1/closing-sheets', closingSheetRoutes);
 app.use('/api/v1/daily-cash', dailyCashRoutes);
 app.use('/api/v1/cash-sales', cashSaleRoutes);
 app.use('/api/v1/health', healthRoutes);
+app.use('/api/v1/expense-heads', expenseHeadRoutes);
 
 // Serve login page at root
 app.get('/', (req, res) => {

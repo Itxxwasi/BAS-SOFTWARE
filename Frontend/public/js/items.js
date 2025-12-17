@@ -38,7 +38,9 @@ function initItemsPage() {
     // Event listeners for global search
     document.getElementById('searchInput').addEventListener('input', DesktopUI.debounce(handleGlobalSearch, 300));
 
-
+    // Event listeners for Cost % calculation
+    document.getElementById('incentive').addEventListener('input', calculateCostPercent);
+    document.getElementById('purchasePrice').addEventListener('input', calculateCostPercent);
 
     // Setup Autocomplete for Search By Name
     setupNameAutocomplete();
@@ -287,13 +289,19 @@ function displayItems(items) {
     const tbody = document.getElementById('itemsTableBody');
 
     if (!items || items.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center">No items found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center">No items found</td></tr>';
         return;
     }
 
     tbody.innerHTML = items.map(item => {
         // Handle potential object or string for related fields
         const getVal = (field) => field ? (field.name || field) : '-';
+
+        // Calculate Cost % = (incentive / purchasePrice) * 100
+        let costPercent = 0;
+        if (item.purchasePrice && item.purchasePrice > 0) {
+            costPercent = ((item.incentive || 0) / item.purchasePrice) * 100;
+        }
 
         return `
         <tr>
@@ -304,6 +312,7 @@ function displayItems(items) {
             <td>${getVal(item.subclass)}</td>
             <td>${getVal(item.supplier)}</td>
             <td class="text-right">${DesktopUI.formatNumber(item.salePrice || 0)}</td>
+            <td class="text-right">${costPercent.toFixed(2)}%</td>
             <td class="text-center">${item.stockQty || 0}</td>
             <td class="text-center">${item.unit || 'PCS'}</td>
             <td class="text-center">
@@ -318,12 +327,12 @@ function displayItems(items) {
     `}).join('');
 }
 
-// Load categories
+// Load categories (only item categories)
 async function loadCategories() {
     try {
         const token = localStorage.getItem('token');
-        // Use general categories API to get all available categories
-        const response = await fetch('/api/v1/categories', {
+        // Use dedicated item-categories API endpoint
+        const response = await fetch('/api/v1/item-categories', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -432,6 +441,23 @@ function capitalize(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+// Calculate Cost % = (Incentive / Cost Price) * 100
+function calculateCostPercent() {
+    const incentive = parseFloat(document.getElementById('incentive').value) || 0;
+    const costPrice = parseFloat(document.getElementById('purchasePrice').value) || 0;
+
+    let costPercent = 0;
+    if (costPrice > 0) {
+        costPercent = (incentive / costPrice) * 100;
+    }
+
+    // Display the calculated Cost %
+    const costPercentField = document.getElementById('costPercent');
+    if (costPercentField) {
+        costPercentField.value = costPercent.toFixed(2);
+    }
+}
+
 // Save item
 async function saveItem() {
     try {
@@ -467,6 +493,7 @@ async function saveItem() {
             purchasePrice: parseFloat(document.getElementById('purchasePrice').value) || 0,
             salePrice: parseFloat(document.getElementById('salePrice').value) || 0,
             retailPrice: parseFloat(document.getElementById('retailPrice').value) || 0,
+            incentive: parseFloat(document.getElementById('incentive').value) || 0,
             stockQty: parseInt(document.getElementById('stockQuantity').value) || 0,
             openingStock: parseInt(document.getElementById('openingStock').value) || 0, // Ensure this saved if schema has it
             minStockLevel: parseInt(document.getElementById('minStockLevel').value) || 10,
@@ -552,6 +579,9 @@ async function editItem(itemId) {
             document.getElementById('purchasePrice').value = item.purchasePrice || 0;
             document.getElementById('salePrice').value = item.salePrice || 0;
             document.getElementById('retailPrice').value = item.retailPrice || 0;
+            document.getElementById('incentive').value = item.incentive || 0;
+            // Calculate and display Cost %
+            calculateCostPercent();
             document.getElementById('stockQuantity').value = item.stockQty || 0;
             document.getElementById('openingStock').value = item.openingStock || 0;
             // Lock opening stock for existing items

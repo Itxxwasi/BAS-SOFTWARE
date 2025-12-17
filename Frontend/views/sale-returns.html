@@ -96,6 +96,39 @@
                 width: 100%;
             }
         }
+
+        /* Item autocomplete suggestions */
+        .suggestions-box {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            border-radius: 4px;
+            background: white;
+            z-index: 2000 !important;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 2px;
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+        }
+
+        .suggestion-item {
+            padding: 10px 12px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.15s;
+            font-size: 13px;
+        }
+
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+
+        .suggestion-item:hover,
+        .suggestion-item.active {
+            background-color: #f0f4ff;
+        }
     </style>
 </head>
 
@@ -177,13 +210,15 @@
                                     <div class="form-field flex-2">
                                         <label>Name</label>
                                         <div class="input-group" style="position: relative;">
-                                            <input type="text" id="itemName" placeholder="Type to search item..." autocomplete="off">
+                                            <input type="text" id="itemName" placeholder="Type to search item..."
+                                                autocomplete="off">
                                             <input type="hidden" id="itemSelect">
                                             <button type="button" class="btn-add-new" style="background: #007BFF;"
                                                 onclick="showItemList()">
                                                 <i class="fas fa-list"></i>
                                             </button>
-                                            <div id="itemSuggestions" class="suggestions-box" style="display:none;"></div>
+                                            <div id="itemSuggestions" class="suggestions-box" style="display:none;">
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -375,7 +410,7 @@
     <script src="/js/pageAccess.js"></script>
     <script src="/js/desktop-ui.js?v=4"></script>
     <script src="/js/sidebar.js"></script>
-    <script src="/js/sale-returns.js?v=8"></script>
+    <script src="/js/sale-returns.js?v=9"></script>
 </body>
 
 </html>

@@ -4,12 +4,16 @@ const CategorySchema = new mongoose.Schema({
     name: {
         type: String,
         required: [true, 'Please add a category name'],
-        unique: true,
         trim: true
     },
     code: {
         type: String,
         trim: true
+    },
+    categoryType: {
+        type: String,
+        enum: ['customer', 'supplier', 'item'],
+        required: [true, 'Please specify category type (customer, supplier, or item)']
     },
     description: {
         type: String

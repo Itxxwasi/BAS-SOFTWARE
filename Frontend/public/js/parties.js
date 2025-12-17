@@ -27,8 +27,8 @@ function setUserName() {
 
 // Initialize parties page
 function initPartiesPage() {
-    // Load categories for dropdown
-    loadCategories();
+    // Disable category dropdown initially (no type selected)
+    initializeCategoryDropdown();
 
     // Load parties
     loadParties();
@@ -38,8 +38,31 @@ function initPartiesPage() {
     document.getElementById('partyTypeFilter').addEventListener('change', loadParties);
     document.getElementById('balanceFilter').addEventListener('change', loadParties);
 
+    // Event listener for party type change to reload categories
+    document.getElementById('partyType').addEventListener('change', function () {
+        loadCategories(this.value);
+    });
+
     // Auto-generate party code
     generatePartyCode();
+}
+
+// Initialize category dropdown and + button as disabled
+function initializeCategoryDropdown() {
+    const categorySelect = document.getElementById('category');
+    const addCategoryBtn = document.getElementById('addCategoryBtn');
+
+    categorySelect.innerHTML = '<option value="">-- Select Type First --</option>';
+    categorySelect.disabled = true;
+    categorySelect.style.opacity = '0.6';
+    categorySelect.style.cursor = 'not-allowed';
+
+    // Also disable the + button
+    if (addCategoryBtn) {
+        addCategoryBtn.disabled = true;
+        addCategoryBtn.style.opacity = '0.6';
+        addCategoryBtn.style.cursor = 'not-allowed';
+    }
 }
 
 // Generate party code
@@ -67,23 +90,92 @@ async function generatePartyCode() {
     }
 }
 
-// Load categories
-async function loadCategories() {
+// Open add category dialog based on selected party type
+function openAddCategoryDialog() {
+    const partyType = document.getElementById('partyType').value;
+
+    if (!partyType) {
+        showError('Please select a Type first');
+        return;
+    }
+
+    // Determine which category type to use based on party type
+    let categoryType = '';
+    if (partyType === 'customer') {
+        categoryType = 'customer-category';
+    } else if (partyType === 'supplier') {
+        categoryType = 'supplier-category';
+    }
+
+    // Show the quick add dialog for the appropriate category type
+    DesktopUI.showQuickAddDialog(categoryType, () => loadCategories(partyType));
+}
+
+// Load categories based on party type
+async function loadCategories(partyType = '') {
+    const categorySelect = document.getElementById('category');
+    const addCategoryBtn = document.getElementById('addCategoryBtn');
+
+    // If no type selected, disable category dropdown and + button
+    if (!partyType) {
+        categorySelect.innerHTML = '<option value="">-- Select Type First --</option>';
+        categorySelect.disabled = true;
+        categorySelect.style.opacity = '0.6';
+        categorySelect.style.cursor = 'not-allowed';
+
+        // Also disable the + button
+        if (addCategoryBtn) {
+            addCategoryBtn.disabled = true;
+            addCategoryBtn.style.opacity = '0.6';
+            addCategoryBtn.style.cursor = 'not-allowed';
+        }
+        return;
+    }
+
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/v1/categories', {
+
+        // Use dedicated category endpoints based on party type
+        let url = '/api/v1/categories'; // fallback to all categories
+        if (partyType === 'customer') {
+            url = '/api/v1/customer-categories';
+        } else if (partyType === 'supplier') {
+            url = '/api/v1/supplier-categories';
+        }
+
+        const response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
         if (response.ok) {
             const data = await response.json();
-            const categorySelect = document.getElementById('category');
+
+            // Store currently selected value
+            const currentValue = categorySelect.value;
+
             categorySelect.innerHTML = '<option value="">-- Select Category --</option>';
 
             if (data.data) {
                 data.data.forEach(cat => {
                     categorySelect.innerHTML += `<option value="${cat._id}">${cat.name}</option>`;
                 });
+            }
+
+            // Enable the category dropdown
+            categorySelect.disabled = false;
+            categorySelect.style.opacity = '1';
+            categorySelect.style.cursor = 'pointer';
+
+            // Also enable the + button
+            if (addCategoryBtn) {
+                addCategoryBtn.disabled = false;
+                addCategoryBtn.style.opacity = '1';
+                addCategoryBtn.style.cursor = 'pointer';
+            }
+
+            // Restore selected value if it still exists in the new options
+            if (currentValue) {
+                categorySelect.value = currentValue;
             }
         }
     } catch (error) {
@@ -192,6 +284,12 @@ async function editParty(partyId) {
             document.getElementById('partyCode').value = party.code || '';
             document.getElementById('name').value = party.name || '';
             document.getElementById('partyType').value = party.partyType || '';
+
+            // Load categories based on party type, then set the category value
+            await loadCategories(party.partyType || '');
+            const categoryId = (party.category && party.category._id) ? party.category._id : (party.category || '');
+            document.getElementById('category').value = categoryId;
+
             document.getElementById('phone').value = party.phone || '';
             document.getElementById('mobile').value = party.mobile || '';
             document.getElementById('gstNumber').value = party.taxNumber || '';
@@ -203,8 +301,6 @@ async function editParty(partyId) {
             document.getElementById('country').value = party.address?.country || 'Pakistan';
             document.getElementById('notes').value = party.notes || '';
             document.getElementById('openingBalance').value = party.openingBalance || 0;
-            const categoryId = (party.category && party.category._id) ? party.category._id : (party.category || '');
-            document.getElementById('category').value = categoryId;
             document.getElementById('isActive').checked = party.isActive !== false;
 
             // Scroll to top
@@ -331,6 +427,8 @@ function clearForm() {
     document.getElementById('isActive').checked = true;
     document.getElementById('openingBalance').value = 0;
     generatePartyCode();
+    // Reset category dropdown to disabled state (no type selected)
+    initializeCategoryDropdown();
 }
 
 // Handle search
