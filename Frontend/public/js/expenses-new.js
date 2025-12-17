@@ -31,6 +31,7 @@ function initExpensesPage() {
     // Load data
     loadExpenseHeads();
     loadCashInHand();
+    loadBranches();
     loadExpenses();
 
     // Event listeners
@@ -263,6 +264,35 @@ async function loadCashInHand() {
     }
 }
 
+// Load Branches
+async function loadBranches() {
+    try {
+        const branchEl = document.getElementById('branch');
+        if (!branchEl) return;
+
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/v1/stores', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.data && data.data.length > 0) {
+                branchEl.innerHTML = '';
+                data.data.forEach(store => {
+                    const option = document.createElement('option');
+                    option.value = store.name;
+                    option.textContent = store.name;
+                    branchEl.appendChild(option);
+                });
+                // Default to first or specific if needed
+            }
+        }
+    } catch (error) {
+        console.error('Error loading branches:', error);
+    }
+}
+
 // Update Cash Display
 function updateCashDisplay() {
     const displayEl = document.getElementById('cashInHandDisplay');
@@ -349,6 +379,9 @@ function displayExpenses(expenses) {
                 <td class="text-end ${typeClass}">${amount.toLocaleString()}</td>
                 <td>${expense.notes || expense.description || ''}</td>
                 <td>
+                    <button class="btn btn-sm btn-info" onclick="printExpenseRow('${expense._id}')" title="Print">
+                        <i class="fas fa-print"></i>
+                    </button>
                     <button class="btn btn-sm btn-warning" onclick="editExpense('${expense._id}')" title="Edit">
                         <i class="fas fa-edit"></i>
                     </button>
@@ -449,6 +482,7 @@ async function saveExpense() {
 }
 
 // Edit Expense
+// Edit Expense
 async function editExpense(expenseId) {
     try {
         showLoading();
@@ -464,24 +498,36 @@ async function editExpense(expenseId) {
 
             console.log('Editing expense:', expense);
 
-            // Store ID for update - use .value to set the value
+            // Store ID
             const expenseIdEl = document.getElementById('expenseId');
             if (expenseIdEl) expenseIdEl.value = expenseId;
 
-            // Populate form
-            document.getElementById('payType').value = expense.type || 'expense';
-            handlePayTypeChange(); // Update UI and reload heads
+            // 1. Pay Type & UI Styling
+            const payType = expense.type || 'expense';
+            document.getElementById('payType').value = payType;
 
-            // Wait a bit for heads to load then set value
-            setTimeout(() => {
-                document.getElementById('head').value = expense.head || '';
-                loadSubHeads(expense.head).then(() => {
-                    setTimeout(() => {
-                        document.getElementById('subHead').value = expense.subHead || '';
-                    }, 100);
-                });
-            }, 100);
+            const formPanel = document.querySelector('.form-panel');
+            if (formPanel) {
+                formPanel.style.borderColor = payType === 'receipt' ? '#28a745' : '#dc3545';
+            }
 
+            // 2. Load Heads (Await completion)
+            // We await this to ensure the <option> elements are present before we try to set the value
+            await loadExpenseHeads(payType);
+
+            // 3. Set Head
+            // Now that options are loaded, this should work
+            document.getElementById('head').value = expense.head || '';
+
+            // 4. Load SubHeads (Await completion)
+            if (expense.head) {
+                await loadSubHeads(expense.head);
+                document.getElementById('subHead').value = expense.subHead || '';
+            } else {
+                document.getElementById('subHead').innerHTML = '<option value="">-- Select Sub Head --</option>';
+            }
+
+            // 5. Set other fields
             document.getElementById('expenseDate').value = expense.date ? expense.date.split('T')[0] : '';
             document.getElementById('branch').value = expense.branch || 'Shop';
             document.getElementById('amount').value = Math.abs(expense.amount || 0);
@@ -492,10 +538,12 @@ async function editExpense(expenseId) {
             // Update cash display
             updateCashDisplay();
 
-            // Scroll to form and focus on amount
+            // Scroll to form
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
-            showSuccess('Expense loaded for editing');
+            // Notification removed as per user request
+            // showSuccess('Expense loaded for editing'); 
+
         } else {
             const errorData = await response.json();
             showError(errorData.message || 'Failed to load expense');
@@ -571,7 +619,61 @@ function clearForm() {
     updateCashDisplay();
 }
 
-// Print Expense Voucher
+
+// Print Individual Expense Row
+async function printExpenseRow(expenseId) {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/v1/expenses/${expenseId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const expense = data.data;
+
+            // Populate Print Area using the fetched expense data
+            const payType = expense.type || 'expense';
+            const head = expense.head || '';
+            const subHead = expense.subHead || '';
+            const amount = Math.abs(expense.amount || 0);
+            const mode = expense.paymentMode || 'cash';
+            const remarks = expense.notes || expense.description || '';
+            const date = expense.date;
+
+            document.querySelector('.invoice-header').textContent = payType === 'expense' ? 'Expense Voucher' : 'Receipt Voucher';
+
+            if (date) {
+                const d = new Date(date);
+                const day = d.getDate();
+                const month = d.toLocaleString('en-GB', { month: 'short' });
+                const year = d.getFullYear();
+                document.getElementById('printDate').textContent = `${day} ${month} ${year}`;
+            }
+
+            document.getElementById('printVoucherNo').textContent = expenseId ? '...' + expenseId.slice(-6) : 'New';
+            document.getElementById('printHead').textContent = head;
+            document.getElementById('printSubHead').textContent = subHead || '-';
+            document.getElementById('printMode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
+            document.getElementById('printAmount').textContent = amount.toLocaleString();
+            document.getElementById('printDesc').textContent = remarks || (payType === 'expense' ? `Cash Paid to ${head} ${subHead ? 'for ' + subHead : ''}` : `Received from ${head}`);
+
+            document.body.classList.add('print-mode-voucher');
+            window.print();
+            setTimeout(() => {
+                document.body.classList.remove('print-mode-voucher');
+            }, 500);
+
+        } else {
+            showError('Failed to load expense for printing');
+        }
+    } catch (error) {
+        console.error('Error printing expense:', error);
+        showError('Failed to print');
+    }
+}
+
+// Print Expense Voucher (From Form)
 function printExpense() {
     // Get form values
     const payType = document.getElementById('payType').value;

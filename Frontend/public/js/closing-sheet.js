@@ -42,6 +42,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Usually relies on sheet data, maybe reload sheet?
                 // But reloading sheet resets inputs. Safe to leave or just calc totals.
                 calcDeptOpeningTotal();
+            } else if (targetId === '#income-statement') {
+                console.log('Loading Income Statement Data...');
+                loadIncomeStatementData();
             }
         });
     });
@@ -889,19 +892,27 @@ function calcClosing02Totals() {
     const block1Total = counterClosing + bankTotal;
     document.getElementById('closing02Total').value = block1Total;
 
-    // 2. Grand Total (Second Block) = Block 1 Total + LP - Misc
-    // Propagating the Bank Total inclusion from specific User request.
+    // 2. Grand Total (Second Green Block - Circled by User)
+    // Formula: (Counter Closing + Bank Total) + LP + Coin + Dis & C.S - Misc (-)
     const lp = parseFloat(document.getElementById('lp').value) || 0;
     const misc = parseFloat(document.getElementById('misc').value) || 0;
-    const grandTotal = block1Total + lp - misc;
+    const coin = parseFloat(document.getElementById('coin').value) || 0;
+    const disCS = parseFloat(document.getElementById('divCS').value) || 0;
+
+    // closing02Total is (Counter Closing + Bank Total)
+    const grandTotal = block1Total + lp + coin + disCS - misc;
     document.getElementById('closing02GrandTotal').value = grandTotal;
 
-    // 3. Total (Right Side Green Field) = Grand Total (Left Green) - Received Cash
+    // 3. Total (Right Side Green Field) = Grand Total (Left Green) - Received Cash ?
+    // Check previous logic:
     // User Diagram arrow: Total (Green Left) -> Received Cash -> Total (Green Right)
-    // Interpretation: The Total on the right is the result of subtraction.
+    // Previous logic was: rightSideTotal = grandTotal + recCash;
+    // Keeping this consistent with flow unless specified otherwise.
+    // However, usually "Total" at bottom implies carrying down.
+
     const recCash = parseFloat(document.getElementById('receivedCashC02').value) || 0;
 
-    // Formula per latest user request: Left Total (Grand Total) + Received Cash = Right Total
+    // If logic needs to be preserved:
     const rightSideTotal = grandTotal + recCash;
     document.getElementById('totalC02').value = rightSideTotal;
     /*
@@ -1422,10 +1433,16 @@ function openDepartmentSalesModal() {
         }
     }
 
+    // Clear existing table
+    tbody.innerHTML = '';
+
     Object.keys(breakdown).forEach(subDeptId => {
         const data = breakdown[subDeptId];
-        addDeptSaleRow(subDeptId, data.sale || 0, data.cost || 0);
-        hasRows = true;
+        // Only add row if it has data or if it's explicitly tracked
+        if (data.sale !== 0 || data.cost !== 0) {
+            addDeptSaleRow(subDeptId, data.sale || 0, data.cost || 0);
+            hasRows = true;
+        }
     });
 
     // If no existing data found, add default row for current dept
@@ -1507,9 +1524,13 @@ function saveDepartmentSalesModal() {
         const cost = parseFloat(tr.querySelector('.modal-cost-input').value) || 0;
 
         if (deptId) {
-            if (!breakdown[deptId]) breakdown[deptId] = { sale: 0, cost: 0 };
-            breakdown[deptId].sale += sale;
-            breakdown[deptId].cost += cost;
+            // ONLY add to breakdown if it has valid data
+            // This ensures that if a user deletes a row (or clears values), it isn't saved back into state if empty
+            // However, to allow "0" to be a valid update (overwriting previous data), we tracked it.
+            // But the user issue is "deleted row reappears".
+            // If the row exists in the modal, we save it. If the user DELETED the row from the DOM, it won't be in this loop, so it won't be in 'breakdown'.
+            // Thus, 'breakdown' will effectively replace the old state, removing deleted items.
+            breakdown[deptId] = { sale, cost };
             grandTotalSale += sale;
         }
     });
@@ -1692,4 +1713,128 @@ function saveWarehouseSale() {
     const el = document.getElementById('warehouseSaleModal');
     const modal = bootstrap.Modal.getInstance(el);
     modal.hide();
+}
+// --- Income Statement Logic ---
+async function loadIncomeStatementData() {
+    const branch = document.getElementById('branch').value;
+    const date = document.getElementById('date').value;
+    const token = localStorage.getItem('token');
+
+    try {
+        const res = await fetch(`/api/v1/closing-sheets/income-statement?date=${date}&branch=${branch}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const json = await res.json();
+
+        if (json.success) {
+            const { cashSaleTotal, bankSaleTotal, payExpenses, incomeExpenses, openingBalance } = json.data;
+
+            // Populate Income Inputs
+            document.getElementById('incomeOpening').value = openingBalance || 0;
+            document.getElementById('incomeCashSale').value = cashSaleTotal || 0;
+            document.getElementById('incomeBankSale').value = bankSaleTotal || 0;
+
+            // Populate Income Details (Receipts) - Table Based
+            const incomeContainer = document.getElementById('incomeDetailsRows');
+            incomeContainer.innerHTML = '';
+
+            if (incomeExpenses && incomeExpenses.length > 0) {
+                incomeExpenses.forEach(exp => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${exp.description || '-'}</td>
+                        <td>${exp.head || '-'}</td>
+                        <td>${exp.subHead || '-'}</td>
+                        <td class="text-end fw-bold text-success">${(exp.amount || 0).toLocaleString()}</td>
+                        <input type="hidden" class="amount-income-val" value="${exp.amount || 0}"> 
+                     `;
+                    incomeContainer.appendChild(tr);
+                });
+            } else {
+                incomeContainer.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No receipts</td></tr>';
+            }
+
+            // Populate Pay Details (Expenses) - Table Based
+            const payContainer = document.getElementById('payDetailsRows');
+            payContainer.innerHTML = '';
+
+            if (payExpenses && payExpenses.length > 0) {
+                payExpenses.forEach(exp => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                         <td>${exp.description || '-'}</td>
+                        <td>${exp.head || '-'}</td>
+                        <td>${exp.subHead || '-'}</td>
+                        <td class="text-end fw-bold text-danger">${(exp.amount || 0).toLocaleString()}</td>
+                        <input type="hidden" class="amount-pay-val" value="${exp.amount || 0}">
+                     `;
+                    payContainer.appendChild(tr);
+                });
+            } else {
+                payContainer.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No expenses</td></tr>';
+            }
+
+            // Recalculate Differences
+            calcIncomeStatementTotals();
+        }
+    } catch (e) {
+        console.error('Error loading income statement:', e);
+    }
+}
+
+function calcIncomeStatementTotals() {
+    // Income
+    const opening = parseFloat(document.getElementById('incomeOpening').value) || 0;
+    const cashSale = parseFloat(document.getElementById('incomeCashSale').value) || 0;
+    const bankSale = parseFloat(document.getElementById('incomeBankSale').value) || 0;
+
+    let otherIncome = 0;
+    // Use hidden inputs for accurate values from table
+    document.querySelectorAll('.amount-income-val').forEach(el => otherIncome += parseFloat(el.value) || 0);
+
+    const totalIncome = opening + cashSale + bankSale + otherIncome;
+    document.getElementById('diffIncome').value = totalIncome;
+
+    // Expense
+    let totalExpense = 0;
+    document.querySelectorAll('.amount-pay-val').forEach(el => totalExpense += parseFloat(el.value) || 0);
+    document.getElementById('diffExpense').value = totalExpense;
+
+    // Balance
+    document.getElementById('diffBalance').value = totalIncome - totalExpense;
+}
+
+// Save Income Statement
+async function saveIncomeStatement() {
+    const branch = document.getElementById('branch').value;
+    const date = document.getElementById('date').value;
+    const openingBalance = parseFloat(document.getElementById('incomeOpening').value) || 0;
+    const closingBalance = parseFloat(document.getElementById('diffBalance').value) || 0;
+    const token = localStorage.getItem('token');
+
+    try {
+        const response = await fetch('/api/v1/closing-sheets/income-statement', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                date,
+                branch,
+                openingBalance,
+                closingBalance
+            })
+        });
+
+        const json = await response.json();
+        if (json.success) {
+            showNotification('Income Statement Saved Successfully');
+        } else {
+            showNotification('Error: ' + json.message, true);
+        }
+    } catch (error) {
+        console.error('Error saving income statement:', error);
+        showNotification('Error saving income statement', true);
+    }
 }

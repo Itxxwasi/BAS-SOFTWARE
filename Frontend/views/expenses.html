@@ -83,6 +83,17 @@
             gap: 10px;
             justify-content: flex-start;
             border-top: 1px solid #ddd;
+            flex-wrap: wrap;
+            z-index: 900;
+            transition: left 0.3s;
+        }
+
+        body.sidebar-full .action-bar-bottom {
+            left: 250px;
+        }
+
+        body.sidebar-mini .action-bar-bottom {
+            left: 60px;
         }
 
         /* Print Styles */
@@ -106,7 +117,11 @@
                 width: 100%;
                 display: block !important;
                 background: white;
-                padding: 20px;
+                padding: 40px;
+                max-width: 800px;
+                margin: 0 auto;
+                left: 50%;
+                transform: translateX(-50%);
             }
 
             body.print-mode-voucher .page-header,
