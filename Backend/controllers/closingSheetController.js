@@ -130,14 +130,19 @@ exports.getIncomeStatementData = async (req, res) => {
             // If the user selects F-6, we expect expenses for F-6.
             branch: branch || 'F-6',
             type: 'expense'
-        }).select('description head subHead amount expenseNo');
+        }).select('date createdAt description head subHead amount expenseNo notes');
+
+        console.log('DEBUG: PayExpenses count:', payExpenses.length);
+        if (payExpenses.length > 0) {
+            console.log('DEBUG: First PayExpense:', JSON.stringify(payExpenses[0], null, 2));
+        }
 
         // 4. Fetch Income (Received) - Type: 'receipt'
         const incomeExpenses = await Expense.find({
             date: { $gte: startOfMonth, $lte: endOfMonth },
             branch: branch || 'F-6',
             type: 'receipt'
-        }).select('description head subHead amount expenseNo');
+        });
 
         // 5. Fetch Opening Balance from MonthlyBalance
         let openingBalance = 0;

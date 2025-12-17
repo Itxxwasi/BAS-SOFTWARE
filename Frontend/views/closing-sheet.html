@@ -14,6 +14,9 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            /* Allow wrapping on mobile */
+            gap: 10px;
         }
 
         .header-left {
@@ -236,17 +239,25 @@
                         <button class="btn btn-primary btn-sm" onclick="printSheet('opening')">Print</button>
                     </div>
                 </div>
-                <div class="blue-header mb-0 row mx-0">
-                    <div class="col-2">ID</div>
-                    <div class="col-8">Department</div>
-                    <div class="col-2 text-end">Amount</div>
-                </div>
-                <div id="deptOpeningRows">
-                    <!-- JS Generated -->
-                </div>
-                <div class="row mx-0 mt-2 fw-bold">
-                    <div class="col-10 text-end">Total</div>
-                    <div class="col-2 text-end" id="deptOpeningTotal">0.00</div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped table-bordered mb-0">
+                        <thead class="blue-header text-white">
+                            <tr>
+                                <th style="width: 15%">ID</th>
+                                <th style="width: 60%">Department</th>
+                                <th style="width: 25%" class="text-end">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="deptOpeningRows">
+                            <!-- JS Generated -->
+                        </tbody>
+                        <tfoot>
+                            <tr class="fw-bold">
+                                <td colspan="2" class="text-end">Total</td>
+                                <td class="text-end" id="deptOpeningTotal">0.00</td>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
             </div>
 
@@ -271,21 +282,28 @@
                             </div>
                         </div>
 
-                        <div class="blue-header mt-4 mb-0 row mx-0">
-                            <div class="col-8">Department</div>
-                            <div class="col-4 text-end">Amount</div>
-                        </div>
-                        <div id="closing01DeptRows">
-                            <!-- JS Generated -->
-                        </div>
-                        <div class="row mx-0 mt-2 green-total p-2">
-                            <div class="col-8">Total Closing 01</div>
-                            <div class="col-4 text-end" id="totalClosing01">0</div>
+                        <div class="table-responsive mt-3" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-sm table-striped table-bordered mb-0">
+                                <thead class="blue-header text-white sticky-top">
+                                    <tr>
+                                        <th>Department</th>
+                                        <th class="text-end" style="width: 120px;">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="closing01DeptRows">
+                                    <!-- JS Generated -->
+                                </tbody>
+                            </table>
                         </div>
 
-                        <div class="row mx-0 mt-2 red-total p-2">
-                            <div class="col-4">Total</div>
-                            <div class="col-8 text-end" id="grandTotal">0</div>
+                        <div class="d-flex justify-content-between align-items-center mt-2 green-total p-2 rounded">
+                            <span>Total Closing 01</span>
+                            <span id="totalClosing01">0</span>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mt-2 red-total p-2 rounded">
+                            <span>Total</span>
+                            <span id="grandTotal">0</span>
                         </div>
                     </div>
 
@@ -689,9 +707,11 @@
                                     <table class="table table-sm table-striped border-top mb-0">
                                         <thead class="bg-secondary text-white sticky-top">
                                             <tr>
+                                                <th>Date</th>
                                                 <th>Detail</th>
                                                 <th>Head</th>
                                                 <th>Sub Head</th>
+                                                <th>Remarks</th>
                                                 <th class="text-end">Amount</th>
                                             </tr>
                                         </thead>
@@ -715,9 +735,11 @@
                                     <table class="table table-sm table-striped mb-0">
                                         <thead class="bg-secondary text-white sticky-top">
                                             <tr>
+                                                <th>Date</th>
                                                 <th>Detail</th>
                                                 <th>Head</th>
                                                 <th>Sub Head</th>
+                                                <th>Remarks</th>
                                                 <th class="text-end">Amount</th>
                                             </tr>
                                         </thead>

@@ -15,9 +15,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Fix: Manually handle tab switching cleanup to prevent overlap
     const tabLinks = document.querySelectorAll('button[data-bs-toggle="tab"]');
+
+
+
+    // Force explicit cleanup on load to ensure no double-active tabs
+    const activeTabBtn = document.querySelector('button.nav-link.active');
+    const activeTarget = activeTabBtn ? activeTabBtn.getAttribute('data-bs-target') : '#dept-opening';
+    document.querySelectorAll('.tab-pane').forEach(pane => {
+        if (`#${pane.id}` !== activeTarget) {
+            pane.classList.remove('show', 'active');
+        } else {
+            pane.classList.add('show', 'active'); // Ensure active is actually showing
+        }
+    });
+
     tabLinks.forEach(tab => {
         tab.addEventListener('shown.bs.tab', async (event) => {
             const targetId = event.target.getAttribute('data-bs-target');
+
+            // Save state
+            localStorage.setItem('closingSheetLastTab', targetId);
+
+            // Manual cleanup
             document.querySelectorAll('.tab-pane').forEach(pane => {
                 if (`#${pane.id}` !== targetId) {
                     pane.classList.remove('show', 'active');
@@ -36,18 +55,27 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else if (targetId === '#closing01') {
                 console.log('Refreshing Closing 01 Data...');
                 await refreshDailyCashData();
-                calcDeptOpeningTotal(); // Ensure opening total is fresh
-                calcClosing01Totals();  // Recalculate totals
+                if (typeof calcDeptOpeningTotal === 'function') calcDeptOpeningTotal();
+                if (typeof calcClosing01Totals === 'function') calcClosing01Totals();
             } else if (targetId === '#deptOpening') {
-                // Usually relies on sheet data, maybe reload sheet?
-                // But reloading sheet resets inputs. Safe to leave or just calc totals.
-                calcDeptOpeningTotal();
+                if (typeof calcDeptOpeningTotal === 'function') calcDeptOpeningTotal();
             } else if (targetId === '#income-statement') {
                 console.log('Loading Income Statement Data...');
                 loadIncomeStatementData();
             }
         });
     });
+
+    // Tab Persistence & Overlap Fix (Moved to end to ensure listeners are active)
+    const lastTab = localStorage.getItem('closingSheetLastTab');
+    if (lastTab) {
+        const tabBtn = document.querySelector(`button[data-bs-target="${lastTab}"]`);
+        if (tabBtn) {
+            // Delay slightly to ensure Bootstrap is ready? No, standard call should work if listener is there.
+            const tab = new bootstrap.Tab(tabBtn);
+            tab.show();
+        }
+    }
 });
 
 
@@ -147,17 +175,16 @@ async function loadSheet() {
 
             deptOpeningTotal += amount;
 
-            const div = document.createElement('div');
-            div.className = 'row mx-0 border-bottom py-1 align-items-center';
-            div.innerHTML = `
-                <div class="col-2 small">${d.code || (index + 1)}</div>
-                <div class="col-8 small">${d.name}</div>
-                <div class="col-2">
-                    <input type="number" class="form-control form-control-sm text-end dept-opening-input" 
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${d.code || (index + 1)}</td>
+                <td>${d.name}</td>
+                <td class="p-1">
+                    <input type="number" class="form-control form-control-sm text-end dept-opening-input border-0 bg-transparent" 
                         data-dept-id="${d._id}" value="${amount}" onchange="calcDeptOpeningTotal()">
-                </div>
+                </td>
             `;
-            deptOpeningContainer.appendChild(div);
+            deptOpeningContainer.appendChild(tr);
         });
         document.getElementById('deptOpeningTotal').textContent = deptOpeningTotal.toFixed(2);
 
@@ -243,8 +270,9 @@ async function loadSheet() {
             // 2. Get Big Cash & Slip
             let bigCashAmount = 0;
             let slipAmount = 0;
-            if (d.bigCashForward && dailyCashData.length > 0) {
+            if (dailyCashData.length > 0) {
                 // Filter: Match Dept AND Exclude Bank Mode
+                // Logic: Count BigCash/Slip if records exist for this department, regardless of flag
                 const validRecords = dailyCashData.filter(r =>
                     (r.department && (r.department._id === d._id || r.department === d._id)) &&
                     r.mode !== 'Bank'
@@ -267,7 +295,10 @@ async function loadSheet() {
             // Sales as Cash Counter (for Deduct_UG_Sale)
             let salesAsCounter = 0;
             if (cashSalesData.length > 0) {
-                const counterSales = cashSalesData.filter(s => s.cashCounter === d.name);
+                // Fix: Case-insensitive match for Cash Counter name
+                const counterSales = cashSalesData.filter(s =>
+                    s.cashCounter && s.cashCounter.toUpperCase() === d.name.toUpperCase()
+                );
                 salesAsCounter = counterSales.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
             }
 
@@ -320,28 +351,28 @@ async function loadSheet() {
                 const displayValue = Math.abs(netValue);
                 let finalAmount = displayValue;
 
-                // Use saved value if valid and different? 
-                // Prioritize calculated as per request "Show in list" usually means the mismatch.
-                // Keeping existing overwrite logic just in case user edits.
+                // Prioritize calculated value as per request (Formula Driven)
+                // Removed logic that overwrote with saved value because this field is readonly and should update dynamically.
+                /* 
                 if (sheet.closing01 && sheet.closing01.departments) {
                     const saved = sheet.closing01.departments.find(item =>
                         (item.department && item.department._id === d._id) || (item.department === d._id)
                     );
                     if (saved && saved.amount !== 0) finalAmount = saved.amount;
                 }
+                */
 
                 closing01DeptTotal += finalAmount;
 
-                const div = document.createElement('div');
-                div.className = 'row mx-0 border-bottom py-1 align-items-center';
-                div.innerHTML = `
-                     <div class="col-8 small">${d.name}</div>
-                     <div class="col-4">
-                         <input type="number" class="form-control form-control-sm text-end closing01-dept-input" 
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                     <td class="small align-middle">${d.name}</td>
+                     <td class="p-1">
+                         <input type="number" class="form-control form-control-sm text-end closing01-dept-input border-0 bg-transparent" 
                               data-dept-id="${d._id}" value="${finalAmount}" onchange="calcClosing01Totals()" readonly>
-                     </div>
+                     </td>
                  `;
-                closing01Rows.appendChild(div);
+                closing01Rows.appendChild(tr);
             }
         });
 
@@ -762,12 +793,10 @@ async function loadClosing02DeptData(deptId) {
     let receivedCashVal = savedState.receivedCash || 0;
 
     if (deptName === 'MEDICINE') {
-        if (!savedState.receivedCash) {
-            // If no saved state, pull from Closing 01 Grand Total (Red Bar)
-            const c01TotalEl = document.getElementById('grandTotal');
-            if (c01TotalEl) {
-                receivedCashVal = parseFloat(c01TotalEl.textContent) || 0;
-            }
+        // Strict Rule: Medicine Received Cash = Closing 01 Grand Total (Red Bar)
+        const c01TotalEl = document.getElementById('grandTotal');
+        if (c01TotalEl) {
+            receivedCashVal = parseFloat(c01TotalEl.textContent) || 0;
         }
     } else {
         // For OTHER Departments (Per User Request)
@@ -1055,7 +1084,240 @@ async function saveSheet() {
 }
 
 function printSheet(type) {
-    alert('Print functionality coming soon');
+    if (type === 'income') {
+        printIncomeStatement();
+    } else {
+        alert('Print functionality for ' + type + ' coming soon');
+    }
+}
+
+function printIncomeStatement() {
+    const branch = document.getElementById('branch').value;
+    const date = document.getElementById('date').value;
+    const opening = document.getElementById('incomeOpening').value;
+    const cashSale = document.getElementById('incomeCashSale').value;
+    const bankSale = document.getElementById('incomeBankSale').value;
+
+    const diffIncome = document.getElementById('diffIncome').value;
+    const diffExpense = document.getElementById('diffExpense').value;
+    const diffBalance = document.getElementById('diffBalance').value;
+
+    // Get formatted table rows (which now include dates and remarks)
+    const incomeRows = document.getElementById('incomeDetailsRows').innerHTML;
+    const payRows = document.getElementById('payDetailsRows').innerHTML;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Income Statement - ${branch} - ${date}</title>
+            <style>
+                body { 
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                    padding: 30px; 
+                    color: #333; 
+                    max-width: 1000px;
+                    margin: 0 auto;
+                }
+                .header-section { 
+                    text-align: center; 
+                    margin-bottom: 30px; 
+                    border-bottom: 3px solid #2E5C99; 
+                    padding-bottom: 20px; 
+                }
+                .header-section h1 { 
+                    margin: 0 0 10px 0; 
+                    font-size: 28px; 
+                    text-transform: uppercase; 
+                    color: #2E5C99;
+                    letter-spacing: 1px;
+                }
+                .meta { 
+                    display: flex; 
+                    justify-content: space-between; 
+                    font-size: 14px;
+                    color: #555;
+                }
+                .meta-item strong { color: #333; }
+
+                .section-header { 
+                    background-color: #f0f4f8; 
+                    padding: 8px 15px; 
+                    font-weight: bold; 
+                    font-size: 16px; 
+                    color: #1E3A5F;
+                    border-left: 5px solid #2E5C99;
+                    margin: 25px 0 10px 0;
+                }
+
+                table { 
+                    width: 100%; 
+                    border-collapse: collapse; 
+                    margin-bottom: 10px; 
+                    font-size: 12px; 
+                }
+                th { 
+                    background-color: #2E5C99; 
+                    color: white; 
+                    text-align: left; 
+                    padding: 8px; 
+                    font-weight: 600;
+                    border: 1px solid #2E5C99;
+                }
+                td { 
+                    border: 1px solid #DEE2E6; 
+                    padding: 8px; 
+                }
+                tr:nth-child(even) td { background-color: #F8F9FA; }
+                
+                .text-end { text-align: right; }
+                .text-center { text-align: center; }
+                .text-bold { font-weight: bold; }
+                
+                /* Summary Section */
+                .summary-container {
+                    display: flex;
+                    justify-content: flex-end;
+                    margin-top: 30px;
+                    break-inside: avoid;
+                }
+                .summary-table {
+                    width: 350px;
+                    border: 2px solid #2E5C99;
+                }
+                .summary-table td {
+                    padding: 10px 15px;
+                    font-size: 14px;
+                    border: none;
+                    border-bottom: 1px solid #ddd;
+                }
+                .summary-table tr:last-child td {
+                    border-bottom: none;
+                    background-color: #e8f5e9;
+                    font-size: 16px;
+                    color: #155724;
+                }
+
+                .footer {
+                    margin-top: 50px;
+                    border-top: 1px solid #ddd;
+                    padding-top: 10px;
+                    display: flex;
+                    justify-content: space-between;
+                    font-size: 10px;
+                    color: #888;
+                }
+
+                @media print {
+                    body { margin: 0; padding: 10px; max-width: 100%; }
+                    .section-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .summary-table tr:last-child td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header-section">
+                <h1>Income Statement</h1>
+                <div class="meta">
+                    <span class="meta-item">Branch: <strong>${branch}</strong></span>
+                    <span class="meta-item">Date: <strong>${date}</strong></span>
+                </div>
+            </div>
+
+            <!-- 1. Income Sources (Key Metrics) -->
+            <div class="section-header">Income Sources (Cash & Bank)</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Source</th>
+                        <th class="text-end" style="width: 200px;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Opening Balance</td>
+                        <td class="text-end text-bold">${parseFloat(opening).toLocaleString()}</td>
+                    </tr>
+                    <tr>
+                        <td>Cash Sale</td>
+                        <td class="text-end text-bold">${parseFloat(cashSale).toLocaleString()}</td>
+                    </tr>
+                    <tr>
+                        <td>Bank Sale</td>
+                        <td class="text-end text-bold">${parseFloat(bankSale).toLocaleString()}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- 2. Other Income Table -->
+            <div class="section-header">Other Income / Receipts</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 15%">Date</th>
+                        <th style="width: 20%">Detail</th>
+                        <th style="width: 15%">Head</th>
+                        <th style="width: 15%">Sub Head</th>
+                        <th style="width: 20%">Remarks</th>
+                        <th class="text-end" style="width: 15%">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${incomeRows}
+                </tbody>
+            </table>
+
+            <!-- 3. Expenses Table -->
+            <div class="section-header">Expenses (Pay)</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 15%">Date</th>
+                        <th style="width: 20%">Detail</th>
+                        <th style="width: 15%">Head</th>
+                        <th style="width: 15%">Sub Head</th>
+                        <th style="width: 20%">Remarks</th>
+                        <th class="text-end" style="width: 15%">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${payRows}
+                </tbody>
+            </table>
+
+            <!-- 4. Summary -->
+            <div class="summary-container">
+                <table class="summary-table">
+                    <tr>
+                        <td><strong>Total Income</strong></td>
+                        <td class="text-end text-bold">${parseFloat(diffIncome).toLocaleString()}</td>
+                    </tr>
+                    <tr>
+                        <td style="color: #dc3545;"><strong>Total Expense</strong></td>
+                        <td class="text-end text-bold" style="color: #dc3545;">${parseFloat(diffExpense).toLocaleString()}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Closing Balance</strong></td>
+                        <td class="text-end text-bold">${parseFloat(diffBalance).toLocaleString()}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="footer">
+                <span>Generated by BAS Software</span>
+                <span>User: ${document.getElementById('userName').textContent} | Printed on ${new Date().toLocaleString()}</span>
+            </div>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+    }, 500);
 }
 
 // SMS Sending Functions
@@ -1741,17 +2003,30 @@ async function loadIncomeStatementData() {
             if (incomeExpenses && incomeExpenses.length > 0) {
                 incomeExpenses.forEach(exp => {
                     const tr = document.createElement('tr');
+
+                    let expDate = '-';
+                    if (exp.date) {
+                        expDate = new Date(exp.date).toLocaleDateString(); // Try standard format
+                    } else if (exp.createdAt) {
+                        expDate = new Date(exp.createdAt).toLocaleDateString();
+                    }
+
+                    // Prepend Date to remarks for debugging user visibility
+                    const debugNotes = `(RawDate: ${exp.date}) ` + (exp.notes || '-');
+
                     tr.innerHTML = `
+                        <td>${expDate}</td>
                         <td>${exp.description || '-'}</td>
                         <td>${exp.head || '-'}</td>
                         <td>${exp.subHead || '-'}</td>
+                        <td>${exp.notes || '-'}</td>
                         <td class="text-end fw-bold text-success">${(exp.amount || 0).toLocaleString()}</td>
                         <input type="hidden" class="amount-income-val" value="${exp.amount || 0}"> 
                      `;
                     incomeContainer.appendChild(tr);
                 });
             } else {
-                incomeContainer.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No receipts</td></tr>';
+                incomeContainer.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No receipts</td></tr>';
             }
 
             // Populate Pay Details (Expenses) - Table Based
@@ -1761,17 +2036,27 @@ async function loadIncomeStatementData() {
             if (payExpenses && payExpenses.length > 0) {
                 payExpenses.forEach(exp => {
                     const tr = document.createElement('tr');
+
+                    let expDate = '-';
+                    if (exp.date) {
+                        expDate = new Date(exp.date).toLocaleDateString();
+                    } else if (exp.createdAt) {
+                        expDate = new Date(exp.createdAt).toLocaleDateString();
+                    }
+
                     tr.innerHTML = `
+                         <td>${expDate}</td>
                          <td>${exp.description || '-'}</td>
                         <td>${exp.head || '-'}</td>
                         <td>${exp.subHead || '-'}</td>
+                        <td>${exp.notes || '-'}</td>
                         <td class="text-end fw-bold text-danger">${(exp.amount || 0).toLocaleString()}</td>
                         <input type="hidden" class="amount-pay-val" value="${exp.amount || 0}">
                      `;
                     payContainer.appendChild(tr);
                 });
             } else {
-                payContainer.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No expenses</td></tr>';
+                payContainer.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No expenses</td></tr>';
             }
 
             // Recalculate Differences

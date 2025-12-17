@@ -12,17 +12,17 @@
     <style>
         .grid-container {
             display: grid;
-            grid-template-columns: 400px 1fr;
+            grid-template-columns: 600px 1fr;
             gap: 20px;
             height: calc(100vh - 100px);
         }
 
         .form-panel {
             background: #f8f9fa;
-            padding: 15px;
-            border-radius: 4px;
+            padding: 20px;
+            border-radius: 8px;
             border: 1px solid #ddd;
-            overflow-y: auto;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
 
         .list-panel {
@@ -49,72 +49,86 @@
         <div class="grid-container">
             <!-- Left Form -->
             <div class="form-panel">
+                <div class="d-flex align-items-center mb-4 border-bottom pb-2">
+                    <h5 class="m-0 text-primary"><i class="fas fa-info-circle me-2"></i>Store Information</h5>
+                </div>
                 <input type="hidden" id="storeId">
 
-                <div class="mb-2">
-                    <label class="form-label fw-bold">Name</label>
-                    <input type="text" id="name" class="form-control form-control-sm" required>
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label fw-bold small">Name</label>
+                        <input type="text" id="name" class="form-control form-control-sm" required>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label fw-bold small">Phone</label>
+                        <input type="text" id="phone" class="form-control form-control-sm">
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label fw-bold small">Email Address</label>
+                        <input type="email" id="email" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label fw-bold small">NTN</label>
+                        <input type="text" id="ntn" class="form-control form-control-sm">
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label fw-bold small">STRN</label>
+                        <input type="text" id="strn" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label fw-bold small">Contact No</label>
+                        <input type="text" id="contactNo" class="form-control form-control-sm">
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label fw-bold small">Employee Salary</label>
+                        <input type="text" id="employeeSalary" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label fw-bold small">Kamla</label>
+                        <input type="text" id="kamla" class="form-control form-control-sm">
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label fw-bold small">Target Sale</label>
+                        <input type="text" id="targetSale" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label fw-bold small">Simple Nadra Card</label>
+                        <input type="text" id="simpleNadraCard" class="form-control form-control-sm">
+                    </div>
                 </div>
 
                 <div class="mb-2">
-                    <label class="form-label fw-bold">Phone</label>
-                    <input type="text" id="phone" class="form-control form-control-sm">
-                </div>
-
-                <div class="mb-2">
-                    <label class="form-label fw-bold">Email Address</label>
-                    <input type="email" id="email" class="form-control form-control-sm">
-                </div>
-
-                <div class="mb-2">
-                    <label class="form-label fw-bold">Address</label>
-                    <textarea id="address" class="form-control form-control-sm" rows="2"></textarea>
-                </div>
-
-                <div class="mb-2">
-                    <label class="form-label fw-bold">NTN</label>
-                    <input type="text" id="ntn" class="form-control form-control-sm">
-                </div>
-
-                <div class="mb-2">
-                    <label class="form-label fw-bold">STRN</label>
-                    <input type="text" id="strn" class="form-control form-control-sm">
-                </div>
-
-                <div class="mb-2">
-                    <label class="form-label fw-bold">Contact No</label>
-                    <input type="text" id="contactNo" class="form-control form-control-sm">
-                </div>
-
-                <div class="mb-2">
-                    <label class="form-label fw-bold">Employee Salary</label>
-                    <input type="text" id="employeeSalary" class="form-control form-control-sm">
-                </div>
-
-                <div class="mb-2">
-                    <label class="form-label fw-bold">Kamla</label>
-                    <input type="text" id="kamla" class="form-control form-control-sm">
-                </div>
-
-                <div class="mb-2">
-                    <label class="form-label fw-bold">Target Sale</label>
-                    <input type="text" id="targetSale" class="form-control form-control-sm">
-                </div>
-
-                <div class="mb-2">
-                    <label class="form-label fw-bold">Simple Nadra Card</label>
-                    <input type="text" id="simpleNadraCard" class="form-control form-control-sm">
+                    <label class="form-label fw-bold small">Address</label>
+                    <textarea id="address" class="form-control form-control-sm" rows="1"></textarea>
                 </div>
 
                 <div class="mb-3 form-check">
                     <input type="checkbox" class="form-check-input" id="isActive" checked>
-                    <label class="form-check-label" for="isActive">Active</label>
+                    <label class="form-check-label small" for="isActive">Active</label>
                 </div>
 
-                <button class="btn btn-success w-100 mb-2" onclick="saveStore()"><i class="fas fa-save"></i>
-                    Save</button>
-                <button class="btn btn-secondary w-100" onclick="clearForm()"><i class="fas fa-times"></i>
-                    Clear</button>
+                <div class="row">
+                    <div class="col-6">
+                        <button class="btn btn-success w-100 btn-sm" onclick="saveStore()"><i class="fas fa-save"></i>
+                            Save</button>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-secondary w-100 btn-sm" onclick="clearForm()"><i
+                                class="fas fa-times"></i> Clear</button>
+                    </div>
+                </div>
             </div>
 
             <!-- Right List -->

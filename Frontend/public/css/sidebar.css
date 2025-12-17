@@ -16,7 +16,8 @@
     position: fixed;
     top: 0;
     left: 0;
-    z-index: 1000;
+    z-index: 2000;
+    /* Increased to stay above sticky-top elements (1020) */
     transition: width 0.3s;
     display: flex;
     flex-direction: column;
@@ -161,7 +162,8 @@
     color: var(--popover-text);
     box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.3);
     border-radius: 0 4px 4px 0;
-    z-index: 1001;
+    z-index: 9999;
+    /* Ensure high z-index to stay on top */
     padding: 10px 0;
 }
 
