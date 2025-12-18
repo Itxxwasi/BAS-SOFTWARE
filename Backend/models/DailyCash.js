@@ -15,6 +15,7 @@ const DailyCashSchema = new mongoose.Schema({
     bank: { type: mongoose.Schema.Types.ObjectId, ref: 'Bank' },
     deductedAmount: { type: Number, default: 0 },
     isDeduction: { type: Boolean, default: false },
+    isVerified: { type: Boolean, default: false },
 
     // Denominations
     x5000: { type: Number, default: 0 },

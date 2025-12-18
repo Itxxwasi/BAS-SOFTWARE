@@ -4,17 +4,21 @@ const {
     getDailyCash,
     createDailyCash,
     updateDailyCash,
-    deleteDailyCash
+    deleteDailyCash,
+    verifyDailyCash
 } = require('../controllers/dailyCashController');
 
 const { protect } = require('../middleware/auth');
 
-router.route('/')
-    .get(protect, getDailyCash)
-    .post(protect, createDailyCash);
+// Helper search
+router.get('/', protect, getDailyCash);
+router.post('/', protect, createDailyCash);
 
-router.route('/:id')
-    .put(protect, updateDailyCash)
-    .delete(protect, deleteDailyCash);
+// Bulk Update - Changed name to avoid conflict with /:id
+router.put('/bulk-verify-status', protect, verifyDailyCash);
+
+// Single record updates
+router.put('/:id', protect, updateDailyCash);
+router.delete('/:id', protect, deleteDailyCash);
 
 module.exports = router;

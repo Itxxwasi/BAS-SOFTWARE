@@ -96,6 +96,72 @@
             left: 60px;
         }
 
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .split-layout {
+                flex-direction: column;
+                height: auto;
+                padding-bottom: 70px;
+                /* Space for bottom action bar */
+            }
+
+            .form-panel {
+                width: 100%;
+                height: auto;
+                margin-bottom: 15px;
+            }
+
+            .grid-panel {
+                width: 100%;
+                height: 500px;
+                /* Fixed height for scrolling table on mobile */
+            }
+
+            .grid-controls {
+                flex-wrap: wrap;
+                justify-content: space-between;
+                gap: 5px;
+            }
+
+            .grid-controls input[type="date"] {
+                width: 45% !important;
+            }
+
+            .grid-controls label {
+                display: none;
+                /* Hide From/To labels to save space */
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .page-header>div {
+                width: 100%;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            /* Reset action bar position on mobile */
+            body.sidebar-full .action-bar-bottom,
+            body.sidebar-mini .action-bar-bottom {
+                left: 0;
+            }
+
+            .action-bar-bottom {
+                justify-content: space-around;
+            }
+
+            .action-bar-bottom .btn {
+                flex: 1;
+                font-size: 12px;
+                padding: 8px 4px;
+            }
+        }
+
         /* Print Styles */
         @media print {
 
@@ -382,7 +448,8 @@
     </div>
 
     <div class="action-bar-bottom">
-        <button class="btn btn-success" onclick="saveExpense()"><i class="fas fa-save"></i> Save</button>
+        <button class="btn btn-success" onclick="saveExpense()" data-action="save"><i class="fas fa-save"></i>
+            Save</button>
         <button class="btn btn-primary" onclick="printExpense()"><i class="fas fa-print"></i> Print</button>
         <button class="btn btn-danger" onclick="clearForm()"><i class="fas fa-times"></i> Clear</button>
         <button class="btn btn-info" onclick="openHeadsModal()"><i class="fas fa-list"></i> Manage Heads</button>

@@ -67,10 +67,16 @@ class SidebarNavigation {
                 children: [
                     { label: 'Vouchers', link: '/voucher.html' },
                     { label: 'Expenses', link: '/expenses.html' },
-                    { label: 'Banks', link: '/banks.html' },
                     { label: 'Account Register', link: '/accounts.html' },
                     { label: 'Account Groups', link: '/account-groups.html' },
                     { label: 'Account Categories', link: '/account-categories.html' }
+                ]
+            },
+            {
+                id: 'bank-mgmt', icon: 'fa-university', label: 'Bank Management', permission: 'accounts',
+                children: [
+                    { label: 'Banks', link: '/banks.html' },
+                    { label: 'Bank Management Dashboard', link: '/bank-management.html' }
                 ]
             },
             {
@@ -153,6 +159,7 @@ class SidebarNavigation {
                         submenu: [
                             { label: 'Profit & Loss', link: '/reports.html?type=profit-loss' },
                             { label: 'Ledger', link: '/reports.html?type=ledger' },
+                            { label: 'Bank Ledger', link: '/bank-ledger.html' },
                             { label: 'Expenses', link: '/reports.html?type=expenses' },
                             { label: 'Vouchers', link: '/reports.html?type=vouchers' }
                         ]

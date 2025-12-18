@@ -11,6 +11,65 @@
     <link href="/css/desktop-style.css" rel="stylesheet">
     <link href="/css/sidebar.css" rel="stylesheet">
     <link href="/css/style.css" rel="stylesheet">
+    <style>
+        .chart-area {
+            position: relative;
+            height: 20rem;
+            width: 100%;
+        }
+
+        .chart-pie {
+            position: relative;
+            height: 15rem;
+            width: 100%;
+        }
+
+        /* Mobile Responsive Tweaks */
+        @media (max-width: 768px) {
+            .date-filter-pills {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 5px;
+            }
+
+            .date-filter-pills .nav-link {
+                padding: 4px 10px;
+                font-size: 12px;
+            }
+
+            #customDateRange .input-group {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            #customDateRange input,
+            #customDateRange button {
+                width: 100% !important;
+                border-radius: 4px !important;
+                margin-bottom: 5px;
+            }
+
+            #customDateRange .input-group-text {
+                display: none;
+            }
+
+            .card-body .d-flex {
+                flex-direction: column;
+                align-items: stretch !important;
+            }
+
+            .card-body .d-flex>div {
+                width: 100%;
+                margin-bottom: 10px;
+                justify-content: center;
+            }
+
+            h1.h3 {
+                font-size: 1.5rem;
+                text-align: center;
+            }
+        }
+    </style>
 </head>
 
 <body>

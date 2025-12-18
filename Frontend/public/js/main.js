@@ -185,6 +185,14 @@ document.addEventListener('keydown', (e) => {
         e.preventDefault();
 
         // Strategy: Find the most relevant "Save" button
+
+        // 0. Check for data-action="save" (New Standard)
+        const actionBtn = document.querySelector('[data-action="save"]');
+        if (actionBtn && actionBtn.offsetParent !== null && !actionBtn.disabled) {
+            actionBtn.click();
+            return;
+        }
+
         // 1. Check for buttons with specific IDs used in the app
         const specificIds = ['saveBtn', 'btnSave', 'submitBtn'];
         for (const id of specificIds) {

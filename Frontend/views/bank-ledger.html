@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bank Ledger Report - BAS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/css/desktop-style.css" rel="stylesheet">
+    <link href="/css/sidebar.css" rel="stylesheet">
+    <style>
+        .report-header-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+
+        .ledger-table thead th {
+            background-color: var(--primary-blue);
+            color: white;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+        }
+
+        .balance-card {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .balance-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+
+            .main-content {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+        }
+    </style>
+</head>
+
+<body class="sidebar-mini">
+    <div class="main-content">
+        <header class="page-header no-print">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-university me-2"></i>
+                <span>Bank Ledger Report</span>
+            </div>
+            <div class="user-info">
+                <span id="userNameDisplay">User</span>
+                <div class="user-avatar" id="userInitial">U</div>
+            </div>
+        </header>
+
+        <div class="desktop-container">
+            <!-- Filter Bar -->
+            <div class="report-header-box no-print">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">Select Branch</label>
+                        <select id="branchSelect" class="form-select select-sm" onchange="filterBanksByBranch()">
+                            <option value="">All Branches</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">Select Bank</label>
+                        <select id="bankSelect" class="form-select select-sm">
+                            <option value="">Choose Bank...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">From Date</label>
+                        <input type="date" id="startDate" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">To Date</label>
+                        <input type="date" id="endDate" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label d-block text-white">Actions</label>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-primary flex-grow-1 btn-sm" onclick="generateBankLedger()">
+                                <i class="fas fa-sync me-1"></i> Generate Report
+                            </button>
+                            <button class="btn btn-success btn-sm px-3" onclick="window.print()">
+                                <i class="fas fa-print"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Report Content -->
+            <div id="reportArea" style="display: none;">
+                <div class="report-header-box">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h3 id="displayBankName" class="mb-1 text-primary">Bank Name</h3>
+                            <p class="text-muted mb-0">Statement Period: <span id="displayPeriod"></span></p>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="balance-card">
+                                <div class="small text-uppercase">Closing Balance</div>
+                                <div class="balance-value" id="displayClosingBalance">0.00</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover ledger-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th width="10%">Date</th>
+                                        <th width="35%">Narration / Description</th>
+                                        <th width="10%">Batch No</th>
+                                        <th width="12%" class="text-end">Debit (Rec.)</th>
+                                        <th width="12%" class="text-end">Credit (Paid)</th>
+                                        <th width="15%" class="text-end">Balance</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ledgerBody">
+                                    <!-- Dynamic Rows -->
+                                </tbody>
+                                <tfoot class="bg-light fw-bold">
+                                    <tr id="footerRow">
+                                        <td colspan="3" class="text-end">Totals:</td>
+                                        <td id="totalDebit" class="text-end text-success">0.00</td>
+                                        <td id="totalCredit" class="text-end text-danger">0.00</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="text-center py-5 no-print">
+                <i class="fas fa-file-invoice fa-4x text-light mb-3"></i>
+                <h4 class="text-muted">Select a bank and date range to generate the ledger</h4>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/pageAccess.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/bank-ledger-logic.js"></script>
+</body>
+
+</html>

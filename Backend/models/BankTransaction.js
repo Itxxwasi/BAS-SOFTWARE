@@ -50,6 +50,14 @@ const bankTransactionSchema = new mongoose.Schema({
     ref: 'User',
     required: [true, 'Created by user is required']
   },
+  // Added fields for extended functionality
+  chequeDate: { type: Date },
+  invoiceNo: { type: String, trim: true },
+  invoiceDate: { type: Date },
+  branch: { type: String, trim: true },
+  department: { type: mongoose.Schema.Types.ObjectId, ref: 'Department' },
+  isVerified: { type: Boolean, default: false }, // For Bank Reconciliation Status
+
   createdAt: {
     type: Date,
     default: Date.now
@@ -64,28 +72,28 @@ bankTransactionSchema.index({ type: 1, date: -1 });
 bankTransactionSchema.index({ refType: 1, refId: 1 });
 
 // Static method to create bank transaction and corresponding ledger entries
-bankTransactionSchema.statics.createWithLedger = async function(transactionData, session) {
+bankTransactionSchema.statics.createWithLedger = async function (transactionData, session) {
   const transaction = new this(transactionData);
-  
+
   // Create ledger entry for bank account
   const ledgerEntry = {
     ledgerId: null, // Will be set to bank ledger ID
     date: transaction.date,
-    debit: transaction.type === 'withdrawal' ? transaction.amount : 0,
-    credit: transaction.type === 'deposit' ? transaction.amount : 0,
+    debit: transaction.type === 'deposit' ? transaction.amount : 0,
+    credit: transaction.type === 'withdrawal' ? transaction.amount : 0,
     narration: transaction.narration,
     refType: `bank_${transaction.type}`,
     refId: transaction._id,
     createdBy: transaction.createdBy
   };
-  
+
   if (session) {
     await transaction.save({ session });
     // Ledger entry will be created by the calling function with proper ledger ID
   } else {
     await transaction.save();
   }
-  
+
   return transaction;
 };
 

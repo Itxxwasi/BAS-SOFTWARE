@@ -162,6 +162,102 @@
             color: white;
             font-weight: bold;
         }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                align-items: stretch !important;
+                gap: 10px;
+                padding: 10px;
+            }
+
+            .header-left,
+            .header-center,
+            .header-right {
+                flex: none !important;
+                width: 100%;
+                text-align: center !important;
+                justify-content: center !important;
+            }
+
+            /* Adjust top controls card */
+            .card .row.align-items-center {
+                flex-direction: column;
+                align-items: stretch !important;
+            }
+
+            .card .row .col-md-3,
+            .card .row .col-md-2 {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+
+            .card .row .col-md-3>label {
+                display: block;
+                margin-bottom: 5px;
+            }
+
+            .card .row .col-md-3>select,
+            .card .row .col-md-3>input {
+                width: 100% !important;
+                display: block !important;
+            }
+
+            .card button {
+                width: 100%;
+                margin-bottom: 5px;
+                margin-left: 0 !important;
+            }
+
+            /* Stack columns in Closing 01/02 tabs */
+            .tab-pane .row {
+                flex-direction: column;
+            }
+
+            .tab-pane .col-md-6,
+            .tab-pane .col-md-4,
+            .tab-pane .col-md-8 {
+                width: 100%;
+                margin-bottom: 20px;
+            }
+
+            /* Adjust forms inside tabs */
+            .row.mb-2.align-items-center {
+                flex-direction: column;
+                align-items: stretch !important;
+            }
+
+            .row.mb-2.align-items-center label {
+                width: 100%;
+                margin-bottom: 5px;
+                text-align: left;
+            }
+
+            .row.mb-2.align-items-center .col-sm-8 {
+                width: 100%;
+                padding-left: 15px;
+                /* restore padding */
+            }
+
+            /* Ensure tables scroll */
+            .table-responsive,
+            #reportOutput {
+                overflow-x: auto;
+            }
+
+            /* Navigation Tabs scrolling is already handled by flex styles in original CSS, 
+               but ensures container doesn't overflow */
+            .nav-tabs {
+                max-width: 100vw;
+            }
+
+            /* Dialog/Modal fixes if any custom ones used */
+            .modal-content {
+                width: 95%;
+                margin: 10px auto;
+            }
+        }
     </style>
 </head>
 
@@ -195,7 +291,6 @@
                 </div>
                 <div class="col-md-2">
                     <button class="btn btn-success btn-sm" onclick="loadSheet()">Search</button>
-                    <button class="btn btn-primary btn-sm ms-2" onclick="saveSheet()">Save (alt+d)</button>
                 </div>
             </div>
         </div>
@@ -235,7 +330,8 @@
                     <input type="text" placeholder="Search..." class="form-control form-control-sm"
                         style="width: 300px;">
                     <div>
-                        <button class="btn btn-success btn-sm" id="saveBtn" onclick="saveSheet()">Save (alt+d)</button>
+                        <button class="btn btn-success btn-sm" id="saveBtn" onclick="saveSheet()"
+                            data-action="save">Save (Alt+S)</button>
                         <button class="btn btn-primary btn-sm" onclick="printSheet('opening')">Print</button>
                     </div>
                 </div>
@@ -555,8 +651,9 @@
 
 
                         <div class="mt-3">
-                            <button class="btn btn-success btn-sm" onclick="saveSheet()"><i class="fas fa-save"></i>
-                                Save (alt+S)</button>
+                            <button class="btn btn-success btn-sm" onclick="saveSheet()" data-action="save"><i
+                                    class="fas fa-save"></i>
+                                Save (Alt+S)</button>
                             <button class="btn btn-primary btn-sm" onclick="printSheet('closing02')"><i
                                     class="fas fa-print"></i> Print</button>
                             <button class="btn btn-info btn-sm text-white ms-1" onclick="openWarehouseSaleModal()"><i
@@ -745,7 +842,8 @@
                 </div>
 
                 <div class="mt-4 text-center">
-                    <button class="btn btn-success" onclick="saveIncomeStatement()"><i class="fas fa-save me-1"></i>
+                    <button class="btn btn-success" onclick="saveIncomeStatement()" data-action="save"><i
+                            class="fas fa-save me-1"></i>
                         Save Statement</button>
                     <button class="btn btn-primary" onclick="printSheet('income')"><i class="fas fa-print me-1"></i>
                         Print</button>
@@ -983,6 +1081,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/js/pageAccess.js"></script>
     <script src="/js/sidebar.js"></script>
+    <script src="/js/desktop-ui.js?v=custom"></script>
     <script src="/js/closing-sheet.js"></script>
 </body>
 

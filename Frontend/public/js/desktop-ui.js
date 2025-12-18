@@ -813,10 +813,17 @@ function addDropdownOption(selectId, value, text, selected = false) {
 function setupKeyboardShortcuts() {
     document.addEventListener('keydown', function (e) {
         // Alt+S: Save
-        if (e.altKey && e.key === 's') {
+        if (e.altKey && (e.key === 's' || e.key === 'S')) {
             e.preventDefault();
-            const saveBtn = document.querySelector('[data-action="save"]');
-            if (saveBtn) saveBtn.click();
+            // Find all save buttons
+            const saveBtns = document.querySelectorAll('[data-action="save"]');
+            // Click the first visible one
+            for (const btn of saveBtns) {
+                if (btn.offsetParent !== null) {
+                    btn.click();
+                    return; // Stop after clicking one
+                }
+            }
         }
 
         // Alt+X: Search/Clear

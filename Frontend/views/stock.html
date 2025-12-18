@@ -9,6 +9,108 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Page Access Control -->
     <script src="js/pageAccess.js"></script>
+    <style>
+        /* Mobile Specific Overrides */
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: auto;
+                display: none;
+            }
+
+            .sidebar.active {
+                display: block;
+            }
+
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            .top-nav {
+                flex-direction: column;
+                gap: 10px;
+                height: auto;
+                padding: 10px;
+            }
+
+            .top-nav-left,
+            .top-nav-right {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .stock-overview {
+                grid-template-columns: 1fr;
+                /* Stack cards */
+                gap: 15px;
+            }
+
+            .overview-card {
+                width: 100%;
+            }
+
+            .actions-bar {
+                flex-direction: column;
+                gap: 15px;
+                height: auto;
+            }
+
+            .actions-left,
+            .actions-right {
+                flex-direction: column;
+                width: 100%;
+                gap: 10px;
+            }
+
+            .actions-left button,
+            .actions-right input,
+            .actions-right select,
+            .search-box {
+                width: 100%;
+            }
+
+            .table-container {
+                overflow-x: auto;
+            }
+
+            /* Modal Mobile Styles */
+            .modal-content {
+                width: 95%;
+                margin: 10px auto;
+            }
+
+            .modal-large {
+                width: 95%;
+            }
+
+            .form-row {
+                flex-direction: column;
+            }
+
+            .form-group {
+                width: 100%;
+            }
+
+            .items-header {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+
+            .items-table {
+                overflow-x: auto;
+            }
+
+            .totals-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 
 <body>
@@ -295,7 +397,7 @@
                     <input type="number" id="newStock" class="form-control" readonly>
                 </div>
                 <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">Add Item</button>
+                    <button type="submit" class="btn btn-primary" data-action="save">Add Item</button>
                     <button type="button" class="btn btn-secondary" id="cancelItemBtn">Cancel</button>
                 </div>
             </form>

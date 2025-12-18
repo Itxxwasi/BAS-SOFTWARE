@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+
 const {
   getProfitLossReport,
   getDetailedProfitLoss,
@@ -43,7 +44,15 @@ const {
   getLedgerSummary,
   exportLedgerReport
 } = require('../controllers/ledgerController');
+const { getBankLedgerReport } = require('../controllers/bankLedgerController');
 const { protect, accountsAccess } = require('../middleware/auth');
+
+// Bank Ledger Report
+router
+  .route('/bank-ledger')
+  .get(protect, accountsAccess, getBankLedgerReport);
+
+
 
 // Profit & Loss Reports
 router

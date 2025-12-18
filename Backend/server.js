@@ -314,6 +314,10 @@ app.get('/reports.html', (req, res) => {
   res.sendFile(path.join(__dirname, '../Frontend/views', 'reports.html'));
 });
 
+app.get('/bank-ledger.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../Frontend/views', 'bank-ledger.html'));
+});
+
 app.get('/settings.html', (req, res) => {
   res.sendFile(path.join(__dirname, '../Frontend/views', 'settings.html'));
 });

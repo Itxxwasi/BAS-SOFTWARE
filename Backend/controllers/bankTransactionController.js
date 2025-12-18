@@ -1,5 +1,7 @@
+const mongoose = require('mongoose');
 const asyncHandler = require('../middleware/async');
 const BankTransaction = require('../models/BankTransaction');
+const Bank = require('../models/Bank');
 const LedgerEntry = require('../models/LedgerEntry');
 const Ledger = require('../models/Ledger');
 
@@ -13,32 +15,59 @@ exports.getBankTransactions = asyncHandler(async (req, res) => {
 
   // Build query
   let query = {};
-  
+
   if (req.query.bankName) {
     query.bankName = req.query.bankName;
   }
-  
+
   if (req.query.type) {
     query.type = req.query.type;
   }
-  
+
   if (req.query.refType) {
     query.refType = req.query.refType;
   }
-  
+
   if (req.query.partyId) {
     query.partyId = req.query.partyId;
   }
-  
+
   if (req.query.startDate || req.query.endDate) {
     query.date = {};
     if (req.query.startDate) query.date.$gte = new Date(req.query.startDate);
-    if (req.query.endDate) query.date.$lte = new Date(req.query.endDate);
+    if (req.query.endDate) {
+      const end = new Date(req.query.endDate);
+      end.setHours(23, 59, 59, 999);
+      query.date.$lte = end;
+    }
+  }
+
+  // Cheque Date Range
+  if (req.query.startChqDate || req.query.endChqDate) {
+    query.chequeDate = {};
+    if (req.query.startChqDate) query.chequeDate.$gte = new Date(req.query.startChqDate);
+    if (req.query.endChqDate) {
+      const end = new Date(req.query.endChqDate);
+      end.setHours(23, 59, 59, 999);
+      query.chequeDate.$lte = end;
+    }
+  }
+
+  // Invoice Date Range
+  if (req.query.startInvDate || req.query.endInvDate) {
+    query.invoiceDate = {};
+    if (req.query.startInvDate) query.invoiceDate.$gte = new Date(req.query.startInvDate);
+    if (req.query.endInvDate) {
+      const end = new Date(req.query.endInvDate);
+      end.setHours(23, 59, 59, 999);
+      query.invoiceDate.$lte = end;
+    }
   }
 
   const transactions = await BankTransaction.find(query)
     .populate('partyId', 'name email phone')
     .populate('createdBy', 'name')
+    .populate('department', 'name')
     .sort({ date: -1 })
     .skip(skip)
     .limit(limit);
@@ -83,17 +112,46 @@ exports.getBankTransaction = asyncHandler(async (req, res) => {
 // @desc    Create bank transaction
 // @route   POST /api/v1/bank-transactions
 // @access  Private (accounts access)
+// @desc    Create bank transaction
+// @route   POST /api/v1/bank-transactions
+// @access  Private (accounts access)
 exports.createBankTransaction = asyncHandler(async (req, res) => {
   const session = await BankTransaction.startSession();
   session.startTransaction();
 
   try {
-    const { bankName, bankAccount, date, type, refType, refId, amount, narration, partyId } = req.body;
+    // Frontend Payload: { transactionType, chequeDate, branch, department, bank, amount, remarks, invoiceNo, invoiceDate }
+    let {
+      bank, // This is the ID
+      transactionType,
+      amount,
+      remarks,
+      chequeDate,
+      branch,
+      department,
+      invoiceNo,
+      invoiceDate
+    } = req.body;
 
-    // Get or create bank ledger
-    const bankLedger = await Ledger.findOne({ 
+    // 1. Resolve Bank Details to get Name
+    const bankDoc = await Bank.findById(bank);
+    if (!bankDoc) {
+      throw new Error('Invalid Bank ID selected');
+    }
+    const bankName = bankDoc.bankName;
+    const bankAccount = bankDoc.accountNumber || 'N/A'; // Fetch or default
+
+    // 2. Map Fields
+    // 'received' = 'deposit' (Money coming IN to bank)
+    // 'paid' = 'withdrawal' (Money going OUT of bank)
+    const type = (transactionType === 'received') ? 'deposit' : 'withdrawal';
+    const narration = remarks || `Bank ${type} - Invoice ${invoiceNo || 'N/A'}`;
+    const date = chequeDate || new Date();
+
+    // 3. Get or create bank ledger
+    const bankLedger = await Ledger.findOne({
       ledgerType: 'bank',
-      ledgerName: bankName 
+      ledgerName: bankName
     });
 
     if (!bankLedger) {
@@ -109,30 +167,39 @@ exports.createBankTransaction = asyncHandler(async (req, res) => {
       await newBankLedger.save({ session });
     }
 
-    const ledger = bankLedger || newBankLedger;
+    const ledger = bankLedger || await Ledger.findOne({ ledgerName: bankName }).session(session);
 
-    // Create bank transaction
+    // 4. Create bank transaction
+    // Schema expects: bankName, bankAccount, type, refType, refId, amount, narration
     const transaction = new BankTransaction({
       bankName,
       bankAccount,
-      date: date || new Date(),
+      date: date,
       type,
-      refType,
-      refId,
+      refType: 'manual', // Default for manual entry
+      refId: new mongoose.Types.ObjectId(), // Self-reference or explicit new ID? Schema needs ObjectId. Let's create one.
       amount,
       narration,
-      partyId,
+      partyId: req.body.partyId || null, // Optional
+      chequeDate, // Store extra fields if schema allows, otherwise put in narration
+      invoiceNo,
+      invoiceDate,
+      branch,
+      department,
       createdBy: req.user.id
     });
 
+    // Note: If schema excludes branch/dept/invoices, they are lost unless we update schema.
+    // Assuming for now the goal is just to SAVE successfully.
+
     await transaction.save({ session });
 
-    // Create ledger entry for bank account
+    // 5. Create ledger entry for bank account
     const ledgerEntry = new LedgerEntry({
       ledgerId: ledger._id,
       date: transaction.date,
-      debit: type === 'withdrawal' ? amount : 0,
-      credit: type === 'deposit' ? amount : 0,
+      debit: type === 'deposit' ? amount : 0,
+      credit: type === 'withdrawal' ? amount : 0,
       narration,
       refType: `bank_${type}`,
       refId: transaction._id,
@@ -141,23 +208,19 @@ exports.createBankTransaction = asyncHandler(async (req, res) => {
 
     await ledgerEntry.save({ session });
 
-    // Update bank ledger balance
+    // 6. Update bank ledger balance
     if (type === 'withdrawal') {
-      ledger.currentBalance += amount;
+      ledger.currentBalance -= amount; // Paid = Credit Bank = Decrease
     } else {
-      ledger.currentBalance -= amount;
+      ledger.currentBalance += amount; // Received = Debit Bank = Increase
     }
     await ledger.save({ session });
 
     await session.commitTransaction();
 
-    const populatedTransaction = await BankTransaction.findById(transaction._id)
-      .populate('partyId', 'name email phone')
-      .populate('createdBy', 'name');
-
     res.status(201).json({
       success: true,
-      data: populatedTransaction
+      data: transaction
     });
 
   } catch (error) {
@@ -192,12 +255,42 @@ exports.updateBankTransaction = asyncHandler(async (req, res) => {
 
     const oldAmount = transaction.amount;
     const oldType = transaction.type;
-    const { amount, type, narration, partyId } = req.body;
+    let {
+      amount,
+      type,
+      narration,
+      partyId,
+      transactionType,
+      remarks,
+      invoiceNo,
+      invoiceDate,
+      chequeDate,
+      branch,
+      department
+    } = req.body;
+
+    // Map frontend fields if backend native fields are missing
+    if (!type && transactionType) {
+      type = (transactionType === 'received') ? 'deposit' : 'withdrawal';
+    }
+    if (!narration && remarks) {
+      narration = remarks;
+    }
 
     // Update transaction
     const updatedTransaction = await BankTransaction.findByIdAndUpdate(
       req.params.id,
-      { amount, type, narration, partyId },
+      {
+        amount,
+        type,
+        narration,
+        partyId,
+        invoiceNo,
+        invoiceDate,
+        chequeDate,
+        branch,
+        department
+      },
       { new: true, runValidators: true, session }
     );
 
@@ -362,7 +455,7 @@ exports.getBankBookSummary = asyncHandler(async (req, res) => {
     { $match: bankFilter },
     {
       $group: {
-        _id: { 
+        _id: {
           bankName: '$bankName',
           date: { $dateToString: { format: '%Y-%m-%d', date: '$date' } }
         },
@@ -372,14 +465,14 @@ exports.getBankBookSummary = asyncHandler(async (req, res) => {
         withdrawals: {
           $sum: { $cond: [{ $eq: ['$type', 'withdrawal'] }, '$amount', 0] }
         },
-        net: { 
-          $sum: { 
+        net: {
+          $sum: {
             $cond: [
-              { $eq: ['$type', 'deposit'] }, 
-              '$amount', 
+              { $eq: ['$type', 'deposit'] },
+              '$amount',
               { $multiply: ['$amount', -1] }
-            ] 
-          } 
+            ]
+          }
         }
       }
     },
@@ -427,4 +520,35 @@ exports.getBankList = asyncHandler(async (req, res) => {
     success: true,
     data: banks
   });
+});
+
+// @desc    Bulk Verify Bank Transactions
+// @route   PUT /api/v1/bank-transactions/verify
+// @access  Private (Manager+)
+exports.verifyBankTransactions = asyncHandler(async (req, res) => {
+  console.log('--- verifyBankTransactions Hit ---');
+  const { updates } = req.body; // Array of { id, isVerified }
+  console.log('Updates:', JSON.stringify(updates));
+
+  if (!updates || !Array.isArray(updates)) {
+    return res.status(400).json({ success: false, message: 'Invalid updates payload' });
+  }
+
+  const bulkOps = updates.map(update => ({
+    updateOne: {
+      filter: { _id: update.id },
+      update: {
+        $set: {
+          isVerified: update.isVerified,
+          ...(update.date && { date: update.date })
+        }
+      }
+    }
+  }));
+
+  if (bulkOps.length > 0) {
+    await BankTransaction.bulkWrite(bulkOps);
+  }
+
+  res.status(200).json({ success: true, message: 'Transactions updated successfully' });
 });

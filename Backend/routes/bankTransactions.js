@@ -7,27 +7,23 @@ const {
   updateBankTransaction,
   deleteBankTransaction,
   getBankBookSummary,
-  getBankList
+  getBankList,
+  verifyBankTransactions
 } = require('../controllers/bankTransactionController');
 const { protect, accountsAccess, adminAccess, managerAccess } = require('../middleware/auth');
 
-router
-  .route('/')
-  .get(protect, accountsAccess, getBankTransactions)
-  .post(protect, accountsAccess, createBankTransaction);
+// Static routes
+router.get('/', protect, accountsAccess, getBankTransactions);
+router.post('/', protect, accountsAccess, createBankTransaction);
+router.get('/summary', protect, accountsAccess, getBankBookSummary);
+router.get('/banks', protect, accountsAccess, getBankList);
 
-router
-  .route('/summary')
-  .get(protect, accountsAccess, getBankBookSummary);
+// Bulk Update - Changed name to avoid conflict with /:id
+router.put('/bulk-verify-status', protect, managerAccess, verifyBankTransactions);
 
-router
-  .route('/banks')
-  .get(protect, accountsAccess, getBankList);
-
-router
-  .route('/:id')
-  .get(protect, accountsAccess, getBankTransaction)
-  .put(protect, managerAccess, updateBankTransaction)
-  .delete(protect, adminAccess, deleteBankTransaction);
+// ID routes
+router.get('/:id', protect, accountsAccess, getBankTransaction);
+router.put('/:id', protect, managerAccess, updateBankTransaction);
+router.delete('/:id', protect, adminAccess, deleteBankTransaction);
 
 module.exports = router;

@@ -96,6 +96,77 @@
                 width: 100%;
             }
         }
+
+        /* Mobile Specific Overrides */
+        @media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                align-items: stretch !important;
+                /* Force items to stretch */
+                height: auto;
+                padding: 10px;
+                gap: 10px;
+                /* Add spacing between elements */
+            }
+
+            .page-header>div {
+                flex: none !important;
+                /* Disable flex-grow/shrink to allow natural sizing or width: 100%*/
+                width: 100%;
+                text-align: center !important;
+                margin-bottom: 5px;
+            }
+
+            .user-info {
+                justify-content: center !important;
+            }
+
+            .form-row {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .form-field {
+                min-width: 100% !important;
+                /* Force full width */
+                width: 100% !important;
+                margin-right: 0 !important;
+                margin-bottom: 10px;
+            }
+
+            .input-group {
+                width: 100%;
+            }
+
+            .input-group input {
+                min-width: 0;
+                /* Allow shrinking */
+            }
+
+            .action-bar {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 5px;
+                padding: 5px;
+                left: 0 !important;
+                width: 100%;
+            }
+
+            .action-bar button {
+                flex: 1 1 30%;
+                /* Grow to fill space, min width 30% */
+                font-size: 12px;
+                padding: 8px 5px;
+            }
+
+            .totals-panel {
+                position: static;
+                /* Remove sticky on mobile */
+                margin-top: 15px;
+                width: 100%;
+            }
+        }
     </style>
 </head>
 
@@ -191,7 +262,8 @@
                                     <div class="form-field flex-2">
                                         <label>Name</label>
                                         <div class="input-group" style="position: relative;">
-                                            <input type="text" id="itemName" placeholder="Type to search item..." autocomplete="off">
+                                            <input type="text" id="itemName" placeholder="Type to search item..."
+                                                autocomplete="off">
                                             <input type="hidden" id="itemSelect">
                                             <button type="button" class="btn-add-new" onclick="openItemModal()">
                                                 <i class="fas fa-plus"></i>
@@ -200,7 +272,8 @@
                                                 onclick="showItemList()">
                                                 <i class="fas fa-list"></i>
                                             </button>
-                                            <div id="itemSuggestions" class="suggestions-box" style="display:none;"></div>
+                                            <div id="itemSuggestions" class="suggestions-box" style="display:none;">
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
