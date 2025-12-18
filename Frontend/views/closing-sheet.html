@@ -118,9 +118,9 @@
         }
 
         .nav-tabs .nav-link.active {
-            background-color: #007bff !important;
+            background-color: #0288d1 !important;
             color: white !important;
-            border-color: #007bff !important;
+            border-color: #0288d1 !important;
             font-weight: 600 !important;
             box-shadow: none !important;
             z-index: 2 !important;
@@ -135,7 +135,7 @@
         }
 
         .blue-header {
-            background: #007bff;
+            background: #0288d1;
             color: white;
             padding: 5px 10px;
             font-weight: bold;
@@ -256,6 +256,45 @@
             .modal-content {
                 width: 95%;
                 margin: 10px auto;
+            }
+        }
+
+        /* Print Styles */
+        @media print {
+
+            .page-header,
+            .nav-tabs,
+            .btn,
+            button {
+                display: none !important;
+            }
+
+            .tab-content {
+                border: none !important;
+                padding: 0 !important;
+            }
+
+            .tab-pane {
+                display: block !important;
+                opacity: 1 !important;
+            }
+
+            body {
+                background: white !important;
+            }
+
+            .data-table th {
+                background: #0288d1 !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .blue-header {
+                background: #0288d1 !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
         }
     </style>

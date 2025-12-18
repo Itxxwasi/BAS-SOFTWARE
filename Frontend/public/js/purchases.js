@@ -100,7 +100,7 @@ function initPurchasesPage() {
     let allItemsForDropdown = []; // Cache all items for quick filtering
 
     // Helper to escape HTML
-    window.escapeHtml = function(text) {
+    window.escapeHtml = function (text) {
         const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
         return text.replace(/[&<>"']/g, m => map[m]);
     };
@@ -153,7 +153,7 @@ function initPurchasesPage() {
                 const matchesSearch = regex.test(it.name || '') || regex.test(it.sku || '') || regex.test(it.barcode || '');
                 return matchesCategory && matchesSearch;
             });
-            
+
             if (filtered.length === 0) {
                 suggestionsBox.style.display = 'none';
                 suggestionsBox.innerHTML = '';
@@ -172,7 +172,7 @@ function initPurchasesPage() {
         // Add category filter change listener
         const categoryFilter = document.getElementById('categoryFilter');
         if (categoryFilter) {
-            categoryFilter.addEventListener('change', function() {
+            categoryFilter.addEventListener('change', function () {
                 // If search box is focused or has value, trigger search/suggestion update
                 if (document.activeElement === itemNameInput || itemNameInput.value.trim()) {
                     itemNameInput.dispatchEvent(new Event('input'));
@@ -223,7 +223,7 @@ function initPurchasesPage() {
         function showAllSuggestions() {
             const categoryFilter = document.getElementById('categoryFilter');
             const selectedCategory = categoryFilter ? categoryFilter.value : '';
-            
+
             let items = allItemsForDropdown;
             if (selectedCategory) {
                 items = items.filter(it => it.category === selectedCategory);
@@ -337,7 +337,7 @@ function initPurchasesPage() {
         });
     }
 
-        // Barcode scanning / manual entry on itemCode
+    // Barcode scanning / manual entry on itemCode
     const itemCodeInput = document.getElementById('itemCode');
     let lastLookedUpCode = '';
 
@@ -348,7 +348,7 @@ function initPurchasesPage() {
                 e.preventDefault();
                 const code = this.value.trim();
                 if (!code) return;
-                
+
                 // Always lookup on Enter, even if same code (maybe they want to reset)
                 await handleBarcodeLookup(code);
                 lastLookedUpCode = code;
@@ -359,10 +359,10 @@ function initPurchasesPage() {
         itemCodeInput.addEventListener('blur', async function () {
             const code = this.value.trim();
             if (!code) return;
-            
+
             // Avoid double lookup if we just did it via Enter
             if (code === lastLookedUpCode) return;
-            
+
             await handleBarcodeLookup(code);
             lastLookedUpCode = code;
         });
@@ -404,11 +404,11 @@ function initPurchasesPage() {
 
     function populateItemFromLookup(item) {
         if (!item) return;
-        
+
         // Ensure item is in availableItems and dropdown
         const itemSelect = document.getElementById('itemSelect');
         let found = availableItems.find(i => i._id === item._id);
-        
+
         if (!found) {
             // Add to local list
             availableItems.push(item);
@@ -433,9 +433,9 @@ function initPurchasesPage() {
         document.getElementById('taxPercent').value = item.taxPercent || 0;
         const itemNameInput = document.getElementById('itemName');
         if (itemNameInput) itemNameInput.value = item.name || '';
-        
+
         calculateItemTotal();
-        
+
         // Move focus to Pack (Quantity) field for quick entry
         const packInput = document.getElementById('pack');
         if (packInput) {
@@ -1185,7 +1185,7 @@ function showItemList() {
     window.location.href = '/items.html';
 }
 
-// Load categories for filter
+// Load categories from items
 async function loadCategories() {
     try {
         const token = localStorage.getItem('token');

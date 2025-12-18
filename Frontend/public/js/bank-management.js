@@ -563,3 +563,11 @@ window.updateBankRowsStatus = updateBankRowsStatus;
 window.calculateGridTotals = calculateGridTotals;
 window.filterBankGrid = filterBankGrid;
 window.applyRowColor = applyRowColor;
+
+// Print Bank Ledger Function
+function printBankLedger() {
+    // Use browser's native print dialog
+    window.print();
+}
+
+window.printBankLedger = printBankLedger;

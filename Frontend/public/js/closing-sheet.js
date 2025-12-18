@@ -1116,7 +1116,8 @@ function printSheet(type) {
     } else if (type === 'dayWisePrint') {
         printIncomeStatement(true);
     } else {
-        alert('Print functionality for ' + type + ' coming soon');
+        // Use browser's native print dialog
+        window.print();
     }
 }
 

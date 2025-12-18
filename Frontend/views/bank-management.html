@@ -247,13 +247,36 @@
             color: #6c757d;
             display: block;
         }
+
+        /* Print Styles */
+        @media print {
+
+            .page-header,
+            .filter-row,
+            .btn,
+            button,
+            .kpi-card {
+                display: none !important;
+            }
+
+            body {
+                background: white !important;
+            }
+
+            .data-table th {
+                background: #0288d1 !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
     </style>
 </head>
 
 <body>
     <!-- Top Header -->
     <div class="page-header d-flex justify-content-between align-items-center">
-        <div style="flex: 1;"><i class="fas fa-university me-2"></i> Bank Detail</div>
+        <div style="flex: 1;"><i class="fas fa-university me-2"></i> Bank Management</div>
         <div style="flex: 1; text-align: center;">
             <a href="/main.html" class="btn btn-outline-light btn-sm"><i class="fas fa-home"></i> Home Page</a>
         </div>
@@ -338,7 +361,7 @@
                     <div class="d-flex gap-2">
                         <button class="btn btn-primary btn-sm" onclick="searchBankDetails()">Search</button>
                         <button class="btn btn-success btn-sm" onclick="updateBankRowsStatus()">Update</button>
-                        <button class="btn btn-info btn-sm text-white">Print</button>
+                        <button class="btn btn-info btn-sm text-white" onclick="printBankLedger()">Print</button>
                         <input type="text" id="globalSearchInput" class="form-control form-control-sm"
                             placeholder="Search" onkeyup="filterBankGrid()" style="width: 150px;">
                         <input type="date" class="form-control form-control-sm">

@@ -3,20 +3,20 @@
    ============================================ */
 
 :root {
-    /* Color Palette */
-    --primary-blue: #2E5C99;
-    --primary-blue-dark: #1E3A5F;
-    --form-beige: #F5F5DC;
-    --calc-blue: #B0E0E6;
-    --calc-blue-light: #D4F1F4;
-    --success-green: #28A745;
-    --danger-red: #DC3545;
-    --info-blue: #007BFF;
-    --warning-orange: #FD7E14;
-    --light-gray: #F8F9FA;
-    --border-gray: #DEE2E6;
-    --text-dark: #212529;
-    --text-muted: #6C757D;
+    /* Color Palette - Updated to match Purchase/Sales Entry */
+    --primary-blue: #1565c0;
+    --primary-blue-dark: #0d47a1;
+    --form-beige: #f0f4f8;
+    --calc-blue: #e1f5fe;
+    --calc-blue-light: #b3e5fc;
+    --success-green: #2e7d32;
+    --danger-red: #d32f2f;
+    --info-blue: #2196f3;
+    --warning-orange: #ed6c02;
+    --light-gray: #d9e2ec;
+    --border-gray: #b0bec5;
+    --text-dark: #1a1a1a;
+    --text-muted: #4a5568;
 
     /* Spacing */
     --spacing-xs: 5px;
@@ -45,7 +45,7 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-size: var(--font-md);
     color: var(--text-dark);
-    background: #ECEFF1;
+    background: #d9e2ec;
     margin: 0;
     padding: 0;
     overflow-x: hidden;
@@ -56,15 +56,17 @@ body {
    ============================================ */
 
 .page-header {
-    background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
+    background: linear-gradient(180deg, #1976d2 0%, #1565c0 100%);
     color: white;
-    padding: 12px 20px;
-    font-size: var(--font-xxl);
-    font-weight: bold;
+    padding: 0 15px;
+    height: 40px;
+    font-size: var(--font-lg);
+    font-weight: 600;
     display: flex;
     justify-content: space-between;
     align-items: center;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-bottom: 2px solid #0d47a1;
     position: sticky;
     top: 0;
     z-index: 100;
@@ -407,7 +409,7 @@ body {
 }
 
 .data-table thead {
-    background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
+    background: #0288d1;
     color: white;
     position: sticky;
     top: 0;
@@ -417,10 +419,11 @@ body {
 .data-table thead th {
     padding: 10px 12px;
     text-align: left;
-    font-weight: 600;
+    font-weight: 700;
     font-size: var(--font-md);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid #0277bd;
     white-space: nowrap;
+    text-transform: uppercase;
 }
 
 .data-table thead th.text-center {
@@ -652,6 +655,7 @@ body {
     justify-content: center !important;
     border-radius: 4px;
 }
+
 .btn-square-sm i {
     margin: 0 !important;
     font-size: 0.8rem;
@@ -827,7 +831,7 @@ body {
     max-height: 200px;
     overflow-y: auto;
     z-index: 1000;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     border-radius: 0 0 4px 4px;
 }
 
@@ -842,7 +846,8 @@ body {
     border-bottom: none;
 }
 
-.suggestion-item:hover, .suggestion-item.active {
+.suggestion-item:hover,
+.suggestion-item.active {
     background-color: #f8f9fa;
     color: var(--primary-blue);
 }

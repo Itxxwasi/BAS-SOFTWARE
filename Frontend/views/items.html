@@ -15,61 +15,214 @@
     <!-- Desktop Style -->
     <link href="/css/desktop-style.css" rel="stylesheet">
     <style>
-        /* Mobile Specific Overrides */
+        :root {
+            --app-bg: #d9e2ec;
+            /* Light grayish-blue background from image */
+            --panel-bg: #f0f4f8;
+            /* Subtle panel background */
+            --primary-accent: #1565c0;
+            /* Deep blue for header */
+            --secondary-accent: #2196f3;
+            /* Brighter blue for buttons/headers */
+            --success-color: #2e7d32;
+            --danger-color: #d32f2f;
+            --warning-color: #ed6c02;
+            --text-main: #1a1a1a;
+            /* Darker labels like image */
+            --text-light: #4a5568;
+            --border-color: #b0bec5;
+            --calc-bg: #e1f5fe;
+            /* Light blue for calculated fields */
+            --header-gradient: linear-gradient(180deg, #1976d2 0%, #1565c0 100%);
+            --transition-speed: 0.2s;
+        }
+
+        body {
+            background-color: var(--app-bg);
+            color: var(--text-main);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow-x: hidden;
+            margin-bottom: 70px;
+        }
+
+        .page-header {
+            background: var(--header-gradient) !important;
+            padding: 8px 20px !important;
+            height: 45px !important;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+            border-bottom: none !important;
+        }
+
+        .page-header div {
+            font-size: 0.95rem !important;
+            font-weight: 500 !important;
+            letter-spacing: 0.5px;
+            color: #fff;
+        }
+
+        .desktop-container {
+            padding: 10px 40px !important;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        .content-wrapper {
+            background: transparent !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+        }
+
+        .card-panel {
+            background: var(--panel-bg);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--card-shadow);
+            padding: 15px;
+            margin-bottom: 12px;
+        }
+
+        .section-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--primary-accent);
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--active-bg);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Form Controls Refinement */
+        .form-row {
+            display: flex;
+            gap: 12px !important;
+            margin-bottom: 12px !important;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .form-field {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .form-field label {
+            font-size: 0.75rem !important;
+            font-weight: 600 !important;
+            color: var(--text-light) !important;
+            margin-bottom: 4px !important;
+        }
+
+        .form-field input,
+        .form-field select,
+        .form-field textarea {
+            height: 32px !important;
+            padding: 4px 10px !important;
+            font-size: 0.85rem !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 4px !important;
+            background-color: #fdfdfd !important;
+            transition: all var(--transition-speed) !important;
+        }
+
+        .form-field textarea {
+            height: auto !important;
+            min-height: 60px !important;
+        }
+
+        .form-field input:focus,
+        .form-field select:focus,
+        .form-field textarea:focus {
+            border-color: var(--secondary-accent) !important;
+            box-shadow: 0 0 0 3px rgba(41, 128, 185, 0.1) !important;
+            outline: none;
+            background-color: #fff !important;
+        }
+
+        /* Table Upgrade */
+        .table-container {
+            border-radius: 6px;
+            overflow: auto;
+            border: 1px solid var(--border-color);
+            background: #fff;
+            margin-top: 15px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: none !important;
+        }
+
+        .data-table thead th {
+            background: #f1f4f6 !important;
+            color: var(--text-main) !important;
+            font-size: 0.75rem !important;
+            padding: 10px 8px !important;
+            border-bottom: 2px solid var(--border-color) !important;
+            font-weight: 700 !important;
+            text-transform: uppercase;
+        }
+
+        .data-table tbody td {
+            font-size: 0.8rem !important;
+            padding: 8px !important;
+            vertical-align: middle !important;
+            border-bottom: 1px solid #f0f0f0 !important;
+        }
+
+        /* Action Bar Premium */
+        .action-bar {
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            background: #fff !important;
+            padding: 10px 20px !important;
+            border-top: 1px solid var(--border-color) !important;
+            display: flex !important;
+            justify-content: center !important;
+            gap: 10px !important;
+            box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.05) !important;
+            height: 60px !important;
+            z-index: 1000;
+        }
+
+        .action-bar .btn {
+            height: 36px !important;
+            padding: 0 15px !important;
+            font-size: 0.8rem !important;
+            border-radius: 4px !important;
+            font-weight: 600 !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+        }
+
         @media (max-width: 768px) {
-            .page-header {
-                flex-direction: column;
-                align-items: stretch !important;
-                height: auto;
-                padding: 10px;
-                gap: 10px;
-            }
-
-            .page-header>div {
-                flex: none !important;
-                width: 100%;
-                text-align: center !important;
-                margin-bottom: 5px;
-            }
-
-            .user-info {
-                justify-content: center !important;
-            }
-
-            .form-row {
-                flex-wrap: wrap;
-                gap: 10px;
-            }
-
-            .form-field {
-                min-width: 100% !important;
-                width: 100% !important;
-                margin-right: 0 !important;
-                margin-bottom: 10px;
-            }
-
-            .input-group {
-                width: 100%;
+            .desktop-container {
+                padding: 10px !important;
             }
 
             .action-bar {
-                display: flex;
-                flex-wrap: wrap;
-                justify-content: center;
-                gap: 5px;
-                padding: 5px;
-                left: 0 !important;
-                width: 100%;
+                flex-wrap: wrap !important;
+                height: auto !important;
+                padding: 10px !important;
             }
 
-            .action-bar button {
-                flex: 1 1 45%;
-                font-size: 12px;
-                padding: 8px 5px;
+            .action-bar .btn {
+                flex: 1 1 45% !important;
             }
 
-            .embedded-table {
-                overflow-x: auto;
+            .form-row {
+                flex-direction: column !important;
+                gap: 5px !important;
+                align-items: stretch !important;
             }
         }
     </style>
@@ -79,19 +232,13 @@
     <!-- Page Header -->
     <div class="page-header">
         <div style="flex: 1;">
-            <i class="fas fa-box me-2"></i>
-            Item Registration
+            <i class="fas fa-box me-2"></i> Item Registration
         </div>
         <div style="flex: 1; text-align: center;">
-            <a href="/main.html" class="btn btn-outline-light btn-sm me-3" style="border-radius: 20px;">
-                <i class="fas fa-home me-1"></i> Home Page
-            </a>
+            <a href="/main.html" class="btn btn-outline-light btn-sm"><i class="fas fa-home me-1"></i> Home Page</a>
         </div>
-        <div class="user-info" style="flex: 1; justify-content: flex-end;">
-            <div class="user-avatar">
-                <i class="fas fa-user"></i>
-            </div>
-            <span id="userName">User</span>
+        <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center;">
+            <i class="fas fa-user-circle me-2"></i> <span id="userName">User</span>
         </div>
     </div>
 
