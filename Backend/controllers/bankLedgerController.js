@@ -8,7 +8,7 @@ const Bank = require('../models/Bank');
 // @route   GET /api/v1/reports/bank-ledger
 // @access  Private
 exports.getBankLedgerReport = asyncHandler(async (req, res) => {
-    const { startDate, endDate, bankId } = req.query;
+    const { startDate, endDate, startInvDate, endInvDate, bankId } = req.query;
 
     if (!bankId) {
         return res.status(400).json({ success: false, message: 'Please select a bank' });
@@ -27,21 +27,29 @@ exports.getBankLedgerReport = asyncHandler(async (req, res) => {
     }
 
     // 2. Find the corresponding Bank document to link with DailyCash
-    // We try to match by name or by refId if available
     const bankDoc = await Bank.findOne({ bankName: ledger.ledgerName });
     const bankDocId = bankDoc ? bankDoc._id : null;
 
-    // 3. Fetch data from both sources (BankTransaction and DailyCash)
-
-    // Payments/Manual entries
-    const bankTransactions = await BankTransaction.find({
+    // 3. Prepare Search Filters
+    const btQuery = {
         bankName: ledger.ledgerName,
         date: { $gte: start, $lte: end }
-    }).lean();
+    };
 
-    // Deductions/Deposits (Only verified batches as requested)
+    if (startInvDate || endInvDate) {
+        btQuery.invoiceDate = {};
+        if (startInvDate) btQuery.invoiceDate.$gte = new Date(startInvDate);
+        if (endInvDate) btQuery.invoiceDate.$lte = new Date(endInvDate);
+    }
+
+    // 4. Fetch data from both sources
+    const bankTransactions = await BankTransaction.find(btQuery).lean();
+
+    // Deductions/Deposits
     let dailyCashEntries = [];
-    if (bankDocId) {
+    // Only fetch daily cash if we AREN'T strictly filtering by Invoice Date (or if we want to include them regardless)
+    // Considering Daily Cash doesn't have Inv. Date, filtering by it would hide all Daily Cash entries.
+    if (bankDocId && !startInvDate && !endInvDate) {
         dailyCashEntries = await DailyCash.find({
             bank: bankDocId,
             mode: 'Bank',
@@ -90,11 +98,13 @@ exports.getBankLedgerReport = asyncHandler(async (req, res) => {
     bankTransactions.forEach(tx => {
         combined.push({
             date: tx.date,
-            narration: tx.narration,
+            narration: tx.narration || tx.remarks || '-',
             refType: tx.type === 'deposit' ? 'Bank Receipt' : 'Bank Payment',
             debit: tx.type === 'deposit' ? tx.amount : 0,  // Plus
             credit: tx.type === 'withdrawal' ? tx.amount : 0, // Minus
             batchNo: tx.batchNo || '-',
+            invoiceNo: tx.invoiceNo || '-',
+            invoiceDate: tx.invoiceDate || null,
             sortDate: new Date(tx.date).getTime()
         });
     });

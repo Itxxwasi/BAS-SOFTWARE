@@ -298,7 +298,7 @@
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
                             ${company.logo ? `<img src="${company.logo}" class="company-logo" alt="Logo">` : ''}
-                            <h3 class="mt-2 mb-0">${company.companyName || 'My Company'}</h3>
+                            <h2 class="mt-2 mb-0 fw-bold" style="font-size: 2.2rem;">${company.companyName || 'My Company'}</h2>
                             <p class="text-muted mb-0">${company.address || ''}</p>
                         </div>
                         <div class="text-end">
@@ -308,45 +308,26 @@
                     </div>
                 </div>
 
-                <!-- Bank Information -->
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <div class="info-box">
-                            <h5 class="mb-3">Bank Details</h5>
-                            <div class="row mb-2">
-                                <div class="col-5 field-label">Bank Name:</div>
-                                <div class="col-7 field-value">${data.bank?.name || 'All Banks'}</div>
-                            </div>
-                            <div class="row mb-2">
-                                <div class="col-5 field-label">Account Number:</div>
-                                <div class="col-7 field-value">${data.bank?.accountNumber || 'N/A'}</div>
-                            </div>
-                            <div class="row mb-2">
-                                <div class="col-5 field-label">Branch:</div>
-                                <div class="col-7 field-value">${data.branch?.name || 'All Branches'}</div>
-                            </div>
+                <div class="row mb-3 g-2">
+                    <div class="col-5">
+                        <div class="info-box p-2 mb-0 h-100">
+                            <h3 class="mb-1 fw-bold text-primary">${data.bankName}</h3>
+                            <div class="small text-muted fw-semibold">A/C: ${data.bank?.accountNumber || 'N/A'}</div>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="summary-box">
-                            <h5 class="mb-3">Summary</h5>
-                            <div class="row mb-2">
-                                <div class="col-6 field-label">Opening Balance:</div>
-                                <div class="col-6 field-value text-end">${formatCurrency(data.openingBalance || 0)}</div>
+                    <div class="col-7">
+                        <div class="d-flex gap-2 h-100">
+                            <div class="info-box p-2 mb-0 text-center bg-success text-white flex-grow-1">
+                                <div class="small text-uppercase fw-bold" style="font-size: 0.65rem; opacity: 0.9;">Total Deposits</div>
+                                <div class="fw-bold" style="font-size: 1.25rem;">${totalDebit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
                             </div>
-                            <div class="row mb-2">
-                                <div class="col-6 field-label">Total Deposits:</div>
-                                <div class="col-6 field-value text-end debit-amount">${formatCurrency(data.totalDeposits || 0)}</div>
+                            <div class="info-box p-2 mb-0 text-center bg-danger text-white flex-grow-1">
+                                <div class="small text-uppercase fw-bold" style="font-size: 0.65rem; opacity: 0.9;">Total Withdrawals</div>
+                                <div class="fw-bold" style="font-size: 1.25rem;">${totalCredit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
                             </div>
-                            <div class="row mb-2">
-                                <div class="col-6 field-label">Total Withdrawals:</div>
-                                <div class="col-6 field-value text-end credit-amount">${formatCurrency(data.totalWithdrawals || 0)}</div>
-                            </div>
-                            <div class="row mb-0 pt-2 border-top">
-                                <div class="col-6 field-label">Closing Balance:</div>
-                                <div class="col-6 field-value text-end ${(data.closingBalance || 0) >= 0 ? 'balance-positive' : 'balance-negative'}">
-                                    ${formatCurrency(data.closingBalance || 0)}
-                                </div>
+                            <div class="info-box p-2 mb-0 text-center bg-primary text-white flex-grow-1">
+                                <div class="small text-uppercase fw-bold" style="font-size: 0.65rem; opacity: 0.9;">Closing Balance</div>
+                                <div class="fw-bold" style="font-size: 1.25rem;">${data.closingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
                             </div>
                         </div>
                     </div>
@@ -363,10 +344,12 @@
                             <th style="width: 80px;">Date</th>
                             <th style="width: 100px;">Voucher No</th>
                             <th>Description</th>
-                            <th style="width: 100px;">Type</th>
-                            <th class="text-end" style="width: 120px;">Deposit</th>
-                            <th class="text-end" style="width: 120px;">Withdrawal</th>
-                            <th class="text-end" style="width: 120px;">Balance</th>
+                            <th style="width: 80px;">Type</th>
+                            <th style="width: 80px;">Inv. No.</th>
+                            <th style="width: 80px;">Inv. Date</th>
+                            <th class="text-end" style="width: 100px;">Deposit</th>
+                            <th class="text-end" style="width: 100px;">Withdrawal</th>
+                            <th class="text-end" style="width: 110px;">Balance</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -416,7 +399,7 @@
             // Opening balance row
             let rows = `
                 <tr style="background: #f0f4f8; font-weight: 600;">
-                    <td colspan="4">Opening Balance</td>
+                    <td colspan="6">Opening Balance</td>
                     <td class="text-end">-</td>
                     <td class="text-end">-</td>
                     <td class="text-end">${formatCurrency(runningBalance)}</td>
@@ -428,9 +411,7 @@
                 const deposit = txn.type === 'deposit' || txn.type === 'credit' ? (txn.amount || 0) : 0;
                 const withdrawal = txn.type === 'withdrawal' || txn.type === 'debit' ? (txn.amount || 0) : 0;
 
-                runningBalance += deposit - withdrawal;
-                totalDeposits += deposit;
-                totalWithdrawals += withdrawal;
+                const invDate = txn.invoiceDate ? new Date(txn.invoiceDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-';
 
                 return `
                     <tr>
@@ -438,6 +419,8 @@
                         <td>${txn.voucherNo || txn.transactionId || 'N/A'}</td>
                         <td>${txn.description || txn.remarks || '-'}</td>
                         <td><span class="badge ${txn.type === 'deposit' || txn.type === 'credit' ? 'bg-success' : 'bg-danger'}">${txn.type || 'N/A'}</span></td>
+                        <td>${txn.invoiceNo || '-'}</td>
+                        <td>${invDate}</td>
                         <td class="text-end ${deposit > 0 ? 'debit-amount' : ''}">${deposit > 0 ? formatCurrency(deposit) : '-'}</td>
                         <td class="text-end ${withdrawal > 0 ? 'credit-amount' : ''}">${withdrawal > 0 ? formatCurrency(withdrawal) : '-'}</td>
                         <td class="text-end ${runningBalance >= 0 ? 'balance-positive' : 'balance-negative'}">${formatCurrency(runningBalance)}</td>
@@ -447,8 +430,8 @@
 
             // Total row
             rows += `
-                <tr class="total-row">
-                    <td colspan="4">TOTAL</td>
+                <tr class="total-row" style="background-color: #000 !important; color: #fff !important;">
+                    <td colspan="6" class="text-end">TOTAL</td>
                     <td class="text-end">${formatCurrency(totalDeposits)}</td>
                     <td class="text-end">${formatCurrency(totalWithdrawals)}</td>
                     <td class="text-end">${formatCurrency(runningBalance)}</td>

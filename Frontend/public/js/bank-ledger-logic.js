@@ -84,6 +84,8 @@ async function generateBankLedger() {
     const bankId = document.getElementById('bankSelect').value;
     const startDate = document.getElementById('startDate').value;
     const endDate = document.getElementById('endDate').value;
+    const startInvDate = document.getElementById('startInvDate').value;
+    const endInvDate = document.getElementById('endInvDate').value;
 
     if (!bankId) {
         alert('Please select a bank first');
@@ -92,7 +94,9 @@ async function generateBankLedger() {
 
     try {
         const token = localStorage.getItem('token');
-        const url = `/api/v1/reports/bank-ledger?bankId=${bankId}&startDate=${startDate}&endDate=${endDate}`;
+        let url = `/api/v1/reports/bank-ledger?bankId=${bankId}&startDate=${startDate}&endDate=${endDate}`;
+        if (startInvDate) url += `&startInvDate=${startInvDate}`;
+        if (endInvDate) url += `&endInvDate=${endInvDate}`;
 
         const response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -127,6 +131,8 @@ function renderLedger(data, start, end) {
         <td class="text-muted italic">${start}</td>
         <td class="fw-bold">Opening Balance</td>
         <td>-</td>
+        <td>-</td>
+        <td>-</td>
         <td></td>
         <td></td>
         <td class="text-end fw-bold">${data.openingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
@@ -135,22 +141,27 @@ function renderLedger(data, start, end) {
 
     let totalDebit = 0;
     let totalCredit = 0;
+    let finalRunningBalance = data.openingBalance;
 
     // 2. Transaction Rows
     data.transactions.forEach(tx => {
         totalDebit += tx.debit;
         totalCredit += tx.credit;
+        finalRunningBalance = tx.balance;
 
         const date = new Date(tx.date).toISOString().split('T')[0];
+        const invDateStr = tx.invoiceDate ? new Date(tx.invoiceDate).toISOString().split('T')[0] : '-';
         const tr = document.createElement('tr');
 
         tr.innerHTML = `
             <td>${date}</td>
             <td>
-                <div class="fw-bold">${tx.narration || '-'}</div>
-                <small class="text-muted text-uppercase">${tx.refType}</small>
+                <div class="fw-bold">${tx.narration || tx.remarks || '-'}</div>
+                <small class="text-muted text-uppercase">${tx.refType || '-'}</small>
             </td>
             <td>${tx.batchNo || '-'}</td>
+            <td>${tx.invoiceNo || '-'}</td>
+            <td>${invDateStr}</td>
             <td class="text-end text-success">${tx.debit > 0 ? tx.debit.toLocaleString() : '-'}</td>
             <td class="text-end text-danger">${tx.credit > 0 ? tx.credit.toLocaleString() : '-'}</td>
             <td class="text-end fw-bold">${tx.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
@@ -161,4 +172,9 @@ function renderLedger(data, start, end) {
     // 3. Totals
     document.getElementById('totalDebit').textContent = totalDebit.toLocaleString(undefined, { minimumFractionDigits: 2 });
     document.getElementById('totalCredit').textContent = totalCredit.toLocaleString(undefined, { minimumFractionDigits: 2 });
+    document.getElementById('totalBalance').textContent = finalRunningBalance.toLocaleString(undefined, { minimumFractionDigits: 2 });
+
+    // Update KPI Cards
+    document.getElementById('cardTotalDebit').textContent = totalDebit.toLocaleString(undefined, { minimumFractionDigits: 2 });
+    document.getElementById('cardTotalCredit').textContent = totalCredit.toLocaleString(undefined, { minimumFractionDigits: 2 });
 }

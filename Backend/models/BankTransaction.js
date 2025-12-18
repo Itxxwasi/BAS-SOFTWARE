@@ -24,7 +24,7 @@ const bankTransactionSchema = new mongoose.Schema({
   refType: {
     type: String,
     required: [true, 'Reference type is required'],
-    enum: ['sale', 'sale_return', 'purchase', 'purchase_return', 'manual']
+    enum: ['sale', 'sale_return', 'purchase', 'purchase_return', 'manual', 'bank_transfer']
   },
   refId: {
     type: mongoose.Schema.Types.ObjectId,

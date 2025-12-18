@@ -2,7 +2,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 
 const backendDir = path.join(__dirname, 'Backend');
-const command = `cd ${backendDir} && npm install && node server.js`;
+const command = `cd ${backendDir} && npm run dev`;
 
 const shell = process.platform === 'win32' ? 'cmd' : 'sh';
 const shellFlag = process.platform === 'win32' ? '/c' : '-c';

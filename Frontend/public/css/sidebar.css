@@ -226,3 +226,13 @@ body.sidebar-mini {
     overflow: visible;
     /* Allow popovers to break out */
 }
+
+@media print {
+    .sidebar-container {
+        display: none !important;
+    }
+    body.sidebar-full, 
+    body.sidebar-mini {
+        padding-left: 0 !important;
+    }
+}

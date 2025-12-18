@@ -23,25 +23,64 @@
             font-size: 0.9rem;
         }
 
-        .kpi-green {
-            background-color: #28a745;
+        .kpi-green,
+        .bg-kpi-green {
+            background-color: #28a745 !important;
+            color: white !important;
         }
 
-        .kpi-red {
-            background-color: #dc3545;
+        .kpi-red,
+        .bg-kpi-red {
+            background-color: #dc3545 !important;
+            color: white !important;
         }
 
-        .kpi-blue {
-            background-color: #0d6efd;
+        .kpi-blue,
+        .bg-kpi-blue {
+            background-color: #0d6efd !important;
+            color: white !important;
         }
 
-        .kpi-orange {
-            background-color: #fd7e14;
+        .kpi-orange,
+        .bg-kpi-orange {
+            background-color: #fd7e14 !important;
+            color: white !important;
         }
 
-        .kpi-dark {
-            background-color: #000;
-            color: #0f0;
+        .kpi-dark,
+        .bg-kpi-dark {
+            background-color: #000 !important;
+            color: #0f0 !important;
+        }
+
+        /* Ensure inputs with backgrounds look professional */
+        input.bg-kpi-green,
+        input.bg-kpi-red,
+        input.bg-kpi-blue,
+        input.bg-kpi-orange {
+            border: none !important;
+            font-weight: bold !important;
+            text-align: center;
+        }
+
+        .pending-chq-container {
+            display: grid;
+            grid-template-columns: 350px 350px 1fr;
+            gap: 15px;
+            height: 100%;
+        }
+
+        .form-label-bold {
+            font-weight: bold;
+            font-size: 0.85rem;
+            margin-bottom: 2px;
+            display: block;
+        }
+
+        .discovery-col {
+            border-left: 1px solid #dee2e6;
+            border-right: 1px solid #dee2e6;
+            padding: 0 15px;
         }
 
         /* Black bg, lime text */
@@ -52,7 +91,18 @@
             border: 1px solid #dee2e6;
             border-top: none;
             height: calc(100vh - 150px);
+            overflow: hidden;
+        }
+
+        .right-grid {
+            flex: 1;
+            overflow-x: auto;
             overflow-y: auto;
+        }
+
+        .table-responsive {
+            overflow-y: auto;
+            overflow-x: auto;
         }
 
         .filter-row {
@@ -62,7 +112,8 @@
             background: #fff;
             padding: 10px;
             border-bottom: 1px solid #ddd;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
+            overflow-x: auto;
         }
 
         .filter-group {
@@ -84,18 +135,103 @@
 
         /* Grid Styles */
         .custom-grid th {
-            background-color: #007bff;
+            background-color: #0056b3;
             color: white;
             font-weight: 500;
             white-space: nowrap;
             padding: 5px;
             font-size: 0.85rem;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            box-shadow: inset 0 -1px 0 #dee2e6;
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 768px) {
+            .tab-content {
+                height: auto !important;
+                overflow-y: visible !important;
+                padding: 10px 5px !important;
+            }
+
+            .pending-chq-container {
+                grid-template-columns: 1fr !important;
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 20px !important;
+                height: auto !important;
+            }
+
+            .discovery-col {
+                border-left: none !important;
+                border-right: none !important;
+                border-top: 2px solid #dee2e6;
+                border-bottom: 2px solid #dee2e6;
+                padding: 15px 0 !important;
+            }
+
+            .split-container {
+                flex-direction: column !important;
+                height: auto !important;
+            }
+
+            .left-form {
+                width: 100% !important;
+                max-width: none !important;
+                border-right: none !important;
+                border-bottom: 2px solid #dee2e6;
+                padding-right: 0 !important;
+                padding-bottom: 20px !important;
+                margin-bottom: 20px !important;
+            }
+
+            .filter-row {
+                flex-wrap: wrap !important;
+                height: auto !important;
+                padding: 10px 5px !important;
+            }
+
+            .filter-group {
+                width: 100% !important;
+                margin-bottom: 10px !important;
+            }
+
+            .filter-group select,
+            .filter-group input {
+                width: 100% !important;
+            }
+
+            .right-grid {
+                width: 100% !important;
+                overflow-x: auto !important;
+            }
+
+            .page-header {
+                flex-direction: column !important;
+                height: auto !important;
+                gap: 5px;
+                padding: 10px !important;
+            }
+
+            .nav-tabs {
+                flex-wrap: wrap !important;
+            }
         }
 
         .custom-grid td {
             font-size: 0.85rem;
             padding: 4px;
             vertical-align: middle;
+        }
+
+        .custom-grid tfoot td {
+            position: sticky;
+            bottom: 0;
+            background-color: #000 !important;
+            color: #fff !important;
+            z-index: 10;
+            border-top: 2px solid #dee2e6;
         }
 
         /* Bank Detail specific row colors */
@@ -255,12 +391,26 @@
             .filter-row,
             .btn,
             button,
-            .kpi-card {
+            .kpi-card,
+            .sidebar-container,
+            .nav-tabs,
+            #bankTabs {
                 display: none !important;
             }
 
-            body {
+            body,
+            body.sidebar-full,
+            body.sidebar-mini {
                 background: white !important;
+                padding-left: 0 !important;
+                margin: 0 !important;
+            }
+
+            .tab-content {
+                border: none !important;
+                padding: 0 !important;
+                overflow: visible !important;
+                height: auto !important;
             }
 
             .data-table th {
@@ -269,6 +419,52 @@
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
+
+            .table-responsive {
+                overflow: visible !important;
+                height: auto !important;
+                max-height: none !important;
+            }
+
+            .custom-grid th {
+                position: static !important;
+                background-color: #007bff !important;
+                color: white !important;
+            }
+
+            .custom-grid tfoot td {
+                position: static !important;
+                background-color: #f8f9fa !important;
+                color: black !important;
+            }
+        }
+
+        .split-container {
+            display: flex;
+            gap: 20px;
+            height: 100%;
+        }
+
+        .left-form {
+            width: 350px;
+            background: #f8f9fa;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            height: fit-content;
+        }
+
+
+
+        .left-form label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .left-form .kpi-card {
+            min-height: 35px;
+            font-size: 1rem;
         }
     </style>
 </head>
@@ -304,6 +500,10 @@
             <li class="nav-item" role="presentation">
                 <button class="nav-link" data-bs-toggle="tab" data-bs-target="#bank-payments" type="button">Bank
                     Payments</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#bank-to-bank" type="button">Bank To
+                    Bank</button>
             </li>
         </ul>
 
@@ -395,70 +595,115 @@
 
             <!-- TAB 2: PENDING CHQ -->
             <div class="tab-pane fade h-100" id="pending-chq">
-                <div class="split-container">
-                    <!-- Left Form -->
-                    <div class="left-form">
+                <!-- Top Filters for this tab -->
+                <div class="filter-row mb-3 shadow-sm border rounded">
+                    <div class="filter-group">
+                        <label>Branch</label>
+                        <select id="pc-branch" class="form-select form-select-sm branch-select"
+                            style="width: 250px;"></select>
+                    </div>
+                    <div class="filter-group ms-4">
+                        <label>Banks</label>
+                        <select id="pc-bank" class="form-select form-select-sm bank-select"
+                            style="width: 250px;"></select>
+                    </div>
+                </div>
+
+                <div class="pending-chq-container">
+                    <!-- Left Column: Form -->
+                    <div class="form-col">
                         <div class="mb-2">
-                            <label class="form-label">Branch</label>
-                            <select class="form-select form-select-sm branch-select"></select>
-                        </div>
-                        <div class="mb-2">
-                            <label class="form-label">Banks</label>
-                            <select class="form-select form-select-sm bank-select"></select>
-                        </div>
-                        <div class="mb-2">
-                            <label class="form-label">Bank Date</label>
+                            <label class="form-label-bold">Bank Date</label>
                             <input type="date" class="form-control form-control-sm">
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Bank Amount</label>
-                            <input type="number" class="form-control form-control-sm kpi-green text-white"
-                                value="5355059.8">
+                            <label class="form-label-bold">Bank Amount</label>
+                            <input type="number" class="form-control form-control-sm bg-kpi-green" value="0.00">
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Date</label>
+                            <label class="form-label-bold">Date</label>
                             <input type="date" class="form-control form-control-sm">
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Pending Chq.</label>
-                            <input type="number" class="form-control form-control-sm kpi-blue text-white"
-                                value="12695432">
+                            <label class="form-label-bold">Pending Chq.</label>
+                            <input type="number" class="form-control form-control-sm bg-kpi-blue" value="0">
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Statement</label>
+                            <label class="form-label-bold">Statement</label>
                             <input type="number" class="form-control form-control-sm" value="0">
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Diff</label>
-                            <input type="number" class="form-control form-control-sm kpi-red text-white"
-                                value="7340373">
+                            <label class="form-label-bold">Diff.</label>
+                            <input type="number" class="form-control form-control-sm bg-kpi-red" value="0">
                         </div>
-                        <button class="btn btn-success btn-sm w-25 mt-2">Save</button>
+                        <button class="btn btn-success btn-sm px-4 mt-2">Save</button>
                     </div>
 
-                    <!-- Right Grid -->
-                    <div class="right-grid">
+                    <!-- Middle Column: Totals summary -->
+                    <div class="discovery-col">
                         <div class="mb-2">
-                            <input type="text" class="form-control form-control-sm w-25" placeholder="Search...">
+                            <label class="form-label-bold">From</label>
+                            <input type="date" class="form-control form-control-sm">
                         </div>
-                        <table class="table table-bordered table-sm custom-grid">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Dated</th>
-                                    <th>System Date</th>
-                                    <th>Branch Name</th>
-                                    <th>Bank Name</th>
-                                    <th>Bank Date</th>
-                                    <th>Bank Ledger</th>
-                                    <th>Pending Chq Amount</th>
-                                    <th>Statement</th>
-                                </tr>
-                            </thead>
-                            <tbody id="pendingChqBody">
-                                <!-- Populated by JS -->
-                            </tbody>
-                        </table>
+                        <div class="mb-2">
+                            <label class="form-label-bold">To</label>
+                            <input type="date" class="form-control form-control-sm">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label-bold">Batch To Date</label>
+                            <input type="date" class="form-control form-control-sm">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label-bold">Pending Batch</label>
+                            <input type="number" class="form-control form-control-sm bg-kpi-blue" value="0" readonly>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label-bold">Statement</label>
+                            <input type="number" class="form-control form-control-sm bg-kpi-blue" value="0" readonly>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label-bold">Deposit</label>
+                            <input type="number" class="form-control form-control-sm bg-kpi-blue" value="0" readonly>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label-bold">Total</label>
+                            <input type="number" class="form-control form-control-sm bg-kpi-green" value="0" readonly>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label-bold">Pending Chq. ()</label>
+                            <input type="number" class="form-control form-control-sm bg-kpi-orange" value="0" readonly>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label-bold">Diff.</label>
+                            <input type="number" class="form-control form-control-sm bg-kpi-red" value="0" readonly>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Grid -->
+                    <div class="grid-col d-flex flex-column" style="overflow: hidden;">
+                        <div class="mb-2 d-flex justify-content-end">
+                            <input type="text" class="form-control form-control-sm w-50" placeholder="Search grid...">
+                        </div>
+                        <div class="table-responsive flex-grow-1 border">
+                            <table class="table table-bordered table-sm custom-grid mb-0">
+                                <thead style="background-color: #0056b3; color: white; position: sticky; top: 0;">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Dated</th>
+                                        <th>System Date</th>
+                                        <th>Branch Name</th>
+                                        <th>Bank Name</th>
+                                        <th>Bank Date</th>
+                                        <th>Bank Ledger</th>
+                                        <th>Pending Chq Amount</th>
+                                        <th>Statement</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pendingChqBody">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -466,67 +711,87 @@
             <!-- TAB 3: BANK SUMMARY -->
             <div class="tab-pane fade h-100" id="bank-summary">
                 <!-- Filters -->
-                <div class="filter-row mb-3">
+                <div class="filter-row mb-2">
                     <div class="filter-group">
                         <label>From</label>
-                        <input type="date" class="form-control form-control-sm from-date">
+                        <input type="date" id="bs-from-date" class="form-control form-control-sm from-date">
                     </div>
                     <div class="filter-group">
                         <label>To</label>
-                        <input type="date" class="form-control form-control-sm to-date">
+                        <input type="date" id="bs-to-date" class="form-control form-control-sm to-date">
                     </div>
                     <div class="filter-group">
                         <label>Branch</label>
-                        <select class="form-select form-select-sm branch-select"></select>
+                        <select id="bs-branch" class="form-select form-select-sm branch-select"></select>
                     </div>
                     <div class="filter-group">
                         <label>Department</label>
-                        <select class="form-select form-select-sm dept-select"></select>
+                        <select id="bs-dept" class="form-select form-select-sm dept-select"></select>
                     </div>
                     <div class="filter-group">
                         <label>Bank</label>
-                        <select class="form-select form-select-sm bank-select"></select>
+                        <select id="bs-bank" class="form-select form-select-sm bank-select"></select>
                     </div>
                     <div class="filter-group ms-auto">
                         <label>From</label>
-                        <input type="time" class="form-control form-control-sm" value="12:00">
+                        <input type="time" id="bs-from-time" class="form-control form-control-sm" value="12:00">
                     </div>
                     <div class="filter-group">
                         <label>To</label>
-                        <input type="time" class="form-control form-control-sm" value="11:59">
+                        <input type="time" id="bs-to-time" class="form-control form-control-sm" value="11:59">
                     </div>
+                </div>
+
+                <!-- Summary Controls -->
+                <div class="d-flex justify-content-end align-items-center mb-2 gap-2">
+                    <button class="btn btn-primary btn-sm" onclick="searchBankSummary()">Search</button>
+                    <button class="btn btn-info btn-sm text-white" onclick="printBankSummary()">Print</button>
+                    <input type="text" id="bs-global-search" class="form-control form-control-sm"
+                        placeholder="Search Summary" onkeyup="filterSummaryGrid()" style="width: 150px;">
                 </div>
 
                 <!-- KPI Boxes -->
                 <div class="row g-2 mb-3">
-                    <div class="col-md-2">
+                    <div class="col-md">
                         <div class="d-flex flex-column">
                             <small class="fw-bold">Opening Balance</small>
-                            <div class="kpi-card kpi-green">0</div>
+                            <div id="bs-opening-balance" class="kpi-card kpi-green">0</div>
                         </div>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md">
                         <div class="d-flex flex-column">
                             <small class="fw-bold">Deposits</small>
-                            <div class="kpi-card kpi-green">0</div>
+                            <div id="bs-deposits" class="kpi-card kpi-green">0</div>
                         </div>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md">
                         <div class="d-flex flex-column">
                             <small class="fw-bold">Batch Received</small>
-                            <div class="kpi-card kpi-green">4898039</div>
+                            <div id="bs-batch-received" class="kpi-card kpi-green">0</div>
                         </div>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md">
                         <div class="d-flex flex-column">
                             <small class="fw-bold">Withdrawal</small>
-                            <div class="kpi-card kpi-green">5971866</div>
+                            <div id="bs-withdrawal" class="kpi-card kpi-green">0</div>
                         </div>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md">
+                        <div class="d-flex flex-column">
+                            <small class="fw-bold text-danger">BTB Withdraw (-)</small>
+                            <div id="bs-btb-withdraw-kpi" class="kpi-card kpi-blue">0</div>
+                        </div>
+                    </div>
+                    <div class="col-md">
+                        <div class="d-flex flex-column">
+                            <small class="fw-bold text-success">BTB Deposit (+)</small>
+                            <div id="bs-btb-deposit-kpi" class="kpi-card kpi-blue">0</div>
+                        </div>
+                    </div>
+                    <div class="col-md">
                         <div class="d-flex flex-column">
                             <small class="fw-bold">Closing Balance</small>
-                            <div class="kpi-card kpi-dark position-relative">2373657</div>
+                            <div id="bs-closing-balance" class="kpi-card kpi-dark position-relative">0</div>
                         </div>
                     </div>
                 </div>
@@ -567,15 +832,15 @@
                             </tr>
                             <!-- More rows would be generated by JS -->
                         </tbody>
-                        <tfoot class="bg-primary text-white fw-bold">
+                        <tfoot class="fw-bold">
                             <tr>
-                                <td colspan="5">Total</td>
-                                <td>0</td>
-                                <td>0</td>
-                                <td>5971866</td>
-                                <td>4898039</td>
-                                <td>0</td>
-                                <td>2373657</td>
+                                <td colspan="5" class="text-end">Total</td>
+                                <td id="bs-btb-withdraw-total" class="text-end">0</td>
+                                <td id="bs-btb-deposit-total" class="text-end">0</td>
+                                <td id="bs-withdraw-total" class="text-end">0</td>
+                                <td id="bs-batch-transfer-total" class="text-end">0</td>
+                                <td id="bs-deposit-total" class="text-end">0</td>
+                                <td id="bs-final-balance" class="text-end">0</td>
                                 <td></td>
                             </tr>
                         </tfoot>
@@ -586,6 +851,9 @@
 
             <!-- TAB 4: BANK PAYMENTS -->
             <div class="tab-pane fade h-100" id="bank-payments">
+                <div class="bg-primary text-white text-center p-2 mb-3 rounded shadow-sm">
+                    <h5 class="mb-0"><i class="fas fa-money-check-alt me-2"></i> Bank Payments Entry</h5>
+                </div>
                 <div class="split-container">
                     <!-- Left Form -->
                     <div class="left-form">
@@ -619,7 +887,7 @@
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Bank Balance</label>
-                            <div id="bp-balance-display" class="kpi-card kpi-dark justify-content-center">0</div>
+                            <div id="bp-balance-display" class="kpi-card kpi-blue justify-content-center">0</div>
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Remarks</label>
@@ -641,69 +909,62 @@
 
                     <!-- Right Grid -->
                     <div class="right-grid">
-                        <div class="filter-row p-0 mb-3 border-0 flex-wrap gap-3">
+                        <div
+                            class="filter-row p-1 mb-3 border rounded bg-light d-flex align-items-center gap-2 flex-nowrap overflow-auto">
                             <!-- Invoice Date Range Group -->
-                            <div class="d-flex align-items-center gap-2 p-2 border rounded bg-light"
-                                style="min-width: 350px;">
-                                <div class="d-flex flex-column">
-                                    <span class="fw-bold text-primary small">Invoice Date</span>
-                                    <button class="btn btn-link p-0 x-small text-decoration-none text-danger"
-                                        onclick="clearDateRange('bp-inv')">Clear</button>
+                            <div class="d-flex align-items-center gap-1 border-end pe-2">
+                                <div class="d-flex flex-column" style="min-width: 70px;">
+                                    <span class="fw-bold text-primary" style="font-size: 0.7rem;">Inv. Date</span>
+                                    <button class="btn btn-link p-0 text-danger text-decoration-none"
+                                        style="font-size: 0.65rem;" onclick="clearDateRange('bp-inv')">Clear</button>
                                 </div>
                                 <div class="filter-group mb-0">
-                                    <label class="x-small mb-0">From</label>
-                                    <input type="date" id="bp-inv-from" class="form-control form-control-sm">
+                                    <input type="date" id="bp-inv-from" class="form-control form-control-sm"
+                                        style="width: 120px;">
                                 </div>
+                                <span class="text-muted small">to</span>
                                 <div class="filter-group mb-0">
-                                    <label class="x-small mb-0">To</label>
-                                    <input type="date" id="bp-inv-to" class="form-control form-control-sm">
+                                    <input type="date" id="bp-inv-to" class="form-control form-control-sm"
+                                        style="width: 120px;">
                                 </div>
                             </div>
 
                             <!-- Cheque Date Range Group -->
-                            <div class="d-flex align-items-center gap-2 p-2 border rounded bg-light"
-                                style="min-width: 350px;">
-                                <div class="d-flex flex-column">
-                                    <span class="fw-bold text-success small">Cheque Date</span>
-                                    <button class="btn btn-link p-0 x-small text-decoration-none text-danger"
-                                        onclick="clearDateRange('bp-chq')">Clear</button>
+                            <div class="d-flex align-items-center gap-1 border-end pe-2">
+                                <div class="d-flex flex-column" style="min-width: 75px;">
+                                    <span class="fw-bold text-success" style="font-size: 0.7rem;">Chq. Date</span>
+                                    <button class="btn btn-link p-0 text-danger text-decoration-none"
+                                        style="font-size: 0.65rem;" onclick="clearDateRange('bp-chq')">Clear</button>
                                 </div>
                                 <div class="filter-group mb-0">
-                                    <label class="x-small mb-0">From</label>
-                                    <input type="date" id="bp-chq-from" class="form-control form-control-sm">
+                                    <input type="date" id="bp-chq-from" class="form-control form-control-sm"
+                                        style="width: 120px;">
                                 </div>
+                                <span class="text-muted small">to</span>
                                 <div class="filter-group mb-0">
-                                    <label class="x-small mb-0">To</label>
-                                    <input type="date" id="bp-chq-to" class="form-control form-control-sm">
+                                    <input type="date" id="bp-chq-to" class="form-control form-control-sm"
+                                        style="width: 120px;">
                                 </div>
                             </div>
 
                             <!-- Other Filters -->
-                            <div class="d-flex align-items-end gap-2 flex-grow-1">
-                                <div class="filter-group mb-0">
-                                    <label class="small text-muted">Type</label>
-                                    <select id="bp-filter-type" class="form-select form-select-sm"
-                                        onchange="filterBankPaymentsGrid()" style="width: 100px;">
-                                        <option value="">All</option>
-                                        <option value="received">Received</option>
-                                        <option value="paid">Paid</option>
-                                    </select>
-                                </div>
-                                <div class="filter-group mb-0">
-                                    <label class="small text-muted">Bank</label>
-                                    <select id="bp-filter-bank" class="form-select form-select-sm"
-                                        onchange="filterBankPaymentsGrid()" style="width: 130px;">
-                                        <option value="">All Banks</option>
-                                    </select>
-                                </div>
-                                <button class="btn btn-primary btn-sm mb-0 px-3" onclick="loadBankPayments()"
-                                    style="height: 31px;">Search</button>
+                            <div class="d-flex align-items-center gap-2">
+                                <select id="bp-filter-type" class="form-select form-select-sm"
+                                    onchange="filterBankPaymentsGrid()" style="width: 90px;">
+                                    <option value="">Type</option>
+                                    <option value="received">Received</option>
+                                    <option value="paid">Paid</option>
+                                </select>
+                                <select id="bp-filter-bank" class="form-select form-select-sm"
+                                    onchange="filterBankPaymentsGrid()" style="width: 120px;">
+                                    <option value="">All Banks</option>
+                                </select>
+                                <button class="btn btn-primary btn-sm px-3" onclick="loadBankPayments()">Search</button>
+                            </div>
 
-                                <div class="filter-group ms-auto mb-0">
-                                    <input type="text" id="bp-global-search" class="form-control form-control-sm"
-                                        placeholder="Search Payments" onkeyup="filterBankPaymentsGrid()"
-                                        style="width: 180px; height: 31px;">
-                                </div>
+                            <div class="filter-group ms-auto mb-0">
+                                <input type="text" id="bp-global-search" class="form-control form-control-sm"
+                                    placeholder="Search..." onkeyup="filterBankPaymentsGrid()" style="width: 150px;">
                             </div>
                         </div>
 
@@ -713,30 +974,140 @@
                             <select id="bp-filter-inv-date"></select>
                         </div>
 
-                        <table class="table table-bordered table-sm custom-grid">
-                            <thead>
-                                <tr>
-                                    <th>Cheque Date</th>
-                                    <th>Invoice Date</th>
-                                    <th>Bank Name</th>
-                                    <th>Type</th>
-                                    <th>Remarks</th>
-                                    <th>InvoiceNo</th>
-                                    <th>Amount</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="bankPaymentsBody">
-                                <!-- Populated by JS -->
-                            </tbody>
-                            <tfoot class="bg-light fw-bold">
-                                <tr>
-                                    <td colspan="6" class="text-end">Total:</td>
-                                    <td id="bp-grid-total">0.00</td>
-                                    <td></td>
-                                </tr>
-                            </tfoot>
-                        </table>
+                        <div class="table-responsive" style="max-height: calc(100% - 60px);">
+                            <table class="table table-bordered table-sm custom-grid">
+                                <thead>
+                                    <tr>
+                                        <th>Cheque Date</th>
+                                        <th>Invoice Date</th>
+                                        <th>Bank Name</th>
+                                        <th>Type</th>
+                                        <th>Remarks</th>
+                                        <th>InvoiceNo</th>
+                                        <th>Amount</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bankPaymentsBody">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                                <tfoot class="fw-bold">
+                                    <tr>
+                                        <td colspan="6" class="text-end">Total:</td>
+                                        <td id="bp-grid-total" class="text-end">0.00</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: BANK TO BANK -->
+            <div class="tab-pane fade h-100" id="bank-to-bank">
+                <div class="bg-primary text-white text-center p-2 mb-3 rounded shadow-sm">
+                    <h5 class="mb-0"><i class="fas fa-exchange-alt me-2"></i> Bank To Bank Payments</h5>
+                </div>
+                <div class="split-container">
+                    <!-- Left Form -->
+                    <div class="left-form" style="width: 350px;">
+                        <div class="mb-2">
+                            <label class="form-label">Date</label>
+                            <input type="date" id="btb-date" class="form-control form-control-sm">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Branch</label>
+                            <select id="btb-branch" class="form-select form-select-sm branch-select"></select>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">From</label>
+                            <select id="btb-from-bank" class="form-select form-select-sm bank-select"
+                                onchange="updateBTBBalances()"></select>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Pre Balance</label>
+                            <div id="btb-from-pre" class="kpi-card kpi-blue justify-content-center">0</div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">New Balance</label>
+                            <div id="btb-from-new" class="kpi-card kpi-blue justify-content-center">0</div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">To</label>
+                            <select id="btb-to-bank" class="form-select form-select-sm bank-select"
+                                onchange="updateBTBBalances()"></select>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Pre Balance</label>
+                            <div id="btb-to-pre" class="kpi-card kpi-blue justify-content-center">0</div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">New Balance</label>
+                            <div id="btb-to-new" class="kpi-card kpi-blue justify-content-center">0</div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Amount</label>
+                            <input type="number" id="btb-amount" class="form-control form-control-sm"
+                                oninput="updateBTBBalances()">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Remarks</label>
+                            <input type="text" id="btb-remarks" class="form-control form-control-sm">
+                        </div>
+                        <div class="d-flex gap-2 mt-3">
+                            <button class="btn btn-success btn-sm w-50" onclick="saveBankTransfer()">Save</button>
+                            <button class="btn btn-danger btn-sm w-50" onclick="clearBTBForm()">Clear</button>
+                        </div>
+                    </div>
+
+                    <!-- Right Grid -->
+                    <div class="right-grid">
+                        <div
+                            class="filter-row p-1 mb-3 border rounded bg-light d-flex align-items-center gap-2 flex-nowrap overflow-auto">
+                            <div class="d-flex align-items-center gap-1 border-end pe-2">
+                                <span class="fw-bold text-primary small" style="font-size: 0.7rem;">Entry Date</span>
+                                <div class="filter-group mb-0">
+                                    <label class="x-small mb-0">From</label>
+                                    <input type="date" id="btb-filter-from" class="form-control form-control-sm"
+                                        style="width: 120px;">
+                                </div>
+                                <div class="filter-group mb-0">
+                                    <label class="x-small mb-0">To</label>
+                                    <input type="date" id="btb-filter-to" class="form-control form-control-sm"
+                                        style="width: 120px;">
+                                </div>
+                            </div>
+                            <button class="btn btn-primary btn-sm px-3" onclick="loadBTBTransfers()">Search</button>
+                            <input type="text" id="btb-search" class="form-control form-control-sm ms-auto"
+                                style="width: 200px;" placeholder="Search Transfers..." onkeyup="filterBTBGrid()">
+                        </div>
+
+                        <div class="table-responsive" style="max-height: calc(100% - 60px);">
+
+                            <table class="table table-bordered table-sm custom-grid">
+                                <thead>
+                                    <tr>
+                                        <th>Dated</th>
+                                        <th>From Bank Name</th>
+                                        <th>To Bank Name</th>
+                                        <th>Amount</th>
+                                        <th>Remarks</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="btbGridBody">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                                <tfoot class="fw-bold">
+                                    <tr>
+                                        <td colspan="3" class="text-end">Total</td>
+                                        <td id="btb-total-amount" class="text-end">0</td>
+                                        <td colspan="2"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>

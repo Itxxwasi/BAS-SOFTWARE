@@ -3,9 +3,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const today = new Date().toISOString().split('T')[0];
     const dateFields = document.querySelectorAll('input[type="date"]');
     dateFields.forEach(field => {
-        if (field.id === 'bp-chq-from' || field.id === 'bp-chq-to') {
+        const id = field.id;
+        if (id === 'bp-chq-from' || id === 'bp-chq-to' || id === 'bs-from-date' || id === 'bs-to-date' || id === 'btb-date' || id === 'btb-filter-from' || id === 'btb-filter-to') {
             field.value = today;
-        } else if (field.id.includes('from') || field.id.includes('to') || field.id.includes('search')) {
+        } else if (id.includes('from') || id.includes('to') || id.includes('search')) {
             field.value = '';
         } else {
             field.value = today;
@@ -24,9 +25,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('.branch-select').forEach(select => {
         select.addEventListener('change', (e) => {
             const scope = e.target.closest('.tab-pane');
-            loadDepartments(scope);
+            if (scope) {
+                console.log(`Branch changed in ${scope.id}, reloading departments/banks`);
+                loadDepartments(scope);
+            }
         });
     });
+
+    // Specific listener for Pending Chq filters to reload grid data
+    const pcBranch = document.getElementById('pc-branch');
+    const pcBank = document.getElementById('pc-bank');
+    if (pcBranch) pcBranch.addEventListener('change', () => loadPendingChqData());
+    if (pcBank) pcBank.addEventListener('change', () => loadPendingChqData());
 
     document.querySelectorAll('.dept-select').forEach(select => {
         select.addEventListener('change', (e) => {
@@ -35,14 +45,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    // Select All Batches Logic
-    const selectAllDetails = document.getElementById('selectAllBatches');
-    if (selectAllDetails) {
-        selectAllDetails.addEventListener('change', function () {
-            const isChecked = this.checked;
-            document.querySelectorAll('.batch-checkbox').forEach(cb => cb.checked = isChecked);
+    // Tab Activation Listeners
+    document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', (e) => {
+            const target = e.target.getAttribute('data-bs-target');
+            if (target === '#bank-to-bank') {
+                loadBTBTransfers();
+            }
         });
-    }
+    });
 });
 
 let allBranches = [];
@@ -80,7 +91,14 @@ async function loadDepartments(scopeElement) {
     if (!scopeElement) return;
     const branchSel = scopeElement.querySelector('.branch-select');
     const deptSel = scopeElement.querySelector('.dept-select');
-    if (!branchSel || !deptSel) return;
+
+    // BTB and Pending Chq screens don't have dept select, they filter banks by branch directly
+    if (!branchSel) return;
+    if (scopeElement.id === 'bank-to-bank' || scopeElement.id === 'pending-chq') {
+        filterBanks(scopeElement);
+        return;
+    }
+    if (!deptSel) return;
 
     const branch = branchSel.value;
     deptSel.innerHTML = '<option value="">Select Department</option>';
@@ -142,29 +160,58 @@ async function loadAllBanks() {
 
 function filterBanks(scopeElement) {
     if (!scopeElement) return;
-    const bankSel = scopeElement.querySelector('.bank-select');
-    if (!bankSel) return;
+    const bankSelects = scopeElement.querySelectorAll('.bank-select');
+    if (bankSelects.length === 0) return;
 
-    const branchVal = scopeElement.querySelector('.branch-select')?.value;
+    const branchSel = scopeElement.querySelector('.branch-select');
+    const branchVal = branchSel ? branchSel.value : null;
     const deptVal = scopeElement.querySelector('.dept-select')?.value;
 
-    bankSel.innerHTML = '<option value="">Select Bank</option>';
+    console.log(`Filtering banks for ${scopeElement.id}. Branch: ${branchVal}, Dept: ${deptVal}`);
 
-    const filtered = allBanksReference.filter(b => {
-        if (branchVal && b.branch !== branchVal) return false;
-        if (deptVal && b.department && b.department !== deptVal) return false;
-        return true;
+    bankSelects.forEach(bankSel => {
+        const currentVal = bankSel.value;
+        bankSel.innerHTML = '<option value="">Select Bank</option>';
+
+        const filtered = allBanksReference.filter(b => {
+            // Match Branch: handle object (name/id) or direct string
+            if (branchVal) {
+                const bBranchName = (b.branch && typeof b.branch === 'object') ? b.branch.name : b.branch;
+                const bBranchId = (b.branch && typeof b.branch === 'object') ? b.branch._id : b.branch;
+
+                // Try matching by name or ID
+                if (bBranchName !== branchVal && bBranchId !== branchVal) return false;
+            }
+
+            // Match Department
+            if (deptVal) {
+                const bDeptId = (b.department && typeof b.department === 'object') ? b.department._id : b.department;
+                if (bDeptId && bDeptId !== deptVal) return false;
+            }
+
+            // Tabs like Pending Chq and Bank Detail should only show "Branch Bank" types
+            if (scopeElement.id === 'pending-chq' || scopeElement.id === 'bank-detail') {
+                if (b.bankType !== 'Branch Bank') return false;
+            }
+
+            return true;
+        });
+
+        filtered.forEach(b => {
+            const opt = document.createElement('option');
+            opt.value = b._id;
+            opt.textContent = b.bankName;
+            bankSel.appendChild(opt);
+        });
+
+        // If the previous selection is still valid in the new list, keep it
+        if (currentVal && filtered.some(b => b._id === currentVal)) {
+            bankSel.value = currentVal;
+        } else if (filtered.length > 0 && scopeElement.id === 'pending-chq') {
+            // Auto-select first bank for Pending Chq screen if nothing selected
+            // bankSel.selectedIndex = 1; 
+        }
     });
-
-
-
-    filtered.forEach(b => {
-        const opt = document.createElement('option');
-        opt.value = b._id;
-        opt.textContent = b.bankName;
-        bankSel.appendChild(opt);
-    });
-    // Remove if desired: bankSel.value = ""; // Reset or keep?
 }
 
 // Expose functions for other logic files
@@ -433,6 +480,7 @@ function calculateGridTotals() {
 function filterBankGrid() {
     const input = document.getElementById('globalSearchInput');
     const filter = input.value.toLowerCase();
+    const cleanFilter = filter.replace(/,/g, '');
     const rows = document.querySelectorAll('#bankDetailsBody tr');
 
     rows.forEach(row => {
@@ -445,7 +493,7 @@ function filterBankGrid() {
         const dateInput = row.querySelector('.batch-date-input');
         const dateVal = dateInput ? dateInput.value.toLowerCase() : '';
 
-        if (text.includes(filter) || cleanText.includes(filter) || dateVal.includes(filter)) {
+        if (text.includes(filter) || cleanText.includes(cleanFilter) || dateVal.includes(filter)) {
             row.style.display = '';
         } else {
             row.style.display = 'none';
@@ -509,20 +557,31 @@ async function updateBankRowsStatus() {
 }
 
 // --- Tab 2: Pending Cheques ---
-async function loadPendingCheques() {
-    // API logic to load pending cheques grid
+async function loadPendingChqData() {
+    const branch = document.getElementById('pc-branch').value;
+    const bank = document.getElementById('pc-bank').value;
+
+    console.log(`Loading pending chq data for Branch: ${branch}, Bank: ${bank}`);
+    // Future API integration: fetch('/api/v1/bank-ledger/pending...')
+
+    // For now, keep the mock grid display
+    renderPendingChqGrid([]);
+}
+
+function renderPendingChqGrid(data) {
     const tbody = document.getElementById('pendingChqBody');
     tbody.innerHTML = '';
 
-    // Mock for Green Grid
+    // Mock for Green Grid consistency
     const mockData = [
-        { id: 379, dated: '12/15/2025', sysDate: '12/15/2025 9:43 PM', branch: 'PWD-1', bank: 'ALF', bankDate: '12/31/2026', ledger: -4350469, pending: 7457620 },
-        // ...
+        { id: 379, dated: '12/15/2025', sysDate: '12/15/2025 9:43 PM', branch: 'PWD-1', bank: 'ALF', bankDate: '12/31/2026', ledger: -4350469, pending: 7457620, statement: 3105111.37 },
     ];
 
-    mockData.forEach(row => {
+    const displayData = data.length > 0 ? data : mockData;
+
+    displayData.forEach(row => {
         const tr = document.createElement('tr');
-        tr.className = 'table-success'; // Bootstrap green variant
+        tr.className = 'table-success';
         tr.innerHTML = `
             <td>${row.id}</td>
             <td>${row.dated}</td>
@@ -530,11 +589,381 @@ async function loadPendingCheques() {
             <td>${row.branch}</td>
             <td>${row.bank}</td>
             <td>${row.bankDate}</td>
-            <td>${row.ledger}</td>
-            <td>${row.pending}</td>
-            <td>...</td>
+            <td class="text-end">${row.ledger.toLocaleString()}</td>
+            <td class="text-end">${row.pending.toLocaleString()}</td>
+            <td class="text-end">${row.statement.toLocaleString()}</td>
          `;
         tbody.appendChild(tr);
+    });
+}
+
+// --- Tab 3: Bank Summary Functions ---
+async function searchBankSummary() {
+    const fromDate = document.getElementById('bs-from-date').value;
+    const toDate = document.getElementById('bs-to-date').value;
+    const branch = document.getElementById('bs-branch').value;
+    const dept = document.getElementById('bs-dept').value;
+    const bank = document.getElementById('bs-bank').value;
+
+    if (!fromDate || !toDate) {
+        alert('Please select a date range');
+        return;
+    }
+
+    try {
+        const token = localStorage.getItem('token');
+
+        // 1. Fetch Daily Cash (Batch Transfers)
+        let dcUrl = `/api/v1/daily-cash?startDate=${fromDate}&endDate=${toDate}&mode=Bank&hasBank=true`;
+        if (branch) dcUrl += `&branch=${branch}`;
+
+        // 2. Fetch Bank Transactions (Deposits/Withdrawals)
+        let btUrl = `/api/v1/bank-transactions?startDate=${fromDate}&endDate=${toDate}`;
+        if (branch) btUrl += `&branch=${branch}`;
+
+        const [dcResp, btResp] = await Promise.all([
+            fetch(dcUrl, { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch(btUrl, { headers: { 'Authorization': `Bearer ${token}` } })
+        ]);
+
+        const dcData = await dcResp.json();
+        const btData = await btResp.json();
+
+        if (dcData.success && btData.success) {
+            let combinedData = [];
+
+            // Process Daily Cash (Batch Transfers)
+            dcData.data.forEach(item => {
+                // Filtering
+                if (dept && item.department && (item.department._id !== dept && item.department !== dept)) return;
+                const itemBankId = (item.bank && item.bank._id) ? item.bank._id : item.bank;
+                if (bank && itemBankId !== bank) return;
+
+                const ratePerc = item.deductedAmount || 0;
+                const grossBase = (item.totalAmount || 0) + ratePerc;
+                const deduction = (grossBase * ratePerc) / 100;
+                const netAmount = Math.round(grossBase - deduction);
+
+                combinedData.push({
+                    date: item.date,
+                    batchTransferDate: item.date, // Use same for now or check if there's a specific field
+                    type: 'Batch Transfer',
+                    ref: item.batchNo || '-',
+                    description: item.remarks || 'Daily Cash Deposit',
+                    btbWithdraw: 0,
+                    btbDeposit: 0,
+                    withdraw: 0,
+                    batchTransfer: netAmount,
+                    deposit: 0,
+                    batchNo: item.batchNo || '-',
+                    sortDate: new Date(item.date).getTime()
+                });
+            });
+
+            // Process Bank Transactions
+            btData.data.forEach(item => {
+                // Filtering
+                if (dept && item.department && (item.department._id !== dept && item.department !== dept)) return;
+                const itemBankId = (item.bank && item.bank._id) ? item.bank._id : item.bank;
+                if (bank && itemBankId !== bank) return;
+
+                const rawType = (item.transactionType || item.type || '').toLowerCase();
+                const isDeposit = rawType === 'deposit' || rawType === 'received';
+                const narration = (item.narration || item.remarks || '').toLowerCase();
+                const isBTB = item.refType === 'bank_transfer' || narration.includes('bank transfer');
+
+                combinedData.push({
+                    date: item.date,
+                    batchTransferDate: '-',
+                    type: isBTB ? 'Bank Transfer' : (isDeposit ? 'Deposit' : 'Withdrawal'),
+                    ref: item.invoiceNo || '-',
+                    description: item.narration || item.remarks || '-',
+                    btbWithdraw: (isBTB && !isDeposit) ? (item.amount || 0) : 0,
+                    btbDeposit: (isBTB && isDeposit) ? (item.amount || 0) : 0,
+                    withdraw: (!isBTB && !isDeposit) ? (item.amount || 0) : 0,
+                    batchTransfer: 0,
+                    deposit: (!isBTB && isDeposit) ? (item.amount || 0) : 0,
+                    batchNo: '-',
+                    sortDate: new Date(item.date).getTime()
+                });
+            });
+
+            // Sort by Date Ascending
+            combinedData.sort((a, b) => a.sortDate - b.sortDate);
+
+            renderBankSummary(combinedData);
+        } else {
+            alert('Failed to fetch summary data');
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Error fetching summary data');
+    }
+}
+
+function renderBankSummary(data) {
+    const tbody = document.getElementById('bankSummaryBody');
+    tbody.innerHTML = '';
+
+    let totalBTBWithdraw = 0;
+    let totalBTBDeposit = 0;
+    let totalWithdraw = 0;
+    let totalBatchTransfer = 0;
+    let totalDeposit = 0;
+
+    // Use Opening Balance 0 for now as in the user screenshot
+    let runningBalance = 0;
+
+    data.forEach(item => {
+        totalBTBWithdraw += item.btbWithdraw;
+        totalBTBDeposit += item.btbDeposit;
+        totalWithdraw += item.withdraw;
+        totalBatchTransfer += item.batchTransfer;
+        totalDeposit += item.deposit;
+
+        runningBalance += (item.deposit + item.batchTransfer + item.btbDeposit) - (item.withdraw + item.btbWithdraw);
+
+        const tr = document.createElement('tr');
+        // Add specific class for colors if needed
+        if (item.type === 'Batch Transfer') tr.className = 'table-success';
+        else if (item.type === 'Withdrawal') tr.className = 'table-danger';
+        else if (item.type === 'Deposit') tr.className = 'table-info';
+        else if (item.type === 'Bank Transfer') tr.className = 'table-warning'; // Light orange/yellow for BTB
+
+        const dateStr = new Date(item.date).toLocaleDateString();
+        const btDateStr = item.batchTransferDate !== '-' ? new Date(item.batchTransferDate).toLocaleDateString() : '-';
+
+        tr.innerHTML = `
+            <td>${dateStr}</td>
+            <td>${btDateStr}</td>
+            <td>${item.type}</td>
+            <td>${item.ref}</td>
+            <td>${item.description}</td>
+            <td class="text-end">${item.btbWithdraw.toLocaleString()}</td>
+            <td class="text-end">${item.btbDeposit.toLocaleString()}</td>
+            <td class="text-end">${item.withdraw > 0 ? '-' + item.withdraw.toLocaleString() : '0'}</td>
+            <td class="text-end">${item.batchTransfer.toLocaleString()}</td>
+            <td class="text-end">${item.deposit.toLocaleString()}</td>
+            <td class="text-end fw-bold">${runningBalance.toLocaleString()}</td>
+            <td>${item.batchNo}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // Update Footers
+    document.getElementById('bs-btb-withdraw-total').textContent = totalBTBWithdraw.toLocaleString();
+    document.getElementById('bs-btb-deposit-total').textContent = totalBTBDeposit.toLocaleString();
+    document.getElementById('bs-withdraw-total').textContent = totalWithdraw.toLocaleString();
+    document.getElementById('bs-batch-transfer-total').textContent = totalBatchTransfer.toLocaleString();
+    document.getElementById('bs-deposit-total').textContent = totalDeposit.toLocaleString();
+    document.getElementById('bs-final-balance').textContent = runningBalance.toLocaleString();
+
+    // Update KPIs
+    document.getElementById('bs-opening-balance').textContent = '0';
+    document.getElementById('bs-deposits').textContent = totalDeposit.toLocaleString();
+    document.getElementById('bs-batch-received').textContent = totalBatchTransfer.toLocaleString();
+    document.getElementById('bs-withdrawal').textContent = totalWithdraw.toLocaleString();
+    document.getElementById('bs-btb-withdraw-kpi').textContent = totalBTBWithdraw.toLocaleString();
+    document.getElementById('bs-btb-deposit-kpi').textContent = totalBTBDeposit.toLocaleString();
+    document.getElementById('bs-closing-balance').textContent = runningBalance.toLocaleString();
+}
+
+function filterSummaryGrid() {
+    const input = document.getElementById('bs-global-search');
+    const filter = input.value.toLowerCase();
+    const cleanFilter = filter.replace(/,/g, '');
+    const rows = document.querySelectorAll('#bankSummaryBody tr');
+
+    rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        const cleanText = text.replace(/,/g, '');
+
+        if (text.includes(filter) || cleanText.includes(cleanFilter)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+function printBankSummary() {
+    window.print();
+}
+
+// --- Tab 5: Bank To Bank Functions ---
+async function updateBTBBalances() {
+    const fromBankId = document.getElementById('btb-from-bank').value;
+    const toBankId = document.getElementById('btb-to-bank').value;
+    const amount = parseFloat(document.getElementById('btb-amount').value) || 0;
+
+    const fromPreEl = document.getElementById('btb-from-pre');
+    const fromNewEl = document.getElementById('btb-from-new');
+    const toPreEl = document.getElementById('btb-to-pre');
+    const toNewEl = document.getElementById('btb-to-new');
+
+    try {
+        const token = localStorage.getItem('token');
+        const resp = await fetch('/api/v1/bank-transactions/summary', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await resp.json();
+
+        if (data.success && data.data.bankBalances) {
+            const balances = data.data.bankBalances;
+
+            // Need to get bank names from IDs
+            const fromBankName = document.getElementById('btb-from-bank').options[document.getElementById('btb-from-bank').selectedIndex]?.text;
+            const toBankName = document.getElementById('btb-to-bank').options[document.getElementById('btb-to-bank').selectedIndex]?.text;
+
+            const fromPre = balances[fromBankName] || 0;
+            const toPre = balances[toBankName] || 0;
+
+            fromPreEl.textContent = fromPre.toLocaleString();
+            fromNewEl.textContent = (fromPre - amount).toLocaleString();
+
+            toPreEl.textContent = toPre.toLocaleString();
+            toNewEl.textContent = (toPre + amount).toLocaleString();
+        }
+    } catch (e) {
+        console.error('Error updating BTB balances:', e);
+    }
+}
+
+async function saveBankTransfer() {
+    const payload = {
+        date: document.getElementById('btb-date').value,
+        branch: document.getElementById('btb-branch').value,
+        fromBank: document.getElementById('btb-from-bank').value,
+        toBank: document.getElementById('btb-to-bank').value,
+        amount: parseFloat(document.getElementById('btb-amount').value),
+        remarks: document.getElementById('btb-remarks').value
+    };
+
+    if (!payload.date || !payload.fromBank || !payload.toBank || !payload.amount) {
+        alert('Please fill all required fields');
+        return;
+    }
+
+    if (payload.fromBank === payload.toBank) {
+        alert('From and To banks must be different');
+        return;
+    }
+
+    try {
+        const token = localStorage.getItem('token');
+        const resp = await fetch('/api/v1/bank-transfers', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await resp.json();
+        if (data.success) {
+            alert('Transfer saved successfully');
+            clearBTBForm();
+            loadBTBTransfers();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Failed to save transfer');
+    }
+}
+
+async function loadBTBTransfers() {
+    const from = document.getElementById('btb-filter-from').value;
+    const to = document.getElementById('btb-filter-to').value;
+
+    try {
+        const token = localStorage.getItem('token');
+        let url = '/api/v1/bank-transfers';
+        if (from && to) url += `?startDate=${from}&endDate=${to}`;
+
+        const resp = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await resp.json();
+
+        if (data.success) {
+            renderBTBGrid(data.data);
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function renderBTBGrid(data) {
+    const tbody = document.getElementById('btbGridBody');
+    tbody.innerHTML = '';
+    let total = 0;
+
+    data.forEach(item => {
+        total += item.amount;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${new Date(item.date).toLocaleDateString()}</td>
+            <td>${item.fromBank?.bankName || 'N/A'}</td>
+            <td>${item.toBank?.bankName || 'N/A'}</td>
+            <td class="text-end">${item.amount.toLocaleString()}</td>
+            <td>${item.remarks || ''}</td>
+            <td class="text-center">
+                <button class="btn btn-danger btn-sm" onclick="deleteBankTransfer('${item._id}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    document.getElementById('btb-total-amount').textContent = total.toLocaleString();
+}
+
+async function deleteBankTransfer(id) {
+    if (!confirm('Are you sure you want to delete this transfer? balances will be reversed.')) return;
+
+    try {
+        const token = localStorage.getItem('token');
+        const resp = await fetch(`/api/v1/bank-transfers/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await resp.json();
+        if (data.success) {
+            alert('Deleted successfully');
+            loadBTBTransfers();
+        } else {
+            alert(data.message);
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function clearBTBForm() {
+    document.getElementById('btb-from-bank').value = '';
+    document.getElementById('btb-to-bank').value = '';
+    document.getElementById('btb-amount').value = '';
+    document.getElementById('btb-remarks').value = '';
+    document.getElementById('btb-from-pre').textContent = '0';
+    document.getElementById('btb-from-new').textContent = '0';
+    document.getElementById('btb-to-pre').textContent = '0';
+    document.getElementById('btb-to-new').textContent = '0';
+}
+
+function filterBTBGrid() {
+    const input = document.getElementById('btb-search');
+    const filter = input.value.toLowerCase();
+    const cleanFilter = filter.replace(/,/g, '');
+    const rows = document.querySelectorAll('#btbGridBody tr');
+
+    rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        const cleanText = text.replace(/,/g, '');
+        row.style.display = (text.includes(filter) || cleanText.includes(cleanFilter)) ? '' : 'none';
     });
 }
 
@@ -550,7 +979,6 @@ function getSearchParams(scope) {
 }
 
 function formatDateForInput(dateStr) {
-    // Basic parser for MM/DD/YYYY to YYYY-MM-DD
     const parts = dateStr.split('/');
     if (parts.length === 3) return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
     return '';
@@ -563,10 +991,18 @@ window.updateBankRowsStatus = updateBankRowsStatus;
 window.calculateGridTotals = calculateGridTotals;
 window.filterBankGrid = filterBankGrid;
 window.applyRowColor = applyRowColor;
+window.searchBankSummary = searchBankSummary;
+window.filterSummaryGrid = filterSummaryGrid;
+window.printBankSummary = printBankSummary;
+window.updateBTBBalances = updateBTBBalances;
+window.saveBankTransfer = saveBankTransfer;
+window.loadBTBTransfers = loadBTBTransfers;
+window.deleteBankTransfer = deleteBankTransfer;
+window.clearBTBForm = clearBTBForm;
+window.filterBTBGrid = filterBTBGrid;
 
 // Print Bank Ledger Function
 function printBankLedger() {
-    // Use browser's native print dialog
     window.print();
 }
 
