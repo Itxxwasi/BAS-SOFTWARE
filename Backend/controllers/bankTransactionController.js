@@ -24,9 +24,15 @@ exports.getBankTransactions = asyncHandler(async (req, res) => {
     query.type = req.query.type;
   }
 
-  if (req.query.refType) {
+  // Support for excluding specific refType (e.g., exclude bank_transfer from Bank Payments screen)
+  if (req.query.excludeRefType && !req.query.refType) {
+    query.refType = { $ne: req.query.excludeRefType };
+    console.log('🔍 EXCLUDING refType:', req.query.excludeRefType);
+  } else if (req.query.refType) {
     query.refType = req.query.refType;
   }
+
+  console.log('📊 Final Query:', JSON.stringify(query, null, 2));
 
   if (req.query.partyId) {
     query.partyId = req.query.partyId;

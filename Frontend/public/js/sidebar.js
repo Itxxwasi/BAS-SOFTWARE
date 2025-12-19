@@ -1,11 +1,11 @@
-// Sidebar Navigation - Hybrid Mode (Accordion for Full, Popover for Mini)
+// Sidebar Navigation - Hybrid Mode (Accordion for Full, Popover for Mini) - VERSION 2.0 UPDATED
 
 class SidebarNavigation {
     constructor() {
         this.currentPage = this.getCurrentPage();
         this.userRole = this.getUserRole();
-        // Determine mode: "full" for dashboard/main, "mini" for others
-        this.mode = (this.currentPage === 'main' || this.currentPage === 'dashboard') ? 'full' : 'mini';
+        // Default to mini mode on ALL pages
+        this.mode = 'mini';
 
         this.init();
     }
@@ -51,15 +51,53 @@ class SidebarNavigation {
         const menuItems = [
             { id: 'main', icon: 'fa-home', label: 'Home Page', link: '/main.html', permission: 'dashboard' },
             {
+                id: 'admin', icon: 'fa-cogs', label: 'Administration', permission: 'administration',
+                children: [
+                    { label: 'Stores', link: '/stores.html' }
+                ]
+            },
+            {
                 id: 'overview', icon: 'fa-tachometer-alt', label: 'Overview', permission: 'dashboard',
                 children: [
                     { label: 'Dashboard', link: '/dashboard.html' }
                 ]
             },
             {
-                id: 'admin', icon: 'fa-cogs', label: 'Administration', permission: 'administration',
+                id: 'reports', icon: 'fa-chart-bar', label: 'Reports', permission: 'reports',
                 children: [
-                    { label: 'Stores', link: '/stores.html' }
+                    {
+                        id: 'sales-reports', label: 'Sales Reports', icon: 'fa-shopping-cart',
+                        submenu: [
+                            { label: 'Sales Report', link: '/reports.html?type=sales' },
+                            { label: 'Customer Receipts', link: '/reports.html?type=customer-payments' },
+                            { label: 'Party Statement', link: '/reports.html?type=party-statement' }
+                        ]
+                    },
+                    {
+                        id: 'purchase-reports', label: 'Purchase Reports', icon: 'fa-truck',
+                        submenu: [
+                            { label: 'Purchase Report', link: '/reports.html?type=purchase' },
+                            { label: 'Supplier Payments', link: '/reports.html?type=supplier-payments' }
+                        ]
+                    },
+                    {
+                        id: 'stock-reports', label: 'Stock Reports', icon: 'fa-warehouse',
+                        submenu: [
+                            { label: 'Stock Report', link: '/reports.html?type=stock' },
+                            { label: 'Stock Adjustments', link: '/reports.html?type=stock-adjustment' },
+                            { label: 'Stock Audit', link: '/reports.html?type=stock-audit' }
+                        ]
+                    },
+                    {
+                        id: 'financial-reports', label: 'Financial Reports', icon: 'fa-file-invoice-dollar',
+                        submenu: [
+                            { label: 'Profit & Loss', link: '/reports.html?type=profit-loss' },
+                            { label: 'Ledger', link: '/reports.html?type=ledger' },
+                            { label: 'Bank Ledger', link: '/bank-ledger.html' },
+                            { label: 'Expenses', link: '/reports.html?type=expenses' },
+                            { label: 'Vouchers', link: '/reports.html?type=vouchers' }
+                        ]
+                    }
                 ]
             },
             {
@@ -128,51 +166,13 @@ class SidebarNavigation {
                     { label: 'Stock Adjustments', link: '/stock-adjustments.html' }
                 ]
             },
-            {
-                id: 'reports', icon: 'fa-chart-bar', label: 'Reports', permission: 'reports',
-                children: [
-                    {
-                        id: 'sales-reports', label: 'Sales Reports', icon: 'fa-shopping-cart',
-                        submenu: [
-                            { label: 'Sales Report', link: '/reports.html?type=sales' },
-                            { label: 'Customer Receipts', link: '/reports.html?type=customer-payments' },
-                            { label: 'Party Statement', link: '/reports.html?type=party-statement' }
-                        ]
-                    },
-                    {
-                        id: 'purchase-reports', label: 'Purchase Reports', icon: 'fa-truck',
-                        submenu: [
-                            { label: 'Purchase Report', link: '/reports.html?type=purchase' },
-                            { label: 'Supplier Payments', link: '/reports.html?type=supplier-payments' }
-                        ]
-                    },
-                    {
-                        id: 'stock-reports', label: 'Stock Reports', icon: 'fa-warehouse',
-                        submenu: [
-                            { label: 'Stock Report', link: '/reports.html?type=stock' },
-                            { label: 'Stock Adjustments', link: '/reports.html?type=stock-adjustment' },
-                            { label: 'Stock Audit', link: '/reports.html?type=stock-audit' }
-                        ]
-                    },
-                    {
-                        id: 'financial-reports', label: 'Financial Reports', icon: 'fa-file-invoice-dollar',
-                        submenu: [
-                            { label: 'Profit & Loss', link: '/reports.html?type=profit-loss' },
-                            { label: 'Ledger', link: '/reports.html?type=ledger' },
-                            { label: 'Bank Ledger', link: '/bank-ledger.html' },
-                            { label: 'Expenses', link: '/reports.html?type=expenses' },
-                            { label: 'Vouchers', link: '/reports.html?type=vouchers' }
-                        ]
-                    }
-                ]
-            },
             { id: 'settings', icon: 'fa-cog', label: 'Settings', link: '/settings.html', permission: 'settings' }
         ];
 
         let html = `
             <div class="sidebar-header">
+                <i class="fas fa-bars text-white" style="cursor:pointer; font-size: 1.2rem;" id="sidebarToggleBtn"></i>
                 <div class="logo-text">BAS</div>
-                ${this.mode === 'full' ? '<i class="fas fa-bars ms-auto text-white" style="cursor:pointer;" id="sidebarToggleBtn"></i>' : ''}
             </div>
             
             <div class="user-info-mini">
@@ -204,18 +204,16 @@ class SidebarNavigation {
                 `;
                 item.children.forEach(child => {
                     if (child.submenu) {
-                        // Nested Submenu Logic
-                        // 1. Accordion (Full)
+                        // Nested Submenu Logic - with chevron arrows centered
                         html += `
-                            <div class="nav-link collapsed" data-bs-toggle="collapse" href="#submenu-${child.id}" role="button" aria-expanded="false">
-                                <i class="fas ${child.icon || 'fa-folder'} text-warning" style="font-size: 0.9em; width: 25px;"></i>
-                                <span>${child.label}</span>
-                                <i class="fas fa-chevron-right ms-auto arrow arrow-icon" style="font-size: 0.8em;"></i>
-                            </div>
-                            <ul class="collapse list-unstyled ps-3 submenu-inline" id="submenu-${child.id}">
+                            <li><a href="javascript:void(0)" class="nav-link small-link" onclick="document.getElementById('submenu-${child.id}').classList.toggle('show')" style="font-weight: normal !important; display: flex !important; align-items: center !important; justify-content: space-between !important; padding-left: 25px !important; padding-right: 15px !important;">
+                                <span><i class="fas fa-circle bullet text-danger" style="font-size:0.5rem; margin-right:8px;"></i>${child.label}</span>
+                                <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i>
+                            </a></li>
+                            <ul class="collapse list-unstyled submenu-inline" id="submenu-${child.id}" style="margin-left: 25px !important; padding-left: 0 !important;">
                         `;
                         child.submenu.forEach(subItem => {
-                            html += `<li><a href="${subItem.link}" class="nav-link small-link"><i class="fas fa-circle bullet text-danger" style="font-size:0.5rem; margin-right:8px;"></i>${subItem.label}</a></li>`;
+                            html += `<li><a href="${subItem.link}" class="nav-link small-link" style="padding-right: 15px;"><i class="fas fa-circle bullet text-danger" style="font-size:0.5rem; margin-right:8px;"></i>${subItem.label}</a></li>`;
                         });
                         html += `</ul>`;
                     } else if (child.header) {
@@ -235,11 +233,12 @@ class SidebarNavigation {
                 `;
                 item.children.forEach(child => {
                     if (child.submenu) {
-                        // Collapsible Submenu for Popover
+                        // Collapsible Submenu for Popover - styled like regular items
                         html += `
-                            <div class="popover-submenu-toggle" data-target="popover-sub-${child.id}" style="cursor:pointer; padding: 8px 20px; color:#b8c7ce; display:flex; align-items:center; justify-content:space-between; transition: color 0.2s;">
-                                <span style="font-weight:bold; font-size:0.8rem;">${child.label}</span>
-                                <i class="fas fa-chevron-right arrow" style="font-size:0.7rem; transition: transform 0.2s;"></i>
+                            <div class="popover-submenu-toggle" data-target="popover-sub-${child.id}" style="cursor:pointer; padding: 8px 20px; color:#b8c7ce; display:flex; align-items:center; transition: color 0.2s;">
+                                <i class="fas fa-circle bullet" style="font-size:0.5rem; margin-right:10px; color:#e74c3c;"></i>
+                                <span style="font-size:0.9rem;">${child.label}</span>
+                                <i class="fas fa-chevron-right arrow" style="font-size:0.7rem; margin-left: auto; transition: transform 0.2s;"></i>
                             </div>
                             <div id="popover-sub-${child.id}" class="popover-submenu-content" style="display:none; background:rgba(0,0,0,0.2);">
                         `;

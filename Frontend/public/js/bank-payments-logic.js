@@ -32,6 +32,9 @@ async function loadBankPayments() {
 
         if (branch) url += `&branch=${branch}`;
 
+        // IMPORTANT: Exclude bank_transfer entries - those should only show in "Bank To Bank" tab
+        url += `&excludeRefType=bank_transfer`;
+
         const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
         const data = await response.json();
 

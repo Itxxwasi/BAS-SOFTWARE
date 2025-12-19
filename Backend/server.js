@@ -51,6 +51,7 @@ const dailyCashRoutes = require('./routes/dailyCash');
 const cashSaleRoutes = require('./routes/cashSales');
 const healthRoutes = require('./routes/health');
 const expenseHeadRoutes = require('./routes/expenseHeads');
+const diagnosticRoutes = require('./routes/diagnostic');
 
 // Error handler
 const errorHandler = require('./middleware/errorHandler');
@@ -248,6 +249,7 @@ app.use('/api/v1/daily-cash', dailyCashRoutes);
 app.use('/api/v1/cash-sales', cashSaleRoutes);
 app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/expense-heads', expenseHeadRoutes);
+app.use('/api/v1/diagnostic', diagnosticRoutes);
 
 // Serve login page at root
 app.get('/', (req, res) => {

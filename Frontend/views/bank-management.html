@@ -614,29 +614,34 @@
                     <div class="form-col">
                         <div class="mb-2">
                             <label class="form-label-bold">Bank Date</label>
-                            <input type="date" class="form-control form-control-sm">
+                            <input type="date" id="pc-bank-date" class="form-control form-control-sm"
+                                onchange="loadPendingChqData()">
                         </div>
                         <div class="mb-2">
                             <label class="form-label-bold">Bank Amount</label>
-                            <input type="number" class="form-control form-control-sm bg-kpi-green" value="0.00">
+                            <input type="number" id="pc-bank-amount" class="form-control form-control-sm bg-kpi-green"
+                                value="0.00" readonly>
                         </div>
                         <div class="mb-2">
-                            <label class="form-label-bold">Date</label>
-                            <input type="date" class="form-control form-control-sm">
+                            <label class="form-label-bold">Statement Date</label>
+                            <input type="date" id="pc-stmt-date" class="form-control form-control-sm">
                         </div>
                         <div class="mb-2">
                             <label class="form-label-bold">Pending Chq.</label>
-                            <input type="number" class="form-control form-control-sm bg-kpi-blue" value="0">
+                            <input type="number" id="pc-pending-chq" class="form-control form-control-sm bg-kpi-blue"
+                                value="0" readonly>
                         </div>
                         <div class="mb-2">
                             <label class="form-label-bold">Statement</label>
-                            <input type="number" class="form-control form-control-sm" value="0">
+                            <input type="number" id="pc-statement" class="form-control form-control-sm" value="0"
+                                oninput="calculateDiff()">
                         </div>
                         <div class="mb-2">
                             <label class="form-label-bold">Diff.</label>
-                            <input type="number" class="form-control form-control-sm bg-kpi-red" value="0">
+                            <input type="number" id="pc-diff" class="form-control form-control-sm bg-kpi-red" value="0"
+                                readonly>
                         </div>
-                        <button class="btn btn-success btn-sm px-4 mt-2">Save</button>
+                        <button id="pc-save-btn" class="btn btn-success btn-sm px-4 mt-2">Save</button>
                     </div>
 
                     <!-- Middle Column: Totals summary -->
@@ -694,9 +699,12 @@
                                         <th>Branch Name</th>
                                         <th>Bank Name</th>
                                         <th>Bank Date</th>
+                                        <th>Stmt Date</th>
                                         <th>Bank Ledger</th>
                                         <th>Pending Chq Amount</th>
                                         <th>Statement</th>
+                                        <th>Diff</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody id="pendingChqBody">

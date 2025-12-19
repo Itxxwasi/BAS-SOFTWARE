@@ -1,14 +1,15 @@
 const asyncHandler = require('../middleware/async');
-const Ledger = require('../models/Ledger');
+const Bank = require('../models/Bank');
 const BankTransaction = require('../models/BankTransaction');
 const DailyCash = require('../models/DailyCash');
-const Bank = require('../models/Bank');
+const BankTransfer = require('../models/BankTransfer');
+const Department = require('../models/Department');
 
-// @desc    Get Detailed Bank Ledger Report
+// @desc    Get Bank Ledger Report with Advanced Filtering
 // @route   GET /api/v1/reports/bank-ledger
 // @access  Private
 exports.getBankLedgerReport = asyncHandler(async (req, res) => {
-    const { startDate, endDate, startInvDate, endInvDate, bankId } = req.query;
+    const { startDate, endDate, startInvDate, endInvDate, bankId, branch, departmentId } = req.query;
 
     if (!bankId) {
         return res.status(400).json({ success: false, message: 'Please select a bank' });
@@ -20,132 +21,305 @@ exports.getBankLedgerReport = asyncHandler(async (req, res) => {
     const end = endDate ? new Date(endDate) : new Date();
     end.setHours(23, 59, 59, 999);
 
-    // 1. Get the Ledger
-    const ledger = await Ledger.findById(bankId);
-    if (!ledger) {
-        return res.status(404).json({ success: false, message: 'Bank Ledger not found' });
+    const hasInvDateFilter = startInvDate || endInvDate;
+
+    // Get the Bank
+    const bank = await Bank.findById(bankId);
+    if (!bank) {
+        return res.status(404).json({ success: false, message: 'Bank not found' });
     }
 
-    // 2. Find the corresponding Bank document to link with DailyCash
-    const bankDoc = await Bank.findOne({ bankName: ledger.ledgerName });
-    const bankDocId = bankDoc ? bankDoc._id : null;
+    console.log('=== BANK LEDGER REPORT ===');
+    console.log('Bank:', bank.bankName);
+    console.log('Branch:', branch || 'All');
+    console.log('Department:', departmentId || 'All');
+    console.log('Date Range:', start.toISOString().split('T')[0], 'to', end.toISOString().split('T')[0]);
+    console.log('Inv Date Filter:', hasInvDateFilter ? 'YES' : 'NO');
 
-    // 3. Prepare Search Filters
-    const btQuery = {
-        bankName: ledger.ledgerName,
-        date: { $gte: start, $lte: end }
-    };
+    const transactions = [];
 
-    if (startInvDate || endInvDate) {
-        btQuery.invoiceDate = {};
-        if (startInvDate) btQuery.invoiceDate.$gte = new Date(startInvDate);
-        if (endInvDate) btQuery.invoiceDate.$lte = new Date(endInvDate);
-    }
-
-    // 4. Fetch data from both sources
-    const bankTransactions = await BankTransaction.find(btQuery).lean();
-
-    // Deductions/Deposits
-    let dailyCashEntries = [];
-    // Only fetch daily cash if we AREN'T strictly filtering by Invoice Date (or if we want to include them regardless)
-    // Considering Daily Cash doesn't have Inv. Date, filtering by it would hide all Daily Cash entries.
-    if (bankDocId && !startInvDate && !endInvDate) {
-        dailyCashEntries = await DailyCash.find({
-            bank: bankDocId,
+    // 1. DAILY CASH ENTRIES (Type: Bank)
+    // Only fetch DailyCash if NO invoice date filter is applied (as they don't have invoice dates)
+    if (!hasInvDateFilter) {
+        let dailyCashQuery = {
+            bank: bank._id,
             mode: 'Bank',
+            // Default filters
             isVerified: true,
             date: { $gte: start, $lte: end }
-        }).lean();
-    }
+        };
 
-    // 4. Calculate Opening Balance (from LedgerEntry as it's the consolidated source for past data)
-    // or we can calculate it relative to current balance if LedgerEntries exist.
-    // However, the user wants entries "from screen", implying they might not all have ledger entries yet.
-    // For now, let's use the Ledger's openingBalance as a base and add historical entries from these models.
-
-    const histBT = await BankTransaction.aggregate([
-        { $match: { bankName: ledger.ledgerName, date: { $lt: start } } },
-        {
-            $group: {
-                _id: null,
-                plus: { $sum: { $cond: [{ $eq: ['$type', 'deposit'] }, '$amount', 0] } },
-                minus: { $sum: { $cond: [{ $eq: ['$type', 'withdrawal'] }, '$amount', 0] } }
-            }
+        if (departmentId) {
+            dailyCashQuery.department = departmentId;
         }
-    ]);
 
-    let histDC = [{ plus: 0 }];
-    if (bankDocId) {
-        histDC = await DailyCash.aggregate([
-            { $match: { bank: bankDocId, mode: 'Bank', isVerified: true, date: { $lt: start } } },
-            {
-                $group: {
-                    _id: null,
-                    plus: { $sum: '$totalAmount' } // Assuming totalAmount is net deposit
-                }
-            }
-        ]);
+        let dailyCashEntries = await DailyCash.find(dailyCashQuery)
+            .populate('department', 'name')
+            .lean();
+
+        console.log('Daily Cash (by ID) found:', dailyCashEntries.length);
+
+        // FALLBACK: If 0 found by ID, try finding by Name (via looking up all banks with this name)
+        if (dailyCashEntries.length === 0) {
+            console.log('Trying fallback: Query by Bank Name');
+            // Find ALL banks with this name
+            const banksWithName = await Bank.find({ bankName: bank.bankName }).select('_id');
+            const bankIds = banksWithName.map(b => b._id);
+
+            // Debug: Dump raw entries for this bank ID without filters
+            const rawEntries = await DailyCash.find({ bank: { $in: bankIds } }).limit(3).lean();
+            console.log('RAW DEBUG (First 3 entries):', JSON.stringify(rawEntries, null, 2));
+
+            const fallbackQuery = {
+                bank: { $in: bankIds },
+                mode: 'Bank',
+                isVerified: true, // Only show verified (Green) entries
+                date: { $gte: start, $lte: end } // Enforce date range
+            };
+            // Add date filter back if needed, but lets see total first
+            if (departmentId) fallbackQuery.department = departmentId;
+
+            dailyCashEntries = await DailyCash.find(fallbackQuery)
+                .populate('department', 'name')
+                .lean();
+            console.log('Daily Cash (Unfiltered Fallback) found:', dailyCashEntries.length);
+        }
+
+        dailyCashEntries.forEach(dc => {
+            const amount = dc.totalAmount || 0;
+            // If verified, show "Batch Transfered" in remarks
+            const remarksText = dc.isVerified ? 'Batch Transfered' : (dc.remarks || '');
+
+            transactions.push({
+                date: dc.date,
+                narration: `Daily Cash`,
+                remarks: remarksText,
+                batchNo: dc.batchNo || '-',
+                invoiceDate: null, // Daily Cash has no invoice date
+                department: dc.department?.name || '-',
+                type: 'Daily Cash',
+                debit: amount, // Received
+                credit: 0,
+                sortDate: new Date(dc.date).getTime()
+            });
+        });
     }
 
-    const btStats = histBT[0] || { plus: 0, minus: 0 };
-    const dcStats = histDC[0] || { plus: 0 };
 
-    const openingBalance = (ledger.openingBalance || 0) + btStats.plus + dcStats.plus - btStats.minus;
+    // 2. BANK TRANSACTIONS (Received & Paid)
+    const bankTxnQuery = {
+        bankName: bank.bankName,
+        date: { $gte: start, $lte: end },
+        $and: [
+            { refType: { $ne: 'bank_transfer' } },
+            { narration: { $not: /^Bank Transfer/i } }
+        ]
+    };
 
-    // 5. Transform and Combine current period entries
-    const combined = [];
+    if (hasInvDateFilter) {
+        bankTxnQuery.invoiceDate = {};
+        if (startInvDate) bankTxnQuery.invoiceDate.$gte = new Date(startInvDate);
+        if (endInvDate) bankTxnQuery.invoiceDate.$lte = new Date(endInvDate);
+    }
 
-    bankTransactions.forEach(tx => {
-        combined.push({
-            date: tx.date,
-            narration: tx.narration || tx.remarks || '-',
-            refType: tx.type === 'deposit' ? 'Bank Receipt' : 'Bank Payment',
-            debit: tx.type === 'deposit' ? tx.amount : 0,  // Plus
-            credit: tx.type === 'withdrawal' ? tx.amount : 0, // Minus
-            batchNo: tx.batchNo || '-',
-            invoiceNo: tx.invoiceNo || '-',
-            invoiceDate: tx.invoiceDate || null,
-            sortDate: new Date(tx.date).getTime()
+    const bankTransactions = await BankTransaction.find(bankTxnQuery)
+        .populate('department', 'name')
+        .lean();
+    console.log('Bank Transactions found:', bankTransactions.length);
+
+    bankTransactions.forEach(bt => {
+        transactions.push({
+            date: bt.date,
+            narration: bt.narration || bt.remarks || 'Bank Transaction',
+            remarks: bt.remarks || '',
+            batchNo: bt.invoiceNo || '-',
+            invoiceDate: bt.type === 'deposit' ? null : (bt.invoiceDate || null), // Only show Inv Date for Payments
+            department: bt.department?.name || '-',
+            type: bt.type === 'deposit' ? 'Bank Receipt' : 'Bank Payment',
+            debit: bt.type === 'deposit' ? bt.amount : 0,
+            credit: bt.type === 'withdrawal' ? bt.amount : 0,
+            sortDate: new Date(bt.date).getTime()
         });
     });
 
-    dailyCashEntries.forEach(dc => {
-        // Daily Cash Deduction calculation matching frontend logic
-        const ratePerc = dc.deductedAmount || 0;
-        const grossBase = (dc.totalAmount || 0) + ratePerc;
-        const deductionAmount = (grossBase * ratePerc) / 100;
-        const netTotal = Math.round(grossBase - deductionAmount);
+    // 3. BANK TO BANK TRANSFERS
+    const transferQuery = {
+        date: { $gte: start, $lte: end },
+        $or: [
+            { fromBank: bank._id },
+            { toBank: bank._id }
+        ]
+    };
 
-        combined.push({
-            date: dc.date,
-            narration: dc.remarks || `Daily Cash Deposit - Batch ${dc.batchNo || ''}`,
-            refType: 'Bank Deduction',
-            debit: netTotal, // Plus (Received)
-            credit: 0,
-            batchNo: dc.batchNo || '-',
-            sortDate: new Date(dc.date).getTime()
+    const bankTransfers = await BankTransfer.find(transferQuery)
+        .populate('fromBank', 'bankName')
+        .populate('toBank', 'bankName')
+        .lean();
+
+    console.log('Bank Transfers found:', bankTransfers.length);
+
+    bankTransfers.forEach(transfer => {
+        // Use optional chaining and toString() for safe ID comparison
+        const fromBankId = transfer.fromBank?._id?.toString() || transfer.fromBank?.toString();
+        const currentBankId = bank._id.toString();
+
+        const isFrom = fromBankId === currentBankId;
+
+        const otherBankName = isFrom
+            ? (transfer.toBank?.bankName || 'Unknown Bank')
+            : (transfer.fromBank?.bankName || 'Unknown Bank');
+
+        transactions.push({
+            date: transfer.date,
+            narration: isFrom
+                ? `Transfer to ${otherBankName}`
+                : `Transfer from ${otherBankName}`,
+            remarks: transfer.remarks || '',
+            batchNo: transfer.batchNo || '-',
+            invoiceDate: null,
+            department: '-',
+            type: 'Bank Transfer',
+            debit: isFrom ? 0 : transfer.amount, // Received if TO this bank
+            credit: isFrom ? transfer.amount : 0, // Paid if FROM this bank
+            sortDate: new Date(transfer.date).getTime()
         });
     });
 
-    // 6. Sort and Calculate Running Balance
-    combined.sort((a, b) => a.sortDate - b.sortDate);
+    // Calculate Opening Balance
+    const openingBalance = await calculateOpeningBalance(bank, start, departmentId);
 
+    // Sort transactions by date
+    transactions.sort((a, b) => a.sortDate - b.sortDate);
+
+    // Calculate running balance
     let runningBalance = openingBalance;
-    const finalTransactions = combined.map(tx => {
-        runningBalance = runningBalance + tx.debit - tx.credit;
+    const finalTransactions = transactions.map(tx => {
+        runningBalance += tx.debit - tx.credit;
         return {
             ...tx,
             balance: runningBalance
         };
     });
 
+    const totalDebit = transactions.reduce((sum, tx) => sum + tx.debit, 0);
+    const totalCredit = transactions.reduce((sum, tx) => sum + tx.credit, 0);
+
+    console.log('Total Transactions:', finalTransactions.length);
+    console.log('Total Debit:', totalDebit);
+    console.log('Total Credit:', totalCredit);
+    console.log('========================');
+
     res.status(200).json({
         success: true,
         data: {
-            bankName: ledger.ledgerName,
+            bankName: bank.bankName,
+            branch: bank.branch,
             openingBalance,
             transactions: finalTransactions,
-            closingBalance: runningBalance
+            closingBalance: runningBalance,
+            totalDebit,
+            totalCredit
         }
+    });
+});
+
+// Helper function to calculate opening balance
+async function calculateOpeningBalance(bank, startDate, departmentId) {
+    let balance = 0;
+
+    // Daily Cash before start date
+    const dcQuery = {
+        bank: bank._id,
+        mode: 'Bank',
+        isVerified: true,
+        date: { $lt: startDate }
+    };
+    if (departmentId) dcQuery.department = departmentId;
+
+    const dcHistory = await DailyCash.aggregate([
+        { $match: dcQuery },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+    ]);
+
+    balance += dcHistory[0]?.total || 0;
+
+    // Bank Transactions before start date
+    const btHistory = await BankTransaction.aggregate([
+        {
+            $match: {
+                bankName: bank.bankName,
+                date: { $lt: startDate },
+                $and: [
+                    { refType: { $ne: 'bank_transfer' } },
+                    { narration: { $not: /^Bank Transfer/i } }
+                ]
+            }
+        },
+        {
+            $group: {
+                _id: null,
+                deposits: { $sum: { $cond: [{ $eq: ['$type', 'deposit'] }, '$amount', 0] } },
+                withdrawals: { $sum: { $cond: [{ $eq: ['$type', 'withdrawal'] }, '$amount', 0] } }
+            }
+        }
+    ]);
+
+    balance += (btHistory[0]?.deposits || 0) - (btHistory[0]?.withdrawals || 0);
+
+    // Bank Transfers before start date
+    const transfersFrom = await BankTransfer.aggregate([
+        { $match: { fromBank: bank._id, date: { $lt: startDate } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+
+    const transfersTo = await BankTransfer.aggregate([
+        { $match: { toBank: bank._id, date: { $lt: startDate } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+
+    balance -= transfersFrom[0]?.total || 0;
+    balance += transfersTo[0]?.total || 0;
+
+    return balance;
+}
+
+// @desc    Get Aggregate Bank Balance for all banks in a Branch as of a specific date
+// @route   GET /api/v1/reports/bank-ledger/branch-balance
+// @access  Private
+exports.getBranchBankBalance = asyncHandler(async (req, res) => {
+    const { branch, date } = req.query;
+
+    if (!branch || !date) {
+        return res.status(400).json({ success: false, message: 'Please provide branch and date' });
+    }
+
+    const targetDate = new Date(date);
+    targetDate.setHours(23, 59, 59, 999);
+
+    // Get all banks for the branch
+    const banks = await Bank.find({ branch: branch });
+
+    if (!banks || banks.length === 0) {
+        return res.status(200).json({ success: true, totalBalance: 0, message: 'No banks found' });
+    }
+
+    let totalBalance = 0;
+
+    // Calculate closing balance for each bank
+    // We reuse calculateOpeningBalance by passing the NEXT day's start, 
+    // which effectively gives us the closing balance of the target date.
+    const nextDay = new Date(targetDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    nextDay.setHours(0, 0, 0, 0);
+
+    for (const bank of banks) {
+        const bankBal = await calculateOpeningBalance(bank, nextDay);
+        totalBalance += bankBal;
+    }
+
+    res.status(200).json({
+        success: true,
+        totalBalance,
+        bankCount: banks.length
     });
 });

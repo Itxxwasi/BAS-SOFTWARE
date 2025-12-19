@@ -135,7 +135,8 @@
 }
 
 .sidebar-container.full .small-link {
-    padding-left: 45px;
+    padding-left: 25px;
+    padding-right: 15px;
     font-size: 0.95em;
 }
 
@@ -231,7 +232,8 @@ body.sidebar-mini {
     .sidebar-container {
         display: none !important;
     }
-    body.sidebar-full, 
+
+    body.sidebar-full,
     body.sidebar-mini {
         padding-left: 0 !important;
     }

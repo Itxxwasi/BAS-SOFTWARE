@@ -38,6 +38,57 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (pcBranch) pcBranch.addEventListener('change', () => loadPendingChqData());
     if (pcBank) pcBank.addEventListener('change', () => loadPendingChqData());
 
+    const pcDate = document.getElementById('pc-bank-date');
+    if (pcDate) pcDate.addEventListener('change', () => loadPendingChqData());
+
+    const pcSaveBtn = document.getElementById('pc-save-btn');
+    if (pcSaveBtn) {
+        pcSaveBtn.addEventListener('click', () => {
+            const branch = document.getElementById('pc-branch').value;
+            const bankSelect = document.getElementById('pc-bank');
+            const bank = bankSelect.value;
+            const bankName = bankSelect.options[bankSelect.selectedIndex]?.text || bank;
+            const date = document.getElementById('pc-bank-date').value;
+            const stmtDate = document.getElementById('pc-stmt-date').value;
+            const ledger = document.getElementById('pc-bank-amount').value;
+            const pending = document.getElementById('pc-pending-chq').value;
+            const statement = document.getElementById('pc-statement').value;
+            const diff = document.getElementById('pc-diff').value;
+
+            if (!branch || !bank || !date) {
+                alert('Please select Branch, Bank and Date');
+                return;
+            }
+
+            const record = {
+                id: Date.now().toString(),
+                dated: new Date().toISOString().split('T')[0],
+                sysDate: new Date().toLocaleTimeString(),
+                branch,
+                bank: bankName, // Save Name instead of ID
+                bankId: bank,   // Save ID separately if needed
+                bankDate: date,
+                stmtDate: stmtDate,
+                ledger: parseFloat(ledger),
+                pending: parseFloat(pending),
+                statement: parseFloat(statement),
+                diff: parseFloat(diff)
+            };
+
+            const history = JSON.parse(localStorage.getItem('pending_chq_history') || '[]');
+            history.unshift(record);
+            localStorage.setItem('pending_chq_history', JSON.stringify(history));
+
+            alert('Data saved successfully.');
+            loadPendingChqData();
+
+            // Clear Statement field for next entry
+            document.getElementById('pc-statement').value = '';
+            // Recalculate diff (will likely go back to Bank + Pending)
+            calculateDiff();
+        });
+    }
+
     document.querySelectorAll('.dept-select').forEach(select => {
         select.addEventListener('change', (e) => {
             const scope = e.target.closest('.tab-pane');
@@ -54,6 +105,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     });
+
+    // Select All functionality for Bank Detail tab
+    const selectAllDetails = document.getElementById('selectAllBatches');
+    if (selectAllDetails) {
+        selectAllDetails.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            const rows = document.querySelectorAll('#bankDetailsBody tr');
+
+            rows.forEach(row => {
+                // Only toggle visible rows
+                if (row.style.display !== 'none') {
+                    const checkbox = row.querySelector('.batch-checkbox');
+                    if (checkbox) {
+                        checkbox.checked = isChecked;
+                        // REMOVED: applyRowColor(row, isChecked); 
+                        // Color change will happen only on Update button click
+                    }
+                }
+            });
+            // REMOVED: calculateGridTotals(); 
+            // Totals should only update AFTER "Update" is clicked and saved.
+        });
+    }
 });
 
 let allBranches = [];
@@ -189,8 +263,8 @@ function filterBanks(scopeElement) {
                 if (bDeptId && bDeptId !== deptVal) return false;
             }
 
-            // Tabs like Pending Chq and Bank Detail should only show "Branch Bank" types
-            if (scopeElement.id === 'pending-chq' || scopeElement.id === 'bank-detail') {
+            // Only Pending Chq tab should filter by "Branch Bank" type
+            if (scopeElement.id === 'pending-chq') {
                 if (b.bankType !== 'Branch Bank') return false;
             }
 
@@ -245,12 +319,9 @@ async function searchBankDetails() {
             url = `/api/v1/daily-cash?startDate=${fromDate}&endDate=${toDate}&mode=Bank&hasBank=true`;
             if (branch) url += `&branch=${branch}`;
         } else {
-            // Bank Payment (Bank Transactions) - Assuming type='debit' or general fetch
-            // We'll filter by 'payment' type if the API supports it, or valid 'bank' transactions
-            url = `/api/v1/bank-transactions?startDate=${fromDate}&endDate=${toDate}`;
+            // Bank Payment (Bank Transactions) - Exclude bank_transfer entries (those show in Bank To Bank tab)
+            url = `/api/v1/bank-transactions?startDate=${fromDate}&endDate=${toDate}&excludeRefType=bank_transfer`;
             if (branch) url += `&branch=${branch}`;
-            // If the API supports filtering by transaction type (e.g. 'payment' vs 'receipt'), add it here
-            // url += '&type=payment'; 
         }
 
         const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -269,9 +340,34 @@ async function searchBankDetails() {
 
             if (bank) {
                 filtered = filtered.filter(item => {
-                    // Check populated bank object or direct ID
-                    const itemBankId = (item.bank && item.bank._id) ? item.bank._id : item.bank;
-                    return itemBankId === bank;
+                    if (isDeduction) {
+                        // For Bank Deduction (Daily Cash), check bank object or ID
+                        const itemBankId = (item.bank && item.bank._id) ? item.bank._id : item.bank;
+                        return itemBankId === bank;
+                    } else {
+                        // For Bank Payment (Bank Transactions), check bankName
+                        const selectedBank = allBanksReference.find(b => b._id === bank);
+                        if (!selectedBank) return false;
+
+                        const itemBankName = item.bankName || (item.bank && item.bank.bankName) || item.bank;
+                        return itemBankName === selectedBank.bankName;
+                    }
+                });
+            }
+
+            // CRITICAL: Additional client-side filter for Bank Payment mode
+            // Exclude Bank Transfer entries (in case refType field is missing in old records)
+            if (!isDeduction) {
+                filtered = filtered.filter(item => {
+                    const narration = (item.narration || item.remarks || '').toLowerCase();
+                    // Exclude if narration contains "bank transfer"
+                    if (narration.includes('bank transfer')) return false;
+
+                    // Exclude "Received" type entries (deposits) - only show "Paid" (withdrawals)
+                    const transType = (item.transactionType || item.type || '').toLowerCase();
+                    if (transType === 'deposit' || transType === 'received') return false;
+
+                    return true;
                 });
             }
 
@@ -562,26 +658,153 @@ async function loadPendingChqData() {
     const bank = document.getElementById('pc-bank').value;
 
     console.log(`Loading pending chq data for Branch: ${branch}, Bank: ${bank}`);
-    // Future API integration: fetch('/api/v1/bank-ledger/pending...')
 
-    // For now, keep the mock grid display
-    renderPendingChqGrid([]);
+    // Calculate total bank balance for the selected branch
+    await calculateBranchBankBalance(branch);
+
+    // Calculate pending cheque amount (unverified payment entries)
+    await calculatePendingChqAmount(branch);
+
+    // Calculate difference
+    calculateDiff();
+
+    // Load history from localStorage
+    const history = JSON.parse(localStorage.getItem('pending_chq_history') || '[]');
+    // Filter by selected branch (and bank if selected). Check bankId first, fallback to bank (name/id legacy)
+    const filteredHistory = history.filter(h => h.branch === branch && (!bank || h.bankId === bank || h.bank === bank));
+
+    renderPendingChqGrid(filteredHistory);
+}
+
+// Calculate Diff = Bank Amount + Pending Chq - Statement
+function calculateDiff() {
+    const bankAmountInput = document.getElementById('pc-bank-amount');
+    const pendingChqInput = document.getElementById('pc-pending-chq');
+    const statementInput = document.getElementById('pc-statement');
+    const diffInput = document.getElementById('pc-diff');
+
+    if (!bankAmountInput || !pendingChqInput || !statementInput || !diffInput) {
+        return;
+    }
+
+    const bankAmount = parseFloat(bankAmountInput.value) || 0;
+    const pendingChq = parseFloat(pendingChqInput.value) || 0;
+    const statement = parseFloat(statementInput.value) || 0;
+
+    const diff = bankAmount + pendingChq - statement;
+
+    diffInput.value = diff.toFixed(2);
+}
+
+// Calculate Pending Chq amount - total of unverified (red) payment entries
+async function calculatePendingChqAmount(branch) {
+    const pendingChqInput = document.getElementById('pc-pending-chq');
+    const bankDateInput = document.getElementById('pc-bank-date');
+
+    if (!branch || !pendingChqInput) {
+        if (pendingChqInput) pendingChqInput.value = '0';
+        return;
+    }
+
+    const bankDate = bankDateInput ? bankDateInput.value : null;
+
+    if (!bankDate) {
+        pendingChqInput.value = '0';
+        return;
+    }
+
+    try {
+        const token = localStorage.getItem('token');
+
+        // Fetch unverified bank payment transactions (withdrawal/paid type, not verified)
+        const endDate = new Date(bankDate);
+        endDate.setHours(23, 59, 59, 999);
+
+        const response = await fetch(`/api/v1/bank-transactions?endDate=${endDate.toISOString()}&branch=${branch}&type=withdrawal&excludeRefType=bank_transfer`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Sum up unverified (isVerified = false) entries
+            // AND ensure we exclude potential Bank Transfers that slipped through query filters
+            const pendingTotal = data.data
+                .filter(t => !t.isVerified)
+                .filter(t => {
+                    const desc = (t.narration || t.remarks || '').toLowerCase();
+                    // Exclude explicit transfers
+                    if (desc.includes('bank transfer') || desc.startsWith('transfer from') || desc.startsWith('transfer to')) {
+                        return false;
+                    }
+                    return true;
+                })
+                .reduce((sum, t) => sum + (t.amount || 0), 0);
+
+            pendingChqInput.value = pendingTotal.toFixed(2);
+        } else {
+            pendingChqInput.value = '0';
+        }
+    } catch (e) {
+        console.error('Error calculating pending chq amount:', e);
+        pendingChqInput.value = '0';
+    }
+}
+
+// Calculate total balance of all banks in the selected branch as of the Bank Date
+async function calculateBranchBankBalance(branch) {
+    const bankAmountInput = document.getElementById('pc-bank-amount');
+    const bankDateInput = document.getElementById('pc-bank-date');
+
+    if (!branch || !bankAmountInput) {
+        if (bankAmountInput) bankAmountInput.value = '0.00';
+        return;
+    }
+
+    const bankDate = bankDateInput ? bankDateInput.value : null;
+
+    if (!bankDate) {
+        bankAmountInput.value = '0.00';
+        return;
+    }
+
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/v1/reports/bank-ledger/branch-balance?branch=${encodeURIComponent(branch)}&date=${bankDate}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            bankAmountInput.value = (data.totalBalance || 0).toFixed(2);
+        } else {
+            console.error('Failed to get branch balance:', data.message);
+            bankAmountInput.value = '0.00';
+        }
+    } catch (e) {
+        console.error('Error fetching branch balance:', e);
+        bankAmountInput.value = '0.00';
+    }
 }
 
 function renderPendingChqGrid(data) {
     const tbody = document.getElementById('pendingChqBody');
     tbody.innerHTML = '';
 
-    // Mock for Green Grid consistency
-    const mockData = [
-        { id: 379, dated: '12/15/2025', sysDate: '12/15/2025 9:43 PM', branch: 'PWD-1', bank: 'ALF', bankDate: '12/31/2026', ledger: -4350469, pending: 7457620, statement: 3105111.37 },
-    ];
-
-    const displayData = data.length > 0 ? data : mockData;
-
-    displayData.forEach(row => {
+    if (!data || data.length === 0) {
         const tr = document.createElement('tr');
-        tr.className = 'table-success';
+        tr.innerHTML = `<td colspan="12" class="text-center text-muted">No pending cheque data available</td>`;
+        tbody.appendChild(tr);
+        return;
+    }
+
+    data.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.className = 'table-light';
+
+        const formatVal = (val) => parseFloat(val || 0).toLocaleString(undefined, { minimumFractionDigits: 2 });
+
         tr.innerHTML = `
             <td>${row.id}</td>
             <td>${row.dated}</td>
@@ -589,13 +812,68 @@ function renderPendingChqGrid(data) {
             <td>${row.branch}</td>
             <td>${row.bank}</td>
             <td>${row.bankDate}</td>
-            <td class="text-end">${row.ledger.toLocaleString()}</td>
-            <td class="text-end">${row.pending.toLocaleString()}</td>
-            <td class="text-end">${row.statement.toLocaleString()}</td>
+            <td>${row.stmtDate || '-'}</td>
+            <td class="text-end">${formatVal(row.ledger)}</td>
+            <td class="text-end">${formatVal(row.pending)}</td>
+            <td class="text-end">${formatVal(row.statement)}</td>
+            <td class="text-end">${formatVal(row.diff)}</td>
+            <td class="text-center">
+                <button class="btn btn-primary btn-xs" onclick="editPendingChq('${row.id}')"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-danger btn-xs" onclick="deletePendingChq('${row.id}')"><i class="fas fa-trash"></i></button>
+            </td>
          `;
         tbody.appendChild(tr);
     });
 }
+
+// Edit Pending Chq
+window.editPendingChq = async function (id) {
+    const history = JSON.parse(localStorage.getItem('pending_chq_history') || '[]');
+    const record = history.find(h => h.id === id);
+    if (!record) return;
+
+    const branchSelect = document.getElementById('pc-branch');
+
+    // Load into form
+    if (branchSelect) {
+        if (branchSelect.value !== record.branch) {
+            branchSelect.value = record.branch;
+            // Trigger change to populate banks
+            branchSelect.dispatchEvent(new Event('change'));
+            // Wait a moment for banks to load/populate
+            await new Promise(r => setTimeout(r, 500));
+        }
+    }
+
+    // For bank, set value by ID. If saved record has no ID, try matching text or value
+    if (document.getElementById('pc-bank')) {
+        document.getElementById('pc-bank').value = record.bankId || record.bank;
+    }
+
+    document.getElementById('pc-bank-date').value = record.bankDate;
+    if (document.getElementById('pc-stmt-date')) document.getElementById('pc-stmt-date').value = record.stmtDate || '';
+
+    document.getElementById('pc-bank-amount').value = record.ledger;
+    document.getElementById('pc-pending-chq').value = record.pending;
+    document.getElementById('pc-statement').value = record.statement;
+    document.getElementById('pc-diff').value = record.diff || 0;
+
+    // Delete old record effectively "moving" it to edit state
+    // Don't confirm, just do it.
+    deletePendingChq(id, false);
+}
+
+// Delete Pending Chq
+window.deletePendingChq = function (id, confirmDelete = true) {
+    if (confirmDelete && !confirm('Are you sure you want to delete this entry?')) return;
+
+    let history = JSON.parse(localStorage.getItem('pending_chq_history') || '[]');
+    history = history.filter(h => h.id !== id);
+    localStorage.setItem('pending_chq_history', JSON.stringify(history));
+
+    loadPendingChqData(); // Reload grid from updated storage
+}
+
 
 // --- Tab 3: Bank Summary Functions ---
 async function searchBankSummary() {
@@ -986,7 +1264,10 @@ function formatDateForInput(dateStr) {
 
 // --- Exported functions for global access ---
 window.searchBankDetails = searchBankDetails;
-window.loadPendingCheques = loadPendingCheques;
+window.loadPendingChqData = loadPendingChqData;
+window.editPendingChq = editPendingChq;
+window.deletePendingChq = deletePendingChq;
+window.calculateDiff = calculateDiff;
 window.updateBankRowsStatus = updateBankRowsStatus;
 window.calculateGridTotals = calculateGridTotals;
 window.filterBankGrid = filterBankGrid;

@@ -5,10 +5,15 @@ const {
     getBank,
     createBank,
     updateBank,
-    deleteBank
+    deleteBank,
+    createMissingBankLedgers
 } = require('../controllers/bankController');
 
 const { protect, authorize } = require('../middleware/auth');
+
+// Specific routes MUST come before parameterized routes
+router.route('/create-missing-ledgers')
+    .post(protect, authorize('admin'), createMissingBankLedgers);
 
 router.route('/')
     .get(protect, getBanks)
