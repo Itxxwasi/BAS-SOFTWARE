@@ -621,110 +621,18 @@ function clearForm() {
 
 
 // Print Individual Expense Row
-async function printExpenseRow(expenseId) {
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`/api/v1/expenses/${expenseId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            const expense = data.data;
-
-            // Populate Print Area using the fetched expense data
-            const payType = expense.type || 'expense';
-            const head = expense.head || '';
-            const subHead = expense.subHead || '';
-            const amount = Math.abs(expense.amount || 0);
-            const mode = expense.paymentMode || 'cash';
-            const remarks = expense.notes || expense.description || '';
-            const date = expense.date;
-
-            document.querySelector('.invoice-header').textContent = payType === 'expense' ? 'Expense Voucher' : 'Receipt Voucher';
-
-            if (date) {
-                const d = new Date(date);
-                const day = d.getDate();
-                const month = d.toLocaleString('en-GB', { month: 'short' });
-                const year = d.getFullYear();
-                document.getElementById('printDate').textContent = `${day} ${month} ${year}`;
-            }
-
-            document.getElementById('printVoucherNo').textContent = expenseId ? '...' + expenseId.slice(-6) : 'New';
-            document.getElementById('printHead').textContent = head;
-            document.getElementById('printSubHead').textContent = subHead || '-';
-            document.getElementById('printMode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
-            document.getElementById('printAmount').textContent = amount.toLocaleString();
-            document.getElementById('printDesc').textContent = remarks || (payType === 'expense' ? `Cash Paid to ${head} ${subHead ? 'for ' + subHead : ''}` : `Received from ${head}`);
-
-            document.body.classList.add('print-mode-voucher');
-            window.print();
-            setTimeout(() => {
-                document.body.classList.remove('print-mode-voucher');
-            }, 500);
-
-        } else {
-            showError('Failed to load expense for printing');
-        }
-    } catch (error) {
-        console.error('Error printing expense:', error);
-        showError('Failed to print');
-    }
+function printExpenseRow(expenseId) {
+    window.open(`/voucher-print.html?type=expense&id=${expenseId}`, '_blank', 'width=1000,height=800');
 }
 
 // Print Expense Voucher (From Form)
 function printExpense() {
-    // Get form values
-    const payType = document.getElementById('payType').value;
-    const date = document.getElementById('expenseDate').value;
-    const head = document.getElementById('head').value;
-    const subHead = document.getElementById('subHead').value;
-    const amount = parseFloat(document.getElementById('amount').value) || 0;
-    const mode = document.getElementById('payMode').value;
-    const remarks = document.getElementById('remarks').value;
     const expenseId = document.getElementById('expenseId').value;
-
-    if (!head || amount <= 0) {
-        showError('Please enter Head and Amount before printing');
+    if (!expenseId) {
+        showError('Please save the expense first before printing');
         return;
     }
-
-    // Populate Print Area
-    document.querySelector('.invoice-header').textContent = payType === 'expense' ? 'Expense Voucher' : 'Receipt Voucher';
-
-    // Format Date (d MMM yyyy) e.g. 14 Dec 2025
-    if (date) {
-        const d = new Date(date);
-        const day = d.getDate();
-        const month = d.toLocaleString('en-GB', { month: 'short' });
-        const year = d.getFullYear();
-        document.getElementById('printDate').textContent = `${day} ${month} ${year}`;
-    }
-
-    // Voucher Number (Use ID or "New")
-    // If it's a MongoDB ID, we might want to shorten it or show "New"
-    document.getElementById('printVoucherNo').textContent = expenseId ? '...' + expenseId.slice(-6) : 'New';
-
-    document.getElementById('printHead').textContent = head;
-    document.getElementById('printSubHead').textContent = subHead || '-';
-
-    document.getElementById('printMode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
-
-    // Format Amount with commas
-    document.getElementById('printAmount').textContent = amount.toLocaleString();
-
-    document.getElementById('printDesc').textContent = remarks || (payType === 'expense' ? `Cash Paid to ${head} ${subHead ? 'for ' + subHead : ''}` : `Received from ${head}`);
-
-    // Trigger Print with Class
-    document.body.classList.add('print-mode-voucher');
-    window.print();
-
-    // Cleanup after print (delay to ensure print dialog catches it, though mostly instant in modern browsers, better to rely on onafterprint or just remove immediately as JS blocks in some)
-    // Safer:
-    setTimeout(() => {
-        document.body.classList.remove('print-mode-voucher');
-    }, 500);
+    window.open(`/voucher-print.html?type=expense&id=${expenseId}`, '_blank', 'width=1000,height=800');
 }
 
 // Print List

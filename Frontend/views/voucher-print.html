@@ -309,18 +309,23 @@
                     const doc = responseData.data;
 
                     if (type === 'expense') {
-                        // MAP EXPENSE DATA
+                        // MAP EXPENSE DATA (Including Head/Sub Head, Removing Category)
                         document.getElementById('vNo').textContent = doc.expenseNo || '-';
                         document.getElementById('vDate').textContent = new Date(doc.date).toLocaleDateString();
-                        document.getElementById('vTypeTitle').textContent = 'Expense Voucher';
-                        document.getElementById('targetLabel').textContent = 'Paid to';
+                        document.getElementById('vTypeTitle').textContent = doc.type === 'receipt' ? 'Receipt Voucher' : 'Expense Voucher';
+                        document.getElementById('targetLabel').textContent = doc.type === 'receipt' ? 'Received from' : 'Paid to';
 
-                        const amount = doc.amount || 0;
+                        const amount = Math.abs(doc.amount || 0);
                         document.getElementById('vAmount').textContent = amount.toLocaleString(undefined, { minimumFractionDigits: 2 });
                         document.getElementById('amountWords').textContent = numberToWords(amount) + ' ONLY';
 
-                        document.getElementById('targetAccount').textContent = doc.description || doc.category || 'General Expense';
-                        document.getElementById('vDetail').textContent = `Category: ${doc.category}${doc.notes ? ' | ' + doc.notes : ''}`;
+                        // Show Main Head as the Party/Target
+                        document.getElementById('targetAccount').textContent = doc.head || 'General';
+
+                        // Show Sub Head and Remarks in the "Towards" section
+                        let towards = doc.subHead ? `(${doc.subHead}) ` : '';
+                        towards += doc.notes || doc.description || '';
+                        document.getElementById('vDetail').textContent = towards || '-';
 
                     } else {
                         // MAP VOUCHER DATA
