@@ -1125,3 +1125,203 @@ async function quickAddSubHead() {
         showError('Failed to add sub-head');
     }
 }
+
+// ============================================
+// EXPENSE REPORT FUNCTIONALITY
+// ============================================
+
+let reportModal = null;
+
+// Open Report Modal
+function openReportModal() {
+    if (!reportModal) {
+        reportModal = new bootstrap.Modal(document.getElementById('reportModal'));
+    }
+
+    // Set default dates (current month)
+    setReportDateRange('month');
+
+    // Load filters
+    loadReportFilters();
+
+    reportModal.show();
+}
+
+// Load Report Filters (Branches, Heads, Sub Heads)
+async function loadReportFilters() {
+    const token = localStorage.getItem('token');
+
+    // Load Branches
+    try {
+        const branchSelect = document.getElementById('reportBranch');
+        const response = await fetch('/api/v1/stores', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            branchSelect.innerHTML = '<option value="">All Branches</option>';
+            (data.data || []).forEach(store => {
+                branchSelect.innerHTML += `<option value="${store.name}">${store.name}</option>`;
+            });
+        }
+    } catch (error) {
+        console.error('Error loading branches:', error);
+    }
+
+    // Load Heads
+    try {
+        const headSelect = document.getElementById('reportHead');
+        const response = await fetch('/api/v1/expense-heads?parentId=null', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            headSelect.innerHTML = '<option value="">All Heads</option>';
+            (data.data || []).forEach(head => {
+                headSelect.innerHTML += `<option value="${head.name}" data-id="${head._id}">${head.name}</option>`;
+            });
+
+            // Add change listener to load sub-heads
+            headSelect.onchange = async function () {
+                const subHeadSelect = document.getElementById('reportSubHead');
+                subHeadSelect.innerHTML = '<option value="">All Sub Heads</option>';
+
+                if (this.value) {
+                    const selectedOption = this.options[this.selectedIndex];
+                    const headId = selectedOption.getAttribute('data-id');
+
+                    if (headId) {
+                        const subResponse = await fetch(`/api/v1/expense-heads?parentId=${headId}`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+
+                        if (subResponse.ok) {
+                            const subData = await subResponse.json();
+                            (subData.data || []).forEach(sub => {
+                                subHeadSelect.innerHTML += `<option value="${sub.name}">${sub.name}</option>`;
+                            });
+                        }
+                    }
+                }
+            };
+        }
+    } catch (error) {
+        console.error('Error loading heads:', error);
+    }
+}
+
+// Set Report Date Range
+function setReportDateRange(range) {
+    const today = new Date();
+    const fromDateEl = document.getElementById('reportFromDate');
+    const toDateEl = document.getElementById('reportToDate');
+
+    let fromDate = new Date();
+    let toDate = new Date();
+
+    switch (range) {
+        case 'today':
+            fromDate = today;
+            toDate = today;
+            break;
+        case 'week':
+            const dayOfWeek = today.getDay();
+            fromDate = new Date(today);
+            fromDate.setDate(today.getDate() - dayOfWeek);
+            toDate = new Date(today);
+            toDate.setDate(fromDate.getDate() + 6);
+            break;
+        case 'month':
+            fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            toDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            break;
+        case 'lastMonth':
+            fromDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            toDate = new Date(today.getFullYear(), today.getMonth(), 0);
+            break;
+        case 'year':
+            fromDate = new Date(today.getFullYear(), 0, 1);
+            toDate = new Date(today.getFullYear(), 11, 31);
+            break;
+    }
+
+    fromDateEl.value = fromDate.toISOString().split('T')[0];
+    toDateEl.value = toDate.toISOString().split('T')[0];
+}
+
+// Preview Report (in current page)
+async function previewReport() {
+    const params = buildReportParams();
+
+    // Load data and show in current table
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/v1/expenses?${params}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            displayExpenses(data.data || []);
+
+            // Close modal
+            if (reportModal) reportModal.hide();
+
+            showSuccess(`Found ${(data.data || []).length} records`);
+        } else {
+            showError('Failed to load report data');
+        }
+    } catch (error) {
+        console.error('Error loading report:', error);
+        showError('Error loading report');
+    }
+}
+
+// Generate Report (open print page)
+function generateReport() {
+    const params = buildReportParams();
+
+    // Open print page with parameters
+    window.open(`/print-expense-report.html?${params}`, '_blank');
+}
+
+// Build Report URL Parameters
+function buildReportParams() {
+    const startDate = document.getElementById('reportFromDate').value;
+    const endDate = document.getElementById('reportToDate').value;
+    const branch = document.getElementById('reportBranch').value;
+    const type = document.getElementById('reportType').value;
+    const head = document.getElementById('reportHead').value;
+    const subHead = document.getElementById('reportSubHead').value;
+    const groupBy = document.getElementById('reportGroupBy').value;
+    const search = document.getElementById('reportSearch').value;
+
+    let params = [];
+    if (startDate) params.push(`startDate=${startDate}`);
+    if (endDate) params.push(`endDate=${endDate}`);
+    if (branch) params.push(`branch=${encodeURIComponent(branch)}`);
+    if (type) params.push(`type=${type}`);
+    if (head) params.push(`head=${encodeURIComponent(head)}`);
+    if (subHead) params.push(`subHead=${encodeURIComponent(subHead)}`);
+    if (groupBy) params.push(`groupBy=${groupBy}`);
+    if (search) params.push(`search=${encodeURIComponent(search)}`);
+
+    return params.join('&');
+}
+
+// Check URL params to auto-open report modal (from sidebar link)
+function checkAutoOpenReport() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('openReport') === 'true') {
+        setTimeout(() => {
+            openReportModal();
+        }, 500);
+    }
+}
+
+// Call on page load
+document.addEventListener('DOMContentLoaded', function () {
+    checkAutoOpenReport();
+});

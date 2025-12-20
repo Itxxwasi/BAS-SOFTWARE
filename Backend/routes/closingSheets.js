@@ -4,7 +4,8 @@ const {
     getClosingSheet,
     saveClosingSheet,
     getIncomeStatementData,
-    saveIncomeStatement
+    saveIncomeStatement,
+    getClosingSheetsReport
 } = require('../controllers/closingSheetController');
 
 const { protect } = require('../middleware/auth');
@@ -12,6 +13,9 @@ const { protect } = require('../middleware/auth');
 router.route('/income-statement')
     .get(protect, getIncomeStatementData)
     .post(protect, saveIncomeStatement);
+
+router.route('/report')
+    .get(protect, getClosingSheetsReport);
 
 router.route('/')
     .get(protect, getClosingSheet)

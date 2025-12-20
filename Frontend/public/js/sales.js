@@ -58,8 +58,10 @@ function initSalesPage() {
     document.getElementById('customer').addEventListener('change', function () {
         const selectedCustomer = customers.find(c => c._id === this.value);
         if (selectedCustomer) {
-            document.getElementById('customerContact').value = selectedCustomer.phone || selectedCustomer.mobile || '';
-            document.getElementById('preBalance').value = selectedCustomer.currentBalance || 0;
+            const contactEl = document.getElementById('customerContact');
+            const preBalanceEl = document.getElementById('preBalance');
+            if (contactEl) contactEl.value = selectedCustomer.phone || selectedCustomer.mobile || '';
+            if (preBalanceEl) preBalanceEl.value = selectedCustomer.currentBalance || 0;
             calculateTotals();
         }
     });
@@ -172,14 +174,19 @@ function initSalesPage() {
             const stock = el.getAttribute('data-stock');
             const sale = el.getAttribute('data-sale');
 
+            const safeSetVal = (elId, val) => {
+                const elem = document.getElementById(elId);
+                if (elem) elem.value = val;
+            };
+
             // Set values
-            const itemSelect = document.getElementById('itemSelect');
-            if (itemSelect) itemSelect.value = id;
+            safeSetVal('itemSelect', id);
             itemNameInput.value = name || '';
-            document.getElementById('itemCode').value = sku || '';
-            document.getElementById('salePrice').value = sale || 0;
-            document.getElementById('stock').value = stock || 0;
-            document.getElementById('taxPercent').value = 0;
+            safeSetVal('itemCode', sku || '');
+            safeSetVal('salePrice', sale || 0);
+            safeSetVal('stock', stock || 0);
+            safeSetVal('taxPercent', 0);
+            calculateItemTotal();
 
             // Focus on pack/quantity field
             const packInput = document.getElementById('pack');
@@ -281,17 +288,21 @@ function initSalesPage() {
         });
     }
 
-    // Calculation events
-    document.getElementById('pack').addEventListener('input', calculateItemTotal);
-    document.getElementById('price').addEventListener('input', calculateItemTotal);
-    document.getElementById('taxPercent').addEventListener('input', calculateItemTotal);
-    document.getElementById('discPercent').addEventListener('input', calculateItemTotal);
-    document.getElementById('discountPercent').addEventListener('input', calculateTotals);
-    document.getElementById('discountRs').addEventListener('input', calculateTotals);
-    document.getElementById('totalTaxPercent').addEventListener('input', calculateTotals);
-    document.getElementById('misc').addEventListener('input', calculateTotals);
-    document.getElementById('freight').addEventListener('input', calculateTotals);
-    document.getElementById('paid').addEventListener('input', calculateTotals);
+    // Calculation events - use safe event binding
+    const safeAddListener = (id, event, fn) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener(event, fn);
+    };
+    safeAddListener('pack', 'input', calculateItemTotal);
+    safeAddListener('quantity', 'input', calculateItemTotal);
+    safeAddListener('salePrice', 'input', calculateItemTotal);
+    safeAddListener('taxPercent', 'input', calculateItemTotal);
+    safeAddListener('discountPercent', 'input', calculateTotals);
+    safeAddListener('discountRs', 'input', calculateTotals);
+    safeAddListener('totalTaxPercent', 'input', calculateTotals);
+    safeAddListener('misc', 'input', calculateTotals);
+    safeAddListener('freight', 'input', calculateTotals);
+    safeAddListener('paid', 'input', calculateTotals);
 
     // Setup item entry navigation
     setupItemEntryNavigation();
@@ -300,11 +311,9 @@ function initSalesPage() {
 // Setup navigation for item entry fields
 function setupItemEntryNavigation() {
     const fields = [
-        { id: 'pack', action: 'add' }, // Enter adds item
-        { id: 'taxPercent', next: 'price' },
-        { id: 'price', next: 'incentive' },
-        { id: 'incentive', next: 'discPercent' },
-        { id: 'discPercent', action: 'add' } // Enter adds item
+        { id: 'quantity', action: 'add' }, // Enter adds item
+        { id: 'taxPercent', next: 'salePrice' },
+        { id: 'salePrice', action: 'add' } // Enter adds item
     ];
 
     fields.forEach(field => {
@@ -456,33 +465,32 @@ async function generateInvoiceNumber() {
 
 // Calculate item total
 function calculateItemTotal() {
-    const pack = parseFloat(document.getElementById('pack').value) || 0;
-    const price = parseFloat(document.getElementById('price').value) || 0;
-    const taxPercent = parseFloat(document.getElementById('taxPercent').value) || 0;
-    const discPercent = parseFloat(document.getElementById('discPercent').value) || 0;
+    const pack = parseFloat(document.getElementById('pack')?.value) || 1;
+    const qty = parseFloat(document.getElementById('quantity')?.value) || 1;
+    const price = parseFloat(document.getElementById('salePrice')?.value) || 0;
+    const taxPercent = parseFloat(document.getElementById('taxPercent')?.value) || 0;
 
-    const subtotal = pack * price;
+    const totalUnits = pack * qty;
+    const subtotal = totalUnits * price;
     const taxAmount = (subtotal * taxPercent) / 100;
     const total = subtotal + taxAmount;
-    const discAmount = (total * discPercent) / 100;
-    const netTotal = total - discAmount;
 
-    document.getElementById('itemTotal').value = total.toFixed(2);
-    document.getElementById('taxRs').value = taxAmount.toFixed(2);
-    document.getElementById('itemNetTotal').value = netTotal.toFixed(2);
+    const itemTotalEl = document.getElementById('itemTotal');
+    const taxRsEl = document.getElementById('taxRs');
+    if (itemTotalEl) itemTotalEl.value = total.toFixed(2);
+    if (taxRsEl) taxRsEl.value = taxAmount.toFixed(2);
 }
 
 // Add item to sale
 function addItemToSale() {
-    const itemId = document.getElementById('itemSelect').value;
-    const itemCode = document.getElementById('itemCode').value;
-    const pack = parseFloat(document.getElementById('pack').value) || 0;
-    const price = parseFloat(document.getElementById('price').value) || 0;
-    const taxPercent = parseFloat(document.getElementById('taxPercent').value) || 0;
-    const discPercent = parseFloat(document.getElementById('discPercent').value) || 0;
-    const incentive = parseFloat(document.getElementById('incentive').value) || 0;
+    const itemId = document.getElementById('itemSelect')?.value;
+    const itemCode = document.getElementById('itemCode')?.value || '';
+    const pack = parseFloat(document.getElementById('pack')?.value) || 1;
+    const qty = parseFloat(document.getElementById('quantity')?.value) || 1;
+    const price = parseFloat(document.getElementById('salePrice')?.value) || 0;
+    const taxPercent = parseFloat(document.getElementById('taxPercent')?.value) || 0;
 
-    if (!itemId || pack <= 0) {
+    if (!itemId || (pack * qty) <= 0) {
         showError('Please select an item and enter quantity');
         return;
     }
@@ -493,26 +501,23 @@ function addItemToSale() {
         return;
     }
 
-    const subtotal = pack * price;
+    const totalUnits = pack * qty;
+    const subtotal = totalUnits * price;
     const taxAmount = (subtotal * taxPercent) / 100;
     const total = subtotal + taxAmount;
-    const discAmount = (total * discPercent) / 100;
-    const netTotal = total - discAmount;
 
     const item = {
         id: itemId,
         code: itemCode,
         name: selectedItem.name,
         pack: pack,
+        qty: qty,
         price: price,
         subtotal: subtotal,
         taxPercent: taxPercent,
         taxAmount: taxAmount,
         total: total,
-        discPercent: discPercent,
-        discAmount: discAmount,
-        netTotal: netTotal,
-        incentive: incentive
+        netTotal: total
     };
 
     saleItems.push(item);
@@ -530,6 +535,7 @@ function addItemToSale() {
 // Update items table
 function updateItemsTable() {
     const tbody = document.getElementById('saleItemsBody');
+    if (!tbody) return;
     tbody.innerHTML = '';
 
     saleItems.forEach((item, index) => {
@@ -540,13 +546,8 @@ function updateItemsTable() {
             <td>${item.name}</td>
             <td class="text-right">${item.pack}</td>
             <td class="text-right">${item.price.toFixed(2)}</td>
-            <td class="text-right">${item.subtotal.toFixed(2)}</td>
-            <td class="text-right">${item.taxPercent.toFixed(2)}</td>
-            <td class="text-right">${item.taxAmount.toFixed(2)}</td>
+            <td class="text-right">${item.qty}</td>
             <td class="text-right">${item.total.toFixed(2)}</td>
-            <td class="text-right">${item.discPercent.toFixed(2)}</td>
-            <td class="text-right">${item.discAmount.toFixed(2)}</td>
-            <td class="text-right">${item.netTotal.toFixed(2)}</td>
             <td class="text-center">
                 <button class="icon-btn danger" onclick="removeItem(${index})" title="Delete">
                     <i class="fas fa-trash"></i>
@@ -555,18 +556,10 @@ function updateItemsTable() {
         `;
     });
 
-    // Update footer totals
-    const totalSub = saleItems.reduce((sum, item) => sum + item.subtotal, 0);
-    const totalTaxRs = saleItems.reduce((sum, item) => sum + item.taxAmount, 0);
+    // Update footer total
     const totalAmount = saleItems.reduce((sum, item) => sum + item.total, 0);
-    const totalDiscRs = saleItems.reduce((sum, item) => sum + item.discAmount, 0);
-    const totalNet = saleItems.reduce((sum, item) => sum + item.netTotal, 0);
-
-    document.getElementById('footerSub').textContent = totalSub.toFixed(2);
-    document.getElementById('footerTaxRs').textContent = totalTaxRs.toFixed(2);
-    document.getElementById('footerTotal').textContent = totalAmount.toFixed(2);
-    document.getElementById('footerDiscRs').textContent = totalDiscRs.toFixed(2);
-    document.getElementById('footerNetTotal').textContent = totalNet.toFixed(2);
+    const footerTotal = document.getElementById('footerTotal');
+    if (footerTotal) footerTotal.textContent = totalAmount.toFixed(2);
 }
 
 // Remove item from sale
@@ -578,38 +571,44 @@ function removeItem(index) {
 
 // Clear item fields
 function clearItemFields() {
-    document.getElementById('itemSelect').value = '';
-    const itemNameInput = document.getElementById('itemName');
-    if (itemNameInput) itemNameInput.value = '';
-
-    document.getElementById('itemCode').value = '';
-    document.getElementById('pack').value = 1;
-    document.getElementById('price').value = '';
-    document.getElementById('stock').value = '';
-    document.getElementById('taxPercent').value = 0;
-    document.getElementById('taxRs').value = '';
-    document.getElementById('itemTotal').value = '';
-    document.getElementById('itemNetTotal').value = '';
-    document.getElementById('incentive').value = 0;
-    document.getElementById('discPercent').value = 0;
+    const safeSetValue = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+    };
+    safeSetValue('itemSelect', '');
+    safeSetValue('itemName', '');
+    safeSetValue('itemCode', '');
+    safeSetValue('pack', '1');
+    safeSetValue('quantity', '1');
+    safeSetValue('salePrice', '');
+    safeSetValue('retailPrice', '');
+    safeSetValue('stock', '');
+    safeSetValue('taxPercent', '0');
+    safeSetValue('taxRs', '');
+    safeSetValue('itemTotal', '');
 }
 
 // Calculate totals
 function calculateTotals() {
-    const itemsTotal = saleItems.reduce((sum, item) => sum + item.netTotal, 0);
-    const discountPercent = parseFloat(document.getElementById('discountPercent').value) || 0;
-    const discountRs = parseFloat(document.getElementById('discountRs').value) || 0;
-    const totalTaxPercent = parseFloat(document.getElementById('totalTaxPercent').value) || 0;
-    const misc = parseFloat(document.getElementById('misc').value) || 0;
-    const freight = parseFloat(document.getElementById('freight').value) || 0;
-    const paid = parseFloat(document.getElementById('paid').value) || 0;
-    const preBalance = parseFloat(document.getElementById('preBalance').value) || 0;
+    const getVal = (id) => parseFloat(document.getElementById(id)?.value) || 0;
+    const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+    };
+
+    const itemsTotal = saleItems.reduce((sum, item) => sum + (item.netTotal || item.total || 0), 0);
+    const discountPercent = getVal('discountPercent');
+    const discountRs = getVal('discountRs');
+    const totalTaxPercent = getVal('totalTaxPercent');
+    const misc = getVal('misc');
+    const freight = getVal('freight');
+    const paid = getVal('paid');
 
     // Calculate discount
     let totalDiscount = discountRs;
     if (discountPercent > 0) {
         totalDiscount = (itemsTotal * discountPercent) / 100;
-        document.getElementById('discountRs').value = totalDiscount.toFixed(2);
+        setVal('discountRs', totalDiscount.toFixed(2));
     }
 
     // Calculate after discount
@@ -621,16 +620,14 @@ function calculateTotals() {
     // Calculate net total
     const netTotal = afterDiscount + taxAmount + misc + freight;
 
-    // Calculate balances
-    const invBalance = netTotal - paid;
-    const newBalance = preBalance + invBalance;
+    // Calculate balance
+    const balance = netTotal - paid;
 
     // Update fields
-    document.getElementById('totalAmount').value = itemsTotal.toFixed(2);
-    document.getElementById('totalTaxRs').value = taxAmount.toFixed(2);
-    document.getElementById('netTotal').value = netTotal.toFixed(2);
-    document.getElementById('invBalance').value = invBalance.toFixed(2);
-    document.getElementById('newBalance').value = newBalance.toFixed(2);
+    setVal('totalAmount', itemsTotal.toFixed(2));
+    setVal('totalTaxRs', taxAmount.toFixed(2));
+    setVal('netTotal', netTotal.toFixed(2));
+    setVal('balance', balance.toFixed(2));
 }
 
 // Save sale
@@ -1172,13 +1169,17 @@ document.addEventListener('DOMContentLoaded', function () {
             const sale = el.getAttribute('data-sale');
             const tax = el.getAttribute('data-tax');
 
-            const itemSelect = document.getElementById('itemSelect');
-            if (itemSelect) itemSelect.value = id;
+            const safeSetVal = (elId, val) => {
+                const elem = document.getElementById(elId);
+                if (elem) elem.value = val;
+            };
+
+            safeSetVal('itemSelect', id);
             itemNameInput.value = name || '';
-            document.getElementById('itemCode').value = sku || '';
-            document.getElementById('price').value = sale || 0;
-            document.getElementById('stock').value = stock || 0;
-            document.getElementById('taxPercent').value = tax || 0;
+            safeSetVal('itemCode', sku || '');
+            safeSetVal('salePrice', sale || 0);
+            safeSetVal('stock', stock || 0);
+            safeSetVal('taxPercent', tax || 0);
             calculateItemTotal();
 
             suggestionsBox.style.display = 'none';
@@ -1342,10 +1343,15 @@ function populateItemFromLookup(item) {
         itemSelect.value = item._id;
     }
 
-    document.getElementById('itemCode').value = item.sku || '';
-    document.getElementById('price').value = item.salePrice || 0;
-    document.getElementById('stock').value = item.stockQty || 0;
-    document.getElementById('taxPercent').value = item.taxPercent || 0;
+    const safeSetVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+    };
+
+    safeSetVal('itemCode', item.sku || '');
+    safeSetVal('salePrice', item.salePrice || 0);
+    safeSetVal('stock', item.stockQty || 0);
+    safeSetVal('taxPercent', item.taxPercent || 0);
 
     const itemNameInput = document.getElementById('itemName');
     if (itemNameInput) itemNameInput.value = item.name || '';

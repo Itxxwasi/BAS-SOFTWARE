@@ -17,11 +17,32 @@
 
             .main-content {
                 margin: 0 !important;
-                padding: 20px !important;
+                padding: 0 !important;
             }
 
             body {
                 background: white !important;
+            }
+
+            .print-header {
+                display: block !important;
+            }
+
+            .ledger-header {
+                background: none !important;
+                color: black !important;
+                border: 1px solid #dee2e6;
+                padding: 15px !important;
+            }
+
+            .ledger-header p {
+                color: black !important;
+            }
+
+            .ledger-table th {
+                background: #333 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
         }
 
@@ -34,7 +55,7 @@
         }
 
         .ledger-header {
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            background: linear-gradient(135deg, #1a5f7a 0%, #0288d1 100%);
             color: white;
             padding: 30px;
             border-radius: 12px;
@@ -69,7 +90,7 @@
         }
 
         .ledger-table thead th {
-            background: #2c3e50;
+            background: linear-gradient(135deg, #1a5f7a 0%, #0288d1 100%);
             color: white;
             font-weight: 600;
             text-transform: uppercase;
@@ -99,6 +120,14 @@
 </head>
 
 <body class="sidebar-mini">
+    <div class="print-header" style="display:none; text-align:center; margin-bottom:20px;">
+        <h2 style="margin:0; text-transform:uppercase; letter-spacing:1px;">Bilal Accounting System</h2>
+        <h4 id="printBranchName" style="margin:5px 0 0; color:#555;">All Branches</h4>
+        <h5 id="printReportTitle"
+            style="margin:5px 0; border-bottom:1px solid #ccc; display:inline-block; padding-bottom:5px;">Bank Ledger
+        </h5>
+        <p id="printDateRange" style="margin:5px 0 0; font-size:12px; color:#666;">-</p>
+    </div>
     <div class="main-content">
         <header class="page-header no-print">
             <div class="d-flex align-items-center">

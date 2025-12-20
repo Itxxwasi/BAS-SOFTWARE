@@ -323,3 +323,68 @@ exports.getBranchBankBalance = asyncHandler(async (req, res) => {
         bankCount: banks.length
     });
 });
+
+// @desc    Get Individual Bank Balances for all banks in a Branch as of a specific date
+// @route   GET /api/v1/reports/bank-ledger/branch-bank-balances
+// @access  Private
+exports.getBranchBankBalances = asyncHandler(async (req, res) => {
+    const { branch, date } = req.query;
+
+    if (!branch || !date) {
+        return res.status(400).json({ success: false, message: 'Please provide branch and date' });
+    }
+
+    const targetDate = new Date(date);
+    targetDate.setHours(23, 59, 59, 999);
+
+    // Get all banks for the branch - EXCLUDE Branch Bank type
+    const banks = await Bank.find({
+        branch: branch,
+        bankType: { $ne: 'Branch Bank' } // Exclude Branch Bank type
+    }).populate('department', 'name');
+
+    if (!banks || banks.length === 0) {
+        return res.status(200).json({ success: true, banks: [], totalBalance: 0, message: 'No banks found' });
+    }
+
+    // Calculate closing balance for each bank
+    const nextDay = new Date(targetDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    nextDay.setHours(0, 0, 0, 0);
+
+    const bankBalances = [];
+    let totalBalance = 0;
+
+    for (const bank of banks) {
+        const bankBal = await calculateOpeningBalance(bank, nextDay);
+        totalBalance += bankBal;
+
+        // Get department abbreviation from the bank's department
+        const deptName = bank.department?.name || '';
+        const deptAbbr = deptName.substring(0, 3).toUpperCase();
+
+        // Check if bank name already contains department abbreviation to avoid duplicates
+        // e.g., "ALF (MED)" already has "(MED)" so don't add it again
+        let displayName = bank.bankName;
+        if (deptAbbr && !bank.bankName.includes(`(${deptAbbr})`)) {
+            displayName = `${bank.bankName} (${deptAbbr})`;
+        }
+
+        bankBalances.push({
+            bankId: bank._id,
+            bankName: bank.bankName,
+            bankType: bank.bankType,
+            department: deptName,
+            deptAbbr: deptAbbr,
+            displayName: displayName,
+            balance: bankBal
+        });
+    }
+
+    res.status(200).json({
+        success: true,
+        banks: bankBalances,
+        totalBalance,
+        bankCount: banks.length
+    });
+});

@@ -30,6 +30,30 @@ exports.getClosingSheet = async (req, res) => {
     }
 };
 
+// @desc    Get closing sheets report by date range
+// @route   GET /api/v1/closing-sheets/report
+// @access  Private
+exports.getClosingSheetsReport = async (req, res) => {
+    try {
+        const { startDate, endDate, branch } = req.query;
+        if (!startDate || !endDate) return res.status(400).json({ success: false, message: 'Start and End dates are required' });
+
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        const sheets = await ClosingSheet.find({
+            date: { $gte: start, $lte: end },
+            branch: branch || 'F-6'
+        }).lean(); // Use lean for performance as we don't need full documents
+
+        res.status(200).json({ success: true, data: sheets });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
 // @desc    Save (Upsert) closing sheet
 // @route   POST /api/v1/closing-sheets
 // @access  Private

@@ -68,34 +68,35 @@ class SidebarNavigation {
                     {
                         id: 'sales-reports', label: 'Sales Reports', icon: 'fa-shopping-cart',
                         submenu: [
-                            { label: 'Sales Report', link: '/reports.html?type=sales' },
-                            { label: 'Customer Receipts', link: '/reports.html?type=customer-payments' },
-                            { label: 'Party Statement', link: '/reports.html?type=party-statement' }
+                            { label: 'Sales Report', link: '/sales-report.html' },
+                            { label: 'Dept Wise Sale', link: '/department-sales-report.html' },
+                            { label: 'Customer Receipts', link: '/customer-receipts-report.html' },
+                            { label: 'Party Statement', link: '/party-statement-report.html' }
                         ]
                     },
                     {
                         id: 'purchase-reports', label: 'Purchase Reports', icon: 'fa-truck',
                         submenu: [
-                            { label: 'Purchase Report', link: '/reports.html?type=purchase' },
-                            { label: 'Supplier Payments', link: '/reports.html?type=supplier-payments' }
+                            { label: 'Purchase Report', link: '/purchase-report.html' },
+                            { label: 'Supplier Payments', link: '/supplier-payments-report.html' }
                         ]
                     },
                     {
                         id: 'stock-reports', label: 'Stock Reports', icon: 'fa-warehouse',
                         submenu: [
-                            { label: 'Stock Report', link: '/reports.html?type=stock' },
-                            { label: 'Stock Adjustments', link: '/reports.html?type=stock-adjustment' },
-                            { label: 'Stock Audit', link: '/reports.html?type=stock-audit' }
+                            { label: 'Stock Report', link: '/stock-report.html' },
+                            { label: 'Stock Adjustments', link: '/stock-adjustments-report.html' },
+                            { label: 'Stock Audit', link: '/stock-audit-report.html' }
                         ]
                     },
                     {
                         id: 'financial-reports', label: 'Financial Reports', icon: 'fa-file-invoice-dollar',
                         submenu: [
-                            { label: 'Profit & Loss', link: '/reports.html?type=profit-loss' },
-                            { label: 'Ledger', link: '/reports.html?type=ledger' },
+                            { label: 'Profit & Loss', link: '/profit-loss-report.html' },
+                            { label: 'Ledger', link: '/ledger-report.html' },
                             { label: 'Bank Ledger', link: '/bank-ledger.html' },
-                            { label: 'Expenses', link: '/reports.html?type=expenses' },
-                            { label: 'Vouchers', link: '/reports.html?type=vouchers' }
+                            { label: 'Expense Report', link: '/expense-report.html' },
+                            { label: 'Vouchers', link: '/vouchers-report.html' }
                         ]
                     }
                 ]

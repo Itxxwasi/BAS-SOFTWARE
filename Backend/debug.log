@@ -222,3 +222,38 @@ Full request body:
   "status": "draft"
 }
 ========================
+
+=== CREATE SALE CALLED ===
+Time: 2025-12-20T08:51:30.277Z
+
+=== SALE REQUEST DEBUG ===
+Time: 2025-12-20T08:51:30.287Z
+Party field value: 693db04702292c940b675e1f
+Party field type: string
+Full request body:
+{
+  "invoiceNumber": "INV-002",
+  "date": "2025-12-20",
+  "party": "693db04702292c940b675e1f",
+  "items": [
+    {
+      "item": "69430048e6a70573e3cda0e2",
+      "quantity": 5,
+      "rate": 1000,
+      "amount": 5000,
+      "taxAmount": 0
+    }
+  ],
+  "subtotal": 5000,
+  "discountAmount": 0,
+  "taxAmount": 0,
+  "totalAmount": 5000,
+  "grandTotal": 5000,
+  "paidAmount": 0,
+  "balanceAmount": 5000,
+  "paymentStatus": "pending",
+  "notes": "",
+  "createdBy": "693d5f270b12208a98520c14",
+  "status": "final"
+}
+========================

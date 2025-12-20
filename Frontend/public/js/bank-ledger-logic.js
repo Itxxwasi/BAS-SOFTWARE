@@ -195,6 +195,11 @@ function renderReport(data, startDate, endDate) {
     document.getElementById('dateRange').textContent = `${startDate} to ${endDate}`;
     document.getElementById('openingBalance').textContent = formatCurrency(data.openingBalance);
 
+    // Update Print Header
+    if (document.getElementById('printBranchName')) document.getElementById('printBranchName').textContent = data.branch || 'All Branches';
+    if (document.getElementById('printDateRange')) document.getElementById('printDateRange').textContent = `${startDate} to ${endDate}`;
+    if (document.getElementById('printReportTitle')) document.getElementById('printReportTitle').textContent = `Bank Ledger - ${data.bankName}`;
+
     // Stats
     document.getElementById('totalDebit').textContent = formatCurrency(data.totalDebit);
     document.getElementById('totalCredit').textContent = formatCurrency(data.totalCredit);

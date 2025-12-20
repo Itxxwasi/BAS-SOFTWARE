@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Report - Bilal Accounting System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/css/desktop-style.css" rel="stylesheet">
+    <link href="/css/sidebar.css" rel="stylesheet">
+    <style>
+        .report-container {
+            padding: 15px;
+            height: calc(100vh - 60px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-panel {
+            background: linear-gradient(135deg, #1a5f7a 0%, #0288d1 100%);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            color: white;
+        }
+
+        .filter-panel label {
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+
+        .filter-panel .form-control,
+        .filter-panel .form-select {
+            border: none;
+            border-radius: 5px;
+        }
+
+        .quick-filters {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .quick-filters .btn {
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+
+        .data-panel {
+            flex: 1;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .data-header {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .data-header h5 {
+            margin: 0;
+            color: #1a5f7a;
+        }
+
+        .summary-cards {
+            display: flex;
+            gap: 15px;
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .summary-card {
+            flex: 1;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .summary-card.total-sales {
+            background: linear-gradient(135deg, #1a5f7a 0%, #0288d1 100%);
+            color: white;
+        }
+
+        .summary-card.cash-sales {
+            background: linear-gradient(135deg, #1565c0 0%, #1976d2 100%);
+            color: white;
+        }
+
+        .summary-card.credit-sales {
+            background: linear-gradient(135deg, #f57c00 0%, #ff9800 100%);
+            color: white;
+        }
+
+        .summary-card.returns {
+            background: linear-gradient(135deg, #c62828 0%, #e53935 100%);
+            color: white;
+        }
+
+        .summary-card .label {
+            font-size: 12px;
+            opacity: 0.9;
+            text-transform: uppercase;
+        }
+
+        .summary-card .value {
+            font-size: 22px;
+            font-weight: 700;
+            margin-top: 5px;
+        }
+
+        .table-container {
+            flex: 1;
+            overflow: auto;
+            padding: 0;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 0;
+        }
+
+        .data-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .data-table th {
+            background: linear-gradient(135deg, #1a5f7a 0%, #0288d1 100%);
+            color: white;
+            padding: 12px 15px;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .data-table td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+        }
+
+        .data-table tbody tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .data-table tbody tr:hover {
+            background: #e8f5e9;
+        }
+
+        .cash-amount {
+            color: #1565c0;
+            font-weight: 600;
+        }
+
+        .credit-amount {
+            color: #f57c00;
+            font-weight: 600;
+        }
+
+        .group-header {
+            background: #e8f5e9 !important;
+            font-weight: 600;
+        }
+
+        .group-header td {
+            padding: 8px 15px;
+            font-size: 14px;
+            color: #1a5f7a;
+        }
+
+        .group-total {
+            background: #c8e6c9 !important;
+            font-weight: 600;
+        }
+
+        .total-row {
+            background: linear-gradient(135deg, #1a5f7a 0%, #0288d1 100%) !important;
+        }
+
+        .total-row td {
+            color: white !important;
+            font-weight: 700;
+            padding: 15px;
+        }
+
+        .no-data {
+            padding: 50px;
+            text-align: center;
+            color: #666;
+        }
+
+        .no-data i {
+            font-size: 50px;
+            color: #ddd;
+            margin-bottom: 15px;
+        }
+
+        .loading {
+            padding: 50px;
+            text-align: center;
+        }
+
+        .badge-cash {
+            background: #1565c0;
+        }
+
+        .badge-credit {
+            background: #f57c00;
+        }
+
+        @media (max-width: 768px) {
+            .filter-panel .row>div {
+                margin-bottom: 10px;
+            }
+
+            .summary-cards {
+                flex-direction: column;
+            }
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white !important;
+            }
+
+            .page-header,
+            .filter-panel,
+            .quick-filters {
+                display: none !important;
+            }
+
+            .print-header {
+                display: block !important;
+            }
+
+            .report-container {
+                padding: 0 !important;
+                height: auto !important;
+            }
+
+            .report-container {
+                padding: 0 !important;
+                height: auto !important;
+            }
+
+            .data-panel {
+                box-shadow: none !important;
+                border-radius: 0 !important;
+            }
+
+            .data-header {
+                background: none !important;
+                border-bottom: 2px solid #333 !important;
+            }
+
+            .summary-cards {
+                display: none !important;
+            }
+
+            .table-container {
+                overflow: visible !important;
+            }
+
+            .data-table th {
+                background: #333 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .total-row {
+                background: #333 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="print-header" style="display:none; text-align:center; margin-bottom:20px;">
+        <h2 style="margin:0; text-transform:uppercase; letter-spacing:1px;">Bilal Accounting System</h2>
+        <h4 id="printBranchName" style="margin:5px 0 0; color:#555;">All Branches</h4>
+        <h5 id="printReportTitle"
+            style="margin:5px 0; border-bottom:1px solid #ccc; display:inline-block; padding-bottom:5px;">Sales Report
+        </h5>
+        <p id="printDateRange" style="margin:5px 0 0; font-size:12px; color:#666;">-</p>
+    </div>
+
+    <div class="page-header" style="background: linear-gradient(135deg, #1a5f7a 0%, #0288d1 100%);">
+        <div><i class="fas fa-shopping-cart me-2"></i> Sales Report</div>
+        <div>
+            <a href="/main.html" class="btn btn-outline-light btn-sm"><i class="fas fa-home"></i> Home</a>
+        </div>
+    </div>
+
+    <div class="report-container">
+        <!-- Filter Panel -->
+        <div class="filter-panel">
+            <div class="row g-3">
+                <!-- Date Range -->
+                <div class="col-md-2">
+                    <label>From Date</label>
+                    <input type="date" id="filterFromDate" class="form-control form-control-sm">
+                </div>
+                <div class="col-md-2">
+                    <label>To Date</label>
+                    <input type="date" id="filterToDate" class="form-control form-control-sm">
+                </div>
+
+                <!-- Branch/Store -->
+                <div class="col-md-2">
+                    <label>Branch</label>
+                    <select id="filterBranch" class="form-select form-select-sm">
+                        <option value="">All Branches</option>
+                    </select>
+                </div>
+
+                <!-- Customer -->
+                <div class="col-md-2">
+                    <label>Customer</label>
+                    <select id="filterCustomer" class="form-select form-select-sm">
+                        <option value="">All Customers</option>
+                    </select>
+                </div>
+
+                <!-- Payment Mode -->
+                <div class="col-md-2">
+                    <label>Payment Mode</label>
+                    <select id="filterPaymentMode" class="form-select form-select-sm">
+                        <option value="">All</option>
+                        <option value="cash">Cash</option>
+                        <option value="credit">Credit</option>
+                        <option value="card">Card</option>
+                        <option value="online">Online</option>
+                    </select>
+                </div>
+
+                <!-- Group By -->
+                <div class="col-md-2">
+                    <label>Group By</label>
+                    <select id="filterGroupBy" class="form-select form-select-sm">
+                        <option value="none">No Grouping</option>
+                        <option value="date">Date Wise</option>
+                        <option value="customer">Customer Wise</option>
+                        <option value="branch">Branch Wise</option>
+                        <option value="paymentMode">Payment Mode Wise</option>
+                    </select>
+                </div>
+
+                <!-- Search -->
+                <div class="col-md-3">
+                    <label>Invoice Search</label>
+                    <input type="text" id="filterSearch" class="form-control form-control-sm"
+                        placeholder="Invoice #, Customer name...">
+                </div>
+
+                <!-- Actions -->
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <button class="btn btn-light btn-sm" onclick="loadReport()">
+                        <i class="fas fa-search me-1"></i> Search
+                    </button>
+                    <button class="btn btn-warning btn-sm" onclick="printReport()">
+                        <i class="fas fa-print me-1"></i> Print
+                    </button>
+                    <button class="btn btn-success btn-sm" onclick="exportExcel()">
+                        <i class="fas fa-file-excel me-1"></i> Excel
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Date Filters -->
+            <div class="quick-filters">
+                <span class="me-2"><i class="fas fa-clock me-1"></i> Quick:</span>
+                <button class="btn btn-outline-light btn-sm" onclick="setDateRange('today')">Today</button>
+                <button class="btn btn-outline-light btn-sm" onclick="setDateRange('week')">This Week</button>
+                <button class="btn btn-outline-light btn-sm" onclick="setDateRange('month')">This Month</button>
+                <button class="btn btn-outline-light btn-sm" onclick="setDateRange('lastMonth')">Last Month</button>
+                <button class="btn btn-outline-light btn-sm" onclick="setDateRange('year')">This Year</button>
+            </div>
+        </div>
+
+        <!-- Data Panel -->
+        <div class="data-panel">
+            <div class="data-header">
+                <h5><i class="fas fa-list me-2"></i>Sales Details</h5>
+                <div>
+                    <span id="recordCount" class="badge bg-success">0 invoices</span>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="summary-cards">
+                <div class="summary-card total-sales">
+                    <div class="label"><i class="fas fa-chart-line me-1"></i> Total Sales</div>
+                    <div class="value" id="totalSales">0</div>
+                </div>
+                <div class="summary-card cash-sales">
+                    <div class="label"><i class="fas fa-money-bill me-1"></i> Cash Sales</div>
+                    <div class="value" id="cashSales">0</div>
+                </div>
+                <div class="summary-card credit-sales">
+                    <div class="label"><i class="fas fa-credit-card me-1"></i> Credit Sales</div>
+                    <div class="value" id="creditSales">0</div>
+                </div>
+                <div class="summary-card returns">
+                    <div class="label"><i class="fas fa-undo me-1"></i> Returns</div>
+                    <div class="value" id="totalReturns">0</div>
+                </div>
+            </div>
+
+            <!-- Table Container -->
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 100px">Date</th>
+                            <th style="width: 120px">Invoice #</th>
+                            <th>Customer</th>
+                            <th style="width: 100px">Branch</th>
+                            <th style="width: 100px">Payment</th>
+                            <th style="width: 80px" class="text-center">Items</th>
+                            <th style="width: 100px" class="text-end">Discount</th>
+                            <th style="width: 120px" class="text-end">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reportTableBody">
+                        <tr>
+                            <td colspan="8" class="no-data">
+                                <i class="fas fa-search"></i>
+                                <p>Select filters and click "Search" to load data</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/pageAccess.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/desktop-ui.js?v=12"></script>
+    <script>
+        let storeMap = {};
+
+        // Format currency
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-PK', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(amount || 0);
+        }
+
+        // Format date
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function () {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            setDateRange('month');
+            loadFilters();
+        });
+
+        // Set Date Range
+        function setDateRange(range) {
+            const today = new Date();
+            const fromDateEl = document.getElementById('filterFromDate');
+            const toDateEl = document.getElementById('filterToDate');
+
+            let fromDate = new Date();
+            let toDate = new Date();
+
+            switch (range) {
+                case 'today':
+                    fromDate = today;
+                    toDate = today;
+                    break;
+                case 'week':
+                    const dayOfWeek = today.getDay();
+                    fromDate = new Date(today);
+                    fromDate.setDate(today.getDate() - dayOfWeek);
+                    toDate = new Date(today);
+                    toDate.setDate(fromDate.getDate() + 6);
+                    break;
+                case 'month':
+                    fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                    toDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                    break;
+                case 'lastMonth':
+                    fromDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                    toDate = new Date(today.getFullYear(), today.getMonth(), 0);
+                    break;
+                case 'year':
+                    fromDate = new Date(today.getFullYear(), 0, 1);
+                    toDate = new Date(today.getFullYear(), 11, 31);
+                    break;
+            }
+
+            fromDateEl.value = fromDate.toISOString().split('T')[0];
+            toDateEl.value = toDate.toISOString().split('T')[0];
+        }
+
+        // Load Filters
+        async function loadFilters() {
+            const token = localStorage.getItem('token');
+
+            // Load Branches
+            try {
+                const branchSelect = document.getElementById('filterBranch');
+                const response = await fetch('/api/v1/stores', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    (data.data || []).forEach(store => {
+                        storeMap[store._id] = store.name;
+                        branchSelect.innerHTML += `<option value="${store._id}">${store.name}</option>`;
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading branches:', error);
+            }
+
+            // Load Customers
+            try {
+                const customerSelect = document.getElementById('filterCustomer');
+                const response = await fetch('/api/v1/parties?partyType=customer&limit=500', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    (data.data || []).forEach(customer => {
+                        customerSelect.innerHTML += `<option value="${customer._id}">${customer.name}</option>`;
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading customers:', error);
+            }
+        }
+
+        // Load Report Data
+        async function loadReport() {
+            const token = localStorage.getItem('token');
+            const tbody = document.getElementById('reportTableBody');
+
+            tbody.innerHTML = `<tr><td colspan="8" class="loading">
+                <div class="spinner-border text-success" role="status"></div>
+                <p class="mt-2 text-muted">Loading sales data...</p>
+            </td></tr>`;
+
+            const startDate = document.getElementById('filterFromDate').value;
+            const endDate = document.getElementById('filterToDate').value;
+            const branch = document.getElementById('filterBranch').value;
+            const customer = document.getElementById('filterCustomer').value;
+            const paymentMode = document.getElementById('filterPaymentMode').value;
+
+            // Update Print Header
+            const branchText = branch ? document.querySelector(`#filterBranch option[value="${branch}"]`)?.text : 'All Branches';
+            if (document.getElementById('printBranchName')) document.getElementById('printBranchName').textContent = branchText;
+            if (document.getElementById('printDateRange')) document.getElementById('printDateRange').textContent = `Period: ${formatDate(startDate)} to ${formatDate(endDate)}`;
+            const groupBy = document.getElementById('filterGroupBy').value;
+            const search = document.getElementById('filterSearch').value;
+
+            let queryParams = '?limit=10000';
+            if (startDate) queryParams += `&startDate=${startDate}`;
+            if (endDate) queryParams += `&endDate=${endDate}`;
+            if (branch) queryParams += `&store=${branch}`;
+            if (customer) queryParams += `&customer=${customer}`;
+            if (paymentMode) queryParams += `&paymentMode=${paymentMode}`;
+
+            try {
+                const response = await fetch(`/api/v1/sales${queryParams}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) throw new Error('Failed to fetch data');
+
+                const result = await response.json();
+                let sales = result.data || [];
+
+                // Apply search filter
+                if (search) {
+                    const searchLower = search.toLowerCase();
+                    sales = sales.filter(s =>
+                        (s.invoiceNumber || '').toLowerCase().includes(searchLower) ||
+                        (s.customer?.name || '').toLowerCase().includes(searchLower)
+                    );
+                }
+
+                // Calculate totals
+                let totalSales = 0;
+                let cashSales = 0;
+                let creditSales = 0;
+
+                sales.forEach(s => {
+                    const amount = s.grandTotal || s.totalAmount || 0;
+                    totalSales += amount;
+                    if (s.paymentMode === 'cash') {
+                        cashSales += amount;
+                    } else {
+                        creditSales += amount;
+                    }
+                });
+
+                // Update summary cards
+                document.getElementById('totalSales').textContent = formatCurrency(totalSales);
+                document.getElementById('cashSales').textContent = formatCurrency(cashSales);
+                document.getElementById('creditSales').textContent = formatCurrency(creditSales);
+                document.getElementById('totalReturns').textContent = '0';
+                document.getElementById('recordCount').textContent = `${sales.length} invoices`;
+
+                if (sales.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="8" class="no-data">
+                        <i class="fas fa-inbox"></i>
+                        <p>No sales found for the selected criteria</p>
+                    </td></tr>`;
+                    return;
+                }
+
+                if (groupBy && groupBy !== 'none') {
+                    renderGroupedTable(sales, groupBy);
+                } else {
+                    renderSimpleTable(sales);
+                }
+
+            } catch (error) {
+                console.error('Error loading report:', error);
+                tbody.innerHTML = `<tr><td colspan="8" class="no-data text-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>Error loading data: ${error.message}</p>
+                </td></tr>`;
+            }
+        }
+
+        // Render Simple Table
+        function renderSimpleTable(sales) {
+            const tbody = document.getElementById('reportTableBody');
+            let html = '';
+            let totalAmount = 0;
+
+            sales.forEach(s => {
+                const amount = s.grandTotal || s.totalAmount || 0;
+                totalAmount += amount;
+                const isCash = s.paymentMode === 'cash';
+                const itemCount = s.items?.length || 0;
+
+                html += `
+                    <tr>
+                        <td>${formatDate(s.date || s.createdAt)}</td>
+                        <td><strong>${s.invoiceNumber || '-'}</strong></td>
+                        <td>${s.customer?.name || 'Walk-in Customer'}</td>
+                        <td>${s.store?.name || storeMap[s.store] || '-'}</td>
+                        <td><span class="badge ${isCash ? 'badge-cash' : 'badge-credit'}">${s.paymentMode || 'Cash'}</span></td>
+                        <td class="text-center">${itemCount}</td>
+                        <td class="text-end">${formatCurrency(s.discount || 0)}</td>
+                        <td class="text-end ${isCash ? 'cash-amount' : 'credit-amount'}">${formatCurrency(amount)}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                <tr class="total-row">
+                    <td colspan="7" class="text-end">Grand Total</td>
+                    <td class="text-end">${formatCurrency(totalAmount)}</td>
+                </tr>
+            `;
+
+            tbody.innerHTML = html;
+        }
+
+        // Render Grouped Table
+        function renderGroupedTable(sales, groupField) {
+            const tbody = document.getElementById('reportTableBody');
+
+            const groups = {};
+            sales.forEach(s => {
+                let key = '';
+                if (groupField === 'date') key = formatDate(s.date || s.createdAt);
+                else if (groupField === 'customer') key = s.customer?.name || 'Walk-in Customer';
+                else if (groupField === 'branch') key = s.store?.name || storeMap[s.store] || 'Unknown';
+                else if (groupField === 'paymentMode') key = s.paymentMode || 'Cash';
+                else key = 'All';
+
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(s);
+            });
+
+            let html = '';
+            let grandTotal = 0;
+
+            Object.keys(groups).sort().forEach(groupKey => {
+                const items = groups[groupKey];
+                let groupTotal = 0;
+
+                html += `<tr class="group-header"><td colspan="8"><i class="fas fa-folder-open me-2"></i>${groupKey} (${items.length} invoices)</td></tr>`;
+
+                items.forEach(s => {
+                    const amount = s.grandTotal || s.totalAmount || 0;
+                    groupTotal += amount;
+                    const isCash = s.paymentMode === 'cash';
+                    const itemCount = s.items?.length || 0;
+
+                    html += `
+                        <tr>
+                            <td>${formatDate(s.date || s.createdAt)}</td>
+                            <td><strong>${s.invoiceNumber || '-'}</strong></td>
+                            <td>${s.customer?.name || 'Walk-in Customer'}</td>
+                            <td>${s.store?.name || storeMap[s.store] || '-'}</td>
+                            <td><span class="badge ${isCash ? 'badge-cash' : 'badge-credit'}">${s.paymentMode || 'Cash'}</span></td>
+                            <td class="text-center">${itemCount}</td>
+                            <td class="text-end">${formatCurrency(s.discount || 0)}</td>
+                            <td class="text-end ${isCash ? 'cash-amount' : 'credit-amount'}">${formatCurrency(amount)}</td>
+                        </tr>
+                    `;
+                });
+
+                html += `<tr class="group-total"><td colspan="7" class="text-end">Subtotal</td><td class="text-end">${formatCurrency(groupTotal)}</td></tr>`;
+                grandTotal += groupTotal;
+            });
+
+            html += `
+                <tr class="total-row">
+                    <td colspan="7" class="text-end">Grand Total</td>
+                    <td class="text-end">${formatCurrency(grandTotal)}</td>
+                </tr>
+            `;
+
+            tbody.innerHTML = html;
+        }
+
+        // Print Report
+        function printReport() {
+            window.print();
+        }
+
+        // Export to Excel
+        function exportExcel() {
+            alert('Excel export feature coming soon!');
+        }
+    </script>
+</body>
+
+</html>
