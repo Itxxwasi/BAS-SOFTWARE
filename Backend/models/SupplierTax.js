@@ -13,7 +13,7 @@ const SupplierTaxSchema = new mongoose.Schema({
     entries: [{
         supplier: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'Party', // or Supplier if model exists
+            ref: 'Supplier',
             required: true
         },
         supplierName: String,

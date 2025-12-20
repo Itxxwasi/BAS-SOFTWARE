@@ -162,6 +162,7 @@ class SidebarNavigation {
                     { label: 'Supplier WH Tax', link: '/supplier-wh-tax.html' },
                     { label: 'WHT Supplier', link: '/wht-supplier.html' },
                     { label: 'Supplier Tax Report', link: '/supplier-tax-report.html' },
+                    { label: 'Supplier Tax Certificate', link: '/supplier-tax-certificate.html' },
                 ]
             },
             {

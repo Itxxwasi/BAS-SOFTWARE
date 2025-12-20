@@ -64,6 +64,7 @@ const employeeClearanceRoutes = require('./routes/employeeClearances');
 const employeeCommissionRoutes = require('./routes/employeeCommissions');
 const employeePenaltyRoutes = require('./routes/employeePenalties');
 const holyDayRoutes = require('./routes/holyDays');
+const supplierTaxCPRRoutes = require('./routes/supplierTaxCPRs');
 
 
 // Error handler
@@ -275,6 +276,7 @@ app.use('/api/v1/employee-clearances', employeeClearanceRoutes);
 app.use('/api/v1/employee-commissions', employeeCommissionRoutes);
 app.use('/api/v1/employee-penalties', employeePenaltyRoutes);
 app.use('/api/v1/holy-days', holyDayRoutes);
+app.use('/api/v1/supplier-tax-cprs', supplierTaxCPRRoutes);
 
 
 // Serve login page at root

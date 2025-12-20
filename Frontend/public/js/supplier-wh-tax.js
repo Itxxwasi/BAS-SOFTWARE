@@ -1,15 +1,18 @@
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Set default dates
-    const today = new Date().toISOString().split('T')[0];
+    const d = new Date();
+    const today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const firstDay = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01';
     document.getElementById('filterDate').value = today;
+    document.getElementById('filterDateFrom').value = firstDay;
     document.getElementById('entryDate').value = today;
 
     await loadBranches();
     await loadSuppliers();
     await loadCategories();
 
-    // Default selection if available
+    // Default selection
     const branchSelect = document.getElementById('branchSelect');
     if (branchSelect.options.length > 1) {
         branchSelect.selectedIndex = 1;
@@ -17,12 +20,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     setupCalculations();
     setupAddButton();
-
-    // Initial load of the records
+    setupShortcuts();
     await loadSavedData();
 });
 
+function setupShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        if (e.altKey && (e.key === 's' || e.key === 'S')) {
+            e.preventDefault();
+            document.getElementById('saveBtn').click();
+        }
+    });
+}
+
 // --- Data Loading ---
+
+let branchesMap = {};
+let suppliersMap = {};
+let categoriesMap = {};
 
 async function loadBranches() {
     try {
@@ -33,24 +48,23 @@ async function loadBranches() {
         const data = await res.json();
         if (data.success) {
             const select = document.getElementById('branchSelect');
+            branchesMap = {};
             data.data.forEach(store => {
                 const opt = document.createElement('option');
                 opt.value = store._id;
-                opt.textContent = `${store.name}`; // e.g. (PWD-1)
+                opt.textContent = `${store.name}`;
                 select.appendChild(opt);
+                branchesMap[store._id] = store.name;
             });
         }
-    } catch (err) {
-        console.error('Error loading branches:', err);
-    }
+    } catch (err) { console.error(err); }
 }
-
-let suppliersMap = {}; // ID -> { name, ntn, whtPer, advTaxPer }
 
 async function loadSuppliers() {
     try {
         const token = localStorage.getItem('token');
-        const res = await fetch('/api/v1/suppliers?limit=1000', {
+        // Load virtually unlimited suppliers to ensure we have everything client-side
+        const res = await fetch('/api/v1/suppliers?limit=10000', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
@@ -60,78 +74,192 @@ async function loadSuppliers() {
             suppliersMap = {};
 
             list.forEach(sup => {
+                const branchId = sup.branch?._id || sup.branch;
+                let branchName = sup.branch?.name || '';
+
+                // Fallback: If we have an ID but no name, try to look it up in our branchesMap
+                if (!branchName && branchId && branchesMap[branchId]) {
+                    branchName = branchesMap[branchId];
+                }
+
                 suppliersMap[sup._id] = {
                     name: sup.name,
                     ntn: sup.ntn || '',
                     subCategory: sup.subCategory || '',
+                    categoryName: sup.category ? sup.category.name : '',
                     whtPer: sup.whtPer || 0,
-                    advTaxPer: sup.advTaxPer || 0
+                    advTaxPer: sup.advTaxPer || 0,
+                    branchId: branchId,
+                    branchName: branchName
                 };
             });
 
-            // --- Custom Search Dropdown Logic ---
-            const searchInput = document.getElementById('entrySupplierSearch');
-            const resultsDiv = document.getElementById('supplierSearchResults');
-
-            searchInput.addEventListener('input', function () {
-                const val = this.value.toLowerCase();
-                if (!val) {
-                    resultsDiv.style.display = 'none';
-                    return;
-                }
-
-                const matches = Object.keys(suppliersMap)
-                    .filter(id => suppliersMap[id].name.toLowerCase().includes(val))
-                    .slice(0, 15); // Show top 15 matches
-
-                if (matches.length > 0) {
-                    resultsDiv.innerHTML = matches.map(id => `
-                        <div class="search-result-item" onclick="selectSupplier('${id}')">
-                            <div class="fw-bold">${suppliersMap[id].name}</div>
-                            <small class="text-muted">${suppliersMap[id].subCategory || 'No Category'}</small>
-                        </div>
-                    `).join('');
-                    resultsDiv.style.display = 'block';
-                } else {
-                    resultsDiv.style.display = 'none';
-                }
-            });
-
-            // Close dropdown when clicking outside
-            document.addEventListener('click', function (e) {
-                if (!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
-                    resultsDiv.style.display = 'none';
-                }
-            });
+            setupSearch(); // Initialize logic
         }
-    } catch (err) {
-        console.error('Error loading suppliers:', err);
+    } catch (err) { console.error('Error loading suppliers:', err); }
+}
+
+function setupSearch() {
+    const searchInput = document.getElementById('entrySupplierSearch');
+    const resultsDiv = document.getElementById('supplierSearchResults');
+    let currentFocus = -1;
+
+    searchInput.addEventListener('input', function () {
+        const rawVal = this.value;
+        let val = rawVal.toLowerCase().trim();
+
+        const branchSelect = document.getElementById('branchSelect');
+        const selectedBranchId = branchSelect.value;
+        const selectedOption = branchSelect.options[branchSelect.selectedIndex];
+        const selectedBranchName = selectedOption ? selectedOption.text : '';
+
+        currentFocus = -1;
+
+        if (!val) {
+            resultsDiv.style.display = 'none';
+            return;
+        }
+
+        const tokens = val.split(/\s+/).filter(t => t.length > 0);
+
+        // 1. Map and Filter
+        const rankedMatches = Object.keys(suppliersMap)
+            .map(id => {
+                const s = suppliersMap[id];
+
+                // --- Branch Filtering ---
+                if (selectedBranchId && s.branchId) {
+                    // Check ID match
+                    const idMatch = String(s.branchId) === String(selectedBranchId);
+
+                    // Check Name match (Robust & Case Insensitive)
+                    const sName = String(s.branchName || '').trim().toLowerCase();
+                    const selName = String(selectedBranchName || '').trim().toLowerCase();
+                    const nameMatch = sName && selName && (sName === selName);
+
+                    // If neither matches, this supplier is not for this branch
+                    if (!idMatch && !nameMatch) return null;
+                }
+
+                // --- Text Matching ---
+                const nameLower = String(s.name || '').toLowerCase().trim();
+                const subLower = String(s.subCategory || '').toLowerCase().trim();
+                const combinedText = nameLower + ' ' + subLower;
+
+                // Token Check: All typed words must appear in name OR subcategory
+                const allTokensMatch = tokens.every(token => combinedText.includes(token));
+                if (!allTokensMatch) return null;
+
+                // --- Scoring ---
+                let score = 0;
+                if (nameLower.startsWith(val)) score += 2000;
+                else if (nameLower.includes(val)) score += 100;
+                if (subLower.includes(val)) score += 50;
+
+                return { id, s, score, nameLower };
+            })
+            .filter(item => item !== null);
+
+        // 2. Sort
+        rankedMatches.sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            return a.nameLower.localeCompare(b.nameLower);
+        });
+
+        // 3. Slice (Display Limit)
+        const finalResults = rankedMatches.slice(0, 500);
+
+        if (finalResults.length > 0) {
+            resultsDiv.innerHTML = finalResults.map((item) => {
+                const { id, s } = item;
+
+                let subCatDisplay = '';
+                const rawSub = String(s.subCategory || '');
+                if (rawSub) {
+                    const cleanSub = rawSub.trim();
+                    if (cleanSub.startsWith('(') && cleanSub.endsWith(')')) {
+                        subCatDisplay = cleanSub;
+                    } else {
+                        subCatDisplay = `(${cleanSub})`;
+                    }
+                }
+
+                return `
+                <div class="search-result-item" onclick="selectSupplier('${id}')">
+                    <div class="fw-bold">
+                        ${s.name} <span class="text-muted fw-normal small">${subCatDisplay}</span>
+                    </div>
+                </div>
+            `;
+            }).join('');
+
+            resultsDiv.style.display = 'block';
+        } else {
+            resultsDiv.style.display = 'none';
+        }
+    });
+
+    // Keyboard navigation
+    searchInput.addEventListener('keydown', function (e) {
+        let x = resultsDiv.getElementsByClassName("search-result-item");
+        if (e.key === 'ArrowDown') {
+            currentFocus++;
+            addActive(x);
+        } else if (e.key === 'ArrowUp') {
+            currentFocus--;
+            addActive(x);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (currentFocus > -1) {
+                if (x && x[currentFocus]) x[currentFocus].click();
+            } else if (x.length > 0) {
+                // Auto-select first result on Enter if no specific focus
+                x[0].click();
+            }
+        }
+    });
+
+    function addActive(x) {
+        if (!x) return false;
+        removeActive(x);
+        if (currentFocus >= x.length) currentFocus = 0;
+        if (currentFocus < 0) currentFocus = (x.length - 1);
+        x[currentFocus].classList.add("active-result");
+        x[currentFocus].style.backgroundColor = "#e9ecef";
+        x[currentFocus].scrollIntoView({ block: "nearest" });
     }
+
+    function removeActive(x) {
+        for (let i = 0; i < x.length; i++) {
+            x[i].classList.remove("active-result");
+            x[i].style.backgroundColor = "";
+        }
+    }
+
+    document.addEventListener('click', function (e) {
+        if (!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
+            resultsDiv.style.display = 'none';
+        }
+    });
 }
 
 window.selectSupplier = function (id) {
     const s = suppliersMap[id];
     if (!s) return;
-
-    // Fill fields
     document.getElementById('entrySupplierSearch').value = s.name;
     document.getElementById('entrySupplier').value = id;
     document.getElementById('entryNTN').value = s.ntn;
+    document.getElementById('entryCategory').value = s.categoryName || '';
     document.getElementById('entrySubCat').value = s.subCategory;
     document.getElementById('entryTaxPct').value = s.whtPer;
     document.getElementById('entryAiTaxPct').value = s.advTaxPer;
 
-    // Trigger calculation if amount exists
     const amtInput = document.getElementById('entryInvAmt');
     if (amtInput.value) {
         const event = new Event('input');
         amtInput.dispatchEvent(event);
     }
-
-    // Hide results
     document.getElementById('supplierSearchResults').style.display = 'none';
-
-    // Set focus to the next logical field (Date)
     document.getElementById('entryDate').focus();
 }
 
@@ -145,19 +273,17 @@ async function loadCategories() {
         if (data.success) {
             const select = document.getElementById('categorySelect');
             const qsSelect = document.getElementById('qsCategory');
-
+            categoriesMap = {};
             const options = '<option value="">Select Supplier Category</option>' +
-                data.data.map(cat => `<option value="${cat._id}">${cat.name}</option>`).join('');
-
+                data.data.map(cat => {
+                    categoriesMap[cat._id] = cat.name;
+                    return `<option value="${cat._id}">${cat.name}</option>`;
+                }).join('');
             select.innerHTML = options;
             if (qsSelect) qsSelect.innerHTML = options;
         }
-    } catch (err) {
-        console.error('Error loading categories:', err);
-    }
+    } catch (err) { console.error('Error loading categories:', err); }
 }
-
-// --- Logic ---
 
 function setupCalculations() {
     const amountInput = document.getElementById('entryInvAmt');
@@ -168,11 +294,9 @@ function setupCalculations() {
 
     function calculate() {
         const amt = parseFloat(amountInput.value) || 0;
-
         const taxPct = parseFloat(taxPctInput.value) || 0;
         const taxVal = amt * (taxPct / 100);
         taxDedInput.value = taxVal > 0 ? taxVal.toFixed(2) : '';
-
         const aiPct = parseFloat(aiPctInput.value) || 0;
         const aiVal = amt * (aiPct / 100);
         aiAmtInput.value = aiVal > 0 ? aiVal.toFixed(2) : '';
@@ -183,9 +307,7 @@ function setupCalculations() {
     });
 }
 
-// Local state for rows
 let addedRows = [];
-
 function setupAddButton() {
     document.getElementById('addItemBtn').addEventListener('click', () => {
         const supplierId = document.getElementById('entrySupplier').value;
@@ -204,11 +326,11 @@ function setupAddButton() {
         }
 
         const subCat = document.getElementById('entrySubCat').value;
+        const category = document.getElementById('entryCategory').value;
         const supplierName = suppliersMap[supplierId]?.name || 'Unknown';
-
         const rowData = {
-            id: Date.now(), // temp id
-            supplierId, supplierName, subCat, ntn, date, invNum, invAmt, taxPct, taxDed, aiPct, aiAmt
+            id: Date.now(),
+            supplierId, supplierName, category, subCat, ntn, date, invNum, invAmt, taxPct, taxDed, aiPct, aiAmt
         };
 
         addedRows.push(rowData);
@@ -216,7 +338,6 @@ function setupAddButton() {
         clearEntryInputs();
     });
 
-    // Add Enter key listener for Amount fields
     ['entryInvAmt', 'entryAiTaxAmt'].forEach(id => {
         document.getElementById(id).addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
@@ -230,6 +351,7 @@ function setupAddButton() {
 function clearEntryInputs() {
     document.getElementById('entrySupplierSearch').value = '';
     document.getElementById('entrySupplier').value = '';
+    document.getElementById('entryCategory').value = '';
     document.getElementById('entrySubCat').value = '';
     document.getElementById('entryNTN').value = '';
     document.getElementById('entryInvNum').value = '';
@@ -238,18 +360,11 @@ function clearEntryInputs() {
     document.getElementById('entryTaxDed').value = '';
     document.getElementById('entryAiTaxPct').value = '';
     document.getElementById('entryAiTaxAmt').value = '';
-
-    // Set focus back to supplier search for next entry
     document.getElementById('entrySupplierSearch').focus();
 }
 
 function renderTableRows() {
     const tbody = document.querySelector('#taxTable tbody');
-    // Remove all rows except the first (entry row)
-    // Actually, easier to append AFTER the entry row. 
-    // Wait, reference puts entry row at top.
-
-    // Clear existing data rows (keep index 0 which is entry)
     const rows = Array.from(tbody.children);
     for (let i = 1; i < rows.length; i++) {
         rows[i].remove();
@@ -263,6 +378,7 @@ function renderTableRows() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${row.supplierName}</td>
+            <td>${row.category || '-'}</td>
             <td>${row.subCat}</td>
             <td>${row.ntn}</td>
             <td>${row.date}</td>
@@ -294,7 +410,6 @@ window.removeRow = function (id) {
 }
 
 // --- Save & List Logic ---
-
 let currentEditId = null;
 let loadedRecords = [];
 
@@ -304,14 +419,11 @@ document.getElementById('listBtn').addEventListener('click', () => {
     loadSavedData();
 });
 
-// Search & Filter Listeners
 document.getElementById('searchFilterBtn').addEventListener('click', loadSavedData);
 document.getElementById('filterDate').addEventListener('change', loadSavedData);
+document.getElementById('filterDateFrom').addEventListener('change', loadSavedData);
 document.getElementById('branchSelect').addEventListener('change', loadSavedData);
 
-// Initial load already handled in DOMContentLoaded
-
-// Search Feature (Client Side Text Search)
 document.getElementById('listSearch').addEventListener('input', function (e) {
     const term = e.target.value.toLowerCase();
     const rows = document.querySelectorAll('#savedRecordsBody tr');
@@ -326,16 +438,12 @@ async function saveData() {
         alert('No entries to save');
         return;
     }
-
     const branch = document.getElementById('branchSelect').value;
     const date = document.getElementById('filterDate').value;
-
     if (!branch || !date) {
         alert('Please select Branch and Date');
         return;
     }
-
-    // Calculate totals
     const totalAmt = addedRows.reduce((acc, r) => acc + r.invAmt, 0);
     const totalTax = addedRows.reduce((acc, r) => acc + r.taxDed, 0);
     const totalAi = addedRows.reduce((acc, r) => acc + r.aiAmt, 0);
@@ -381,13 +489,10 @@ async function saveData() {
             addedRows = [];
             currentEditId = null;
             renderTableRows();
-
-            // Reset Button
             const btn = document.getElementById('saveBtn');
             btn.innerHTML = '<i class="fas fa-save"></i> Save';
             btn.classList.remove('btn-warning');
             btn.classList.add('btn-success');
-
             loadSavedData();
         } else {
             alert('Error: ' + (data.message || 'Unknown error'));
@@ -400,23 +505,21 @@ async function saveData() {
 
 async function loadSavedData() {
     const branch = document.getElementById('branchSelect').value;
-    const date = document.getElementById('filterDate').value;
-
-    // Default to today if no date? Or fetch recent.
-    // User wants "day wise". If date is selected, show that day.
-
-    let url = '/api/v1/supplier-taxes?limit=100';
+    const dateTo = document.getElementById('filterDate').value;
+    const dateFrom = document.getElementById('filterDateFrom').value;
+    let url = '/api/v1/supplier-taxes?limit=1000';
     if (branch) url += `&branch=${branch}`;
-    if (date) url += `&date=${date}`;
+    if (dateFrom && dateTo) url += `&startDate=${dateFrom}&endDate=${dateTo}`;
+    else if (dateTo) url += `&date=${dateTo}`;
 
     try {
         const token = localStorage.getItem('token');
         const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
         const data = await res.json();
-
         if (data.success) {
-            loadedRecords = data.data; // Store for editing
+            loadedRecords = data.data;
             renderSavedTable(data.data);
+            renderGrandSummary(data.data);
         }
     } catch (err) { console.error(err); }
 }
@@ -425,23 +528,30 @@ function renderSavedTable(records) {
     const tbody = document.getElementById('savedRecordsBody');
     if (!tbody) return;
     tbody.innerHTML = '';
-
     if (!records || records.length === 0) {
         tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted">No records found</td></tr>';
         return;
     }
-
     let flatRows = [];
     records.forEach(rec => {
         const sheetDate = new Date(rec.date).toLocaleDateString();
         const branchName = rec.branch ? (rec.branch.name || 'Unknown') : 'Unknown';
-
         if (rec.entries && rec.entries.length > 0) {
             rec.entries.forEach(entry => {
+                let catName = '-';
+                // Try obtain category name from populated supplier
+                if (entry.supplier) {
+                    let c = entry.supplier.category;
+                    if (c && typeof c === 'object' && c.name) catName = c.name;
+                    else if (c && categoriesMap[c]) catName = categoriesMap[c];
+                    else if (c && typeof c === 'object' && c._id && categoriesMap[c._id]) catName = categoriesMap[c._id] || '-';
+                }
+
                 flatRows.push({
-                    parentId: rec._id, // The ID of the Main Sheet
+                    parentId: rec._id,
                     sheetDate,
                     branchName,
+                    categoryName: catName,
                     ...entry
                 });
             });
@@ -450,13 +560,13 @@ function renderSavedTable(records) {
 
     flatRows.forEach(row => {
         const invDate = row.invoiceDate ? new Date(row.invoiceDate).toLocaleDateString() : '-';
-
         const tr = document.createElement('tr');
         tr.className = 'align-middle';
         tr.innerHTML = `
             <td>${row.sheetDate}</td>
             <td>${row.branchName}</td>
             <td class="fw-bold">${row.supplierName || '-'}</td>
+            <td>${row.categoryName || '-'}</td>
             <td>${row.subCategory || '-'}</td>
             <td>${row.ntn || '-'}</td>
             <td>${row.invoiceNumber || '-'}</td>
@@ -477,17 +587,104 @@ function renderSavedTable(records) {
     });
 }
 
+function renderGrandSummary(records) {
+    const summaryBody = document.getElementById('summaryBody');
+    const summaryFoot = document.getElementById('summaryFoot');
+    const container = document.getElementById('summaryContainer');
+
+    if (!records || records.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    // Initialize Aggregation
+    let summary = {};
+    let grandAmt = 0;
+    let grandTax = 0;
+    let grandAi = 0;
+
+    records.forEach(rec => {
+        if (rec.entries && rec.entries.length > 0) {
+            rec.entries.forEach(entry => {
+                // Determine Category Name
+                let catName = 'Uncategorized';
+                if (entry.supplier) {
+                    // Check if supplier object has category populated
+                    let catId = entry.supplier.category;
+                    // If entry.supplier is populated object
+                    if (typeof entry.supplier === 'object' && entry.supplier.category) {
+                        catId = entry.supplier.category;
+                        // if category is object, get _id
+                        if (typeof catId === 'object') catId = catId._id;
+                    }
+                    if (catId && categoriesMap[catId]) {
+                        catName = categoriesMap[catId];
+                    }
+                }
+
+                if (!summary[catName]) {
+                    summary[catName] = { amount: 0, tax: 0, ai: 0 };
+                }
+
+                const invAmt = entry.invoiceAmount || 0;
+                const taxDed = entry.taxDeducted || 0;
+                const aiAmt = entry.aiTaxAmount || 0;
+
+                summary[catName].amount += invAmt;
+                summary[catName].tax += taxDed;
+                summary[catName].ai += aiAmt;
+
+                grandAmt += invAmt;
+                grandTax += taxDed;
+                grandAi += aiAmt;
+            });
+        }
+    });
+
+    // Render Rows
+    let rowsHtml = '';
+    const sortedCats = Object.keys(summary).sort();
+
+    if (sortedCats.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    sortedCats.forEach(cat => {
+        const data = summary[cat];
+        rowsHtml += `
+            <tr style="border-bottom: 1px solid #000;">
+                <td style="border: 1px solid #000;">${cat}</td>
+                <td class="text-end" style="border: 1px solid #000;">${Math.round(data.amount).toLocaleString()}</td>
+                <td class="text-end" style="border: 1px solid #000;">${Math.round(data.tax).toLocaleString()}</td>
+                <td class="text-end" style="border: 1px solid #000;">${Math.round(data.ai).toLocaleString()}</td>
+            </tr>
+        `;
+    });
+
+    summaryBody.innerHTML = rowsHtml;
+
+    // Render Footer
+    summaryFoot.innerHTML = `
+        <tr style="background-color: #cccccc; border: 1px solid #000; font-weight: bold; font-size: 1.1em;">
+            <td style="border: 1px solid #000;">TOTAL</td>
+            <td class="text-end" style="border: 1px solid #000;">${Math.round(grandAmt).toLocaleString()}</td>
+            <td class="text-end" style="border: 1px solid #000;">${Math.round(grandTax).toLocaleString()}</td>
+            <td class="text-end" style="border: 1px solid #000;">${Math.round(grandAi).toLocaleString()}</td>
+        </tr>
+    `;
+
+    container.style.display = 'block';
+}
+
 window.editRecord = function (id) {
     const record = loadedRecords.find(r => r._id === id);
     if (!record) return;
-
     currentEditId = id;
-
-    // Set Header Data
     document.getElementById('branchSelect').value = record.branch?._id || record.branch || '';
-    document.getElementById('filterDate').value = record.date ? new Date(record.date).toISOString().split('T')[0] : '';
-
-    // Load Entries
+    const recDate = record.date ? new Date(record.date).toISOString().split('T')[0] : '';
+    document.getElementById('filterDate').value = recDate;
+    document.getElementById('filterDateFrom').value = recDate;
     addedRows = record.entries.map(e => ({
         id: e._id || Date.now() + Math.random(),
         supplierId: e.supplier?._id || e.supplier,
@@ -504,8 +701,6 @@ window.editRecord = function (id) {
     }));
 
     renderTableRows();
-
-    // Population for first entry
     if (addedRows.length > 0) {
         const first = addedRows[0];
         document.getElementById('entrySupplierSearch').value = first.supplierName;
@@ -515,14 +710,10 @@ window.editRecord = function (id) {
         document.getElementById('entryTaxPct').value = first.taxPct;
         document.getElementById('entryAiTaxPct').value = first.aiPct;
     }
-
-    // Toggle Save Button to Update
     const btn = document.getElementById('saveBtn');
     btn.innerHTML = '<i class="fas fa-edit"></i> Update';
     btn.classList.remove('btn-success');
     btn.classList.add('btn-warning');
-
-    // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -537,7 +728,6 @@ window.deleteRecord = async function (id) {
         loadSavedData();
     } catch (e) { alert(e); }
 }
-// --- Quick Add Supplier ---
 
 window.openQuickSupplierModal = function () {
     document.getElementById('quickSupplierForm').reset();
@@ -553,7 +743,7 @@ window.saveQuickSupplier = async function () {
         whtPer: parseFloat(document.getElementById('qsWht').value) || 0,
         advTaxPer: parseFloat(document.getElementById('qsAdv').value) || 0,
         isActive: true,
-        branch: document.getElementById('branchSelect').value // Default to current branch
+        branch: document.getElementById('branchSelect').value
     };
 
     if (!formData.name || !formData.category) {
@@ -577,10 +767,7 @@ window.saveQuickSupplier = async function () {
             alert('Supplier Added Successfully!');
             bootstrap.Modal.getInstance(document.getElementById('quickSupplierModal')).hide();
             await loadSuppliers();
-
-            // Auto-select the new supplier
             const newSupId = data.data._id;
-            // Update map first so selectSupplier works
             suppliersMap[newSupId] = {
                 name: formData.name,
                 ntn: formData.ntn,

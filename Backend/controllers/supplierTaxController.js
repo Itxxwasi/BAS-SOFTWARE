@@ -26,7 +26,16 @@ exports.getSupplierTaxes = asyncHandler(async (req, res, next) => {
     }
 
     // Basic pagination
-    const data = await SupplierTax.find(query).populate('branch entries.supplier').sort({ date: -1 });
+    const data = await SupplierTax.find(query)
+        .populate('branch')
+        .populate({
+            path: 'entries.supplier',
+            populate: {
+                path: 'category',
+                select: 'name'
+            }
+        })
+        .sort({ date: -1 });
 
     res.status(200).json({
         success: true,
