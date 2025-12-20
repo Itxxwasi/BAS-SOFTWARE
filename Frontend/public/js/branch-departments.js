@@ -144,11 +144,25 @@ async function saveDepartment() {
 }
 
 async function editDepartment(id) {
+    console.log('Editing department with ID:', id);
+    if (!id || id === 'undefined') {
+        alert('Error: Invalid Department ID');
+        return;
+    }
+
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`/api/v1/departments/${id}`, {
+        const url = `/api/v1/departments/${id}`;
+        console.log('Fetching:', url);
+
+        const response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
+
+        if (!response.ok) {
+            throw new Error(`Server status: ${response.status} ${response.statusText}`);
+        }
+
         const data = await response.json();
         if (data.success) {
             const d = data.data;
@@ -174,8 +188,13 @@ async function editDepartment(id) {
             document.getElementById('closing2CompSale').checked = d.closing2CompSale || false;
             document.getElementById('closing2DeptDropDown').checked = d.closing2DeptDropDown || false;
             document.getElementById('isActive').checked = d.isActive;
+        } else {
+            alert('Error: ' + data.message);
         }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+        console.error('Fetch error:', e);
+        alert('Failed to load department details: ' + e.message);
+    }
 }
 
 async function deleteDepartment(id) {

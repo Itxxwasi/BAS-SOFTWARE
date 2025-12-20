@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supplier WH Tax - Bilal Accounting System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/css/desktop-style.css" rel="stylesheet">
+    <link href="/css/sidebar.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+    <style>
+        /* Specific Styles for Tax Screen */
+        .page-header-bar {
+            background-color: #1a5f7a;
+            /* Blue from ref */
+            color: white;
+            padding: 10px 15px;
+            font-size: 1.25rem;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .filter-panel {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .form-label {
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .input-group-text {
+            background-color: #e9ecef;
+            font-weight: bold;
+        }
+
+        /* Input highlight classes from ref image */
+        .bg-red-input {
+            background-color: #dc3545 !important;
+            color: white !important;
+        }
+
+        .bg-red-input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .bg-green-input {
+            background-color: #28a745 !important;
+            color: white !important;
+        }
+
+        .bg-green-input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .table-input {
+            width: 100%;
+            padding: 4px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+
+        th {
+            white-space: nowrap;
+            font-size: 0.9rem;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        td {
+            vertical-align: middle;
+            padding: 5px !important;
+        }
+
+        /* Header Colors */
+        .color-header-red {
+            color: #dc3545;
+        }
+
+        .color-header-green {
+            color: #28a745;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Main Content Wrapper -->
+    <div class="main-content">
+        <!-- Top Navigation -->
+        <nav class="top-nav">
+            <div class="d-flex align-items-center">
+                <button id="sidebarToggle" class="btn btn-link text-dark me-3">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h4 class="mb-0">Supplier WH Tax</h4>
+            </div>
+
+            <div class="user-info dropdown">
+                <div class="d-flex align-items-center" data-bs-toggle="dropdown" style="cursor: pointer;">
+                    <div class="user-avatar text-white bg-primary rounded-circle d-flex align-items-center justify-content-center"
+                        style="width: 35px; height: 35px;">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <span class="ms-2 d-none d-md-block" id="userName">User</span>
+                </div>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="/profile.html">Profile</a></li>
+                    <li>
+                        <hr class="dropdown-divider">
+                    </li>
+                    <li><a class="dropdown-item" href="#" onclick="window.pageAccess.logout()">Logout</a></li>
+                </ul>
+            </div>
+        </nav>
+
+        <div class="container-fluid mt-3">
+
+            <!-- Header Bar -->
+            <div class="page-header-bar mb-3">
+                <span>Supplier WH Tax</span>
+                <div>
+                    <!-- User icon or reload can go here -->
+                    <i class="fas fa-sync-alt" style="cursor:pointer; font-size:1rem;" onclick="location.reload()"></i>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="card mb-3 border-0 shadow-sm">
+                <div class="card-body py-3">
+                    <div class="row align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label">Branch</label>
+                            <select id="branchSelect" class="form-select text-danger fw-bold">
+                                <option value="">Select Branch</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Date</label>
+                            <input type="date" id="filterDate" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Supplier Category</label>
+                            <select id="categorySelect" class="form-select">
+                                <option value="">Select Supplier Category</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-primary w-100" id="searchFilterBtn"><i class="fas fa-search"></i>
+                                Search</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="mb-3">
+                <button class="btn btn-success me-2" id="saveBtn"><i class="fas fa-save"></i> Save</button>
+                <button class="btn btn-warning text-white" id="listBtn"><i class="fas fa-list"></i> List</button>
+            </div>
+
+            <!-- Main Data Table / Entry Form -->
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-bordered mb-0" id="taxTable">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th style="width: 250px;">Name of Supplier</th>
+                                    <th>Supplier NTN</th>
+                                    <th>Invoice Date</th>
+                                    <th>Invoice Number</th>
+                                    <th>Invoice Amount</th>
+                                    <th>Tax %</th>
+                                    <th class="color-header-red">Tax Deducted</th>
+                                    <th class="color-header-green">A.I. Tax %</th>
+                                    <th>A.I. Tax Amount</th>
+                                    <th style="width: 50px;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Entry Row -->
+                                <tr class="align-middle bg-light">
+                                    <td>
+                                        <select id="entrySupplier" class="form-select form-select-sm">
+                                            <option value="">Select Supplier</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="text" id="entryNTN"
+                                            class="form-control form-select-sm bg-red-input" placeholder="NTN">
+                                    </td>
+                                    <td>
+                                        <input type="date" id="entryDate" class="form-control form-select-sm">
+                                    </td>
+                                    <td>
+                                        <input type="text" id="entryInvNum" class="form-control form-select-sm">
+                                    </td>
+                                    <td>
+                                        <input type="number" id="entryInvAmt" class="form-control form-select-sm"
+                                            step="0.01">
+                                    </td>
+                                    <td>
+                                        <input type="number" id="entryTaxPct" class="form-control form-select-sm"
+                                            step="0.01">
+                                    </td>
+                                    <td>
+                                        <input type="number" id="entryTaxDed"
+                                            class="form-control form-select-sm bg-red-input" step="0.01">
+                                    </td>
+                                    <td>
+                                        <input type="number" id="entryAiTaxPct"
+                                            class="form-control form-select-sm bg-green-input" step="0.01">
+                                    </td>
+                                    <td>
+                                        <input type="number" id="entryAiTaxAmt" class="form-control form-select-sm"
+                                            step="0.01">
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-success btn-sm" id="addItemBtn">Add</button>
+                                    </td>
+                                </tr>
+                                <!-- Data Rows will go here -->
+                            </tbody>
+                            <tfoot>
+                                <tr class="fw-bold">
+                                    <td colspan="4" class="text-end">Total</td>
+                                    <td id="totalInvAmt" class="text-end">0.00</td>
+                                    <td></td>
+                                    <td id="totalTaxDed" class="text-end">0.00</td>
+                                    <td></td>
+                                    <td id="totalAiTaxAmt" class="text-end">0.00</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Saved Tax Records List -->
+            <div class="card shadow-sm border-0 mt-4">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 text-primary"><i class="fas fa-list"></i> Saved Tax Records</h5>
+                    <div class="d-flex gap-2">
+                        <input type="text" id="listSearch" class="form-control form-control-sm" style="width: 250px;"
+                            placeholder="Search in history...">
+                        <button class="btn btn-sm btn-outline-success" onclick="alert('Export feature coming soon')"><i
+                                class="fas fa-file-excel"></i> Excel</button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                        <table class="table table-bordered table-striped table-hover mb-0 text-center"
+                            style="font-size: 0.85rem; vertical-align: middle;">
+                            <thead class="bg-light sticky-top" style="z-index: 5;">
+                                <tr>
+                                    <th>Sheet Date</th>
+                                    <th>Branch</th>
+                                    <th>Supplier</th>
+                                    <th>NTN</th>
+                                    <th>Inv #</th>
+                                    <th>Inv Date</th>
+                                    <th class="text-end">Amount</th>
+                                    <th class="text-end">Tax %</th>
+                                    <th class="text-end">Tax Ded</th>
+                                    <th class="text-end">A.I. %</th>
+                                    <th class="text-end">A.I. Tax</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="savedRecordsBody">
+                                <!-- Populated via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/pageAccess.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/supplier-wh-tax.js"></script>
+</body>
+
+</html>

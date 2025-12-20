@@ -142,6 +142,11 @@ async function loadDashboardData() {
     const expData = await expRes.json();
     const expenses = expData.data || [];
 
+    // 4. Fetch Vouchers (Payment Data)
+    const vouchRes = await fetch(`/api/v1/vouchers?startDate=${currentFromDate}&endDate=${currentToDate}&limit=${limit}`, { headers });
+    const vouchData = await vouchRes.json();
+    const vouchers = vouchData.data || [];
+
     // --- Aggregate Data by Branch (Top Section) ---
     const branchStats = {};
     const getBranchObj = (name) => {
@@ -240,6 +245,161 @@ async function loadDashboardData() {
     } else {
         console.warn("categoryBreakdownContainer not found");
     }
+
+    // --- Process Payment Section ---
+    processPaymentSection(sheets, vouchers, warehouseCatsMap, branchNameMap);
+}
+
+let paymentDataCache = []; // Store calculated data for filtering
+
+function processPaymentSection(sheets, vouchers, categoriesMap, branchNameMap) {
+    const normalize = (name) => (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const allowedBranchList = Array.from(new Set(branchNameMap.values()));
+
+    // Structure: Map<CategoryName, Map<BranchName, {sale, cost, payment}>>
+    const stats = {};
+
+    // Init
+    Object.values(categoriesMap).forEach(catName => {
+        stats[catName] = {};
+        allowedBranchList.forEach(b => {
+            stats[catName][b] = { branch: b, sale: 0, cost: 0, payment: 0 };
+        });
+    });
+
+    // Fill Sale/Cost (Same logic as Breakdown)
+    sheets.forEach(sheet => {
+        const rawName = sheet.branch || 'Unknown';
+        const targetBranchName = branchNameMap.get(normalize(rawName));
+        if (!targetBranchName) return;
+
+        const dataObj = sheet.closing02?.data || sheet.closing02;
+        if (dataObj && dataObj.warehouseSale && Array.isArray(dataObj.warehouseSale)) {
+            dataObj.warehouseSale.forEach(item => {
+                const catName = categoriesMap[item.category];
+                if (!catName) return;
+
+                if (!stats[catName]) stats[catName] = {}; // safety
+                if (!stats[catName][targetBranchName]) stats[catName][targetBranchName] = { branch: targetBranchName, sale: 0, cost: 0, payment: 0 };
+
+                stats[catName][targetBranchName].sale += parseFloat(item.sale || 0);
+                stats[catName][targetBranchName].cost += parseFloat(item.cost || 0);
+            });
+        }
+    });
+
+    // Fill Payments from Vouchers
+    vouchers.forEach(v => {
+        const rawName = v.branch || 'Unknown';
+        const targetBranchName = branchNameMap.get(normalize(rawName));
+        if (!targetBranchName) return;
+
+        if (v.entries) {
+            v.entries.forEach(e => {
+                // Determine if entry is for a Category
+                // Using stats keys (Category Names) to check
+                const catName = e.account;
+
+                if (stats[catName] && stats[catName][targetBranchName]) {
+                    // Payment is Debit
+                    stats[catName][targetBranchName].payment += (e.debit || 0);
+                }
+            });
+        }
+    });
+
+    paymentDataCache = stats;
+
+    // Populate Dropdown
+    const dropdown = document.getElementById('paymentCategoryFilter');
+    if (dropdown) {
+        const currentSel = dropdown.value;
+        dropdown.innerHTML = '<option value="all">All Categories</option>';
+        Object.keys(stats).sort().forEach(c => {
+            dropdown.innerHTML += `<option value="${c}">${c}</option>`;
+        });
+        if (currentSel && stats[currentSel]) dropdown.value = currentSel;
+
+        // Bind change event
+        dropdown.onchange = renderPaymentUI;
+    }
+
+    renderPaymentUI();
+}
+
+function renderPaymentUI() {
+    const dropdown = document.getElementById('paymentCategoryFilter');
+    if (!dropdown) return;
+
+    const category = dropdown.value;
+    const tbody = document.getElementById('paymentTableBody');
+    const title = document.getElementById('paymentTableTitle');
+
+    if (!paymentDataCache || Object.keys(paymentDataCache).length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No Data</td></tr>';
+        return;
+    }
+
+    let branchesData = {}; // Branch -> {sale, cost, payment}
+
+    // Filter and Aggregate
+    Object.keys(paymentDataCache).forEach(catName => {
+        if (category !== 'all' && catName !== category) return;
+
+        const branchMap = paymentDataCache[catName];
+        Object.values(branchMap).forEach(b => {
+            if (!branchesData[b.branch]) branchesData[b.branch] = { branch: b.branch, sale: 0, cost: 0, payment: 0 };
+            branchesData[b.branch].sale += b.sale;
+            branchesData[b.branch].cost += b.cost;
+            branchesData[b.branch].payment += b.payment;
+        });
+    });
+
+    // Update Title
+    title.innerHTML = category === 'all' ? '<i class="fas fa-money-bill"></i> All Categories Payment Report' : `<i class="fas fa-money-bill"></i> ${category}`;
+
+    // Calculate Grand Totals
+    let tSale = 0, tCost = 0, tPay = 0;
+    const sortedBranches = Object.values(branchesData).sort((a, b) => b.sale - a.sale);
+
+    let html = '';
+    sortedBranches.forEach((b, i) => {
+        tSale += b.sale;
+        tCost += b.cost;
+        tPay += b.payment;
+        const bal = b.cost - b.payment; // Balance logic as per instruction/image (Cost(Due) - Paid = Balance)
+
+        html += `
+            <tr>
+                <td class="text-center fw-bold">${i + 1}</td>
+                <td>${b.branch}</td>
+                <td class="text-end">${formatCurrency(b.sale)}</td>
+                <td class="text-end">${formatCurrency(b.cost)}</td>
+                <td class="text-end">${formatCurrency(b.payment)}</td>
+                <td class="text-end fw-bold ${bal > 0 ? 'text-success' : 'text-danger'}">${formatCurrency(bal)}</td>
+            </tr>
+        `;
+    });
+
+    // Grand Total Row
+    const totalBal = tCost - tPay;
+    html += `
+         <tr class="grand-total-row">
+            <td colspan="2" class="text-center">Grand Total</td>
+            <td class="text-end">${formatCurrency(tSale)}</td>
+            <td class="text-end">${formatCurrency(tCost)}</td>
+            <td class="text-end">${formatCurrency(tPay)}</td>
+            <td class="text-end">${formatCurrency(totalBal)}</td>
+        </tr>
+    `;
+
+    tbody.innerHTML = html;
+
+    // Update Cards
+    document.getElementById('payStatSale').textContent = formatCurrency(tSale);
+    document.getElementById('payStatCost').textContent = formatCurrency(tCost);
+    document.getElementById('payStatPayment').textContent = formatCurrency(tPay);
+    document.getElementById('payStatBalance').textContent = formatCurrency(totalBal);
 }
 
 function processAndRenderCategoryBreakdown(sheets, categoriesMap, branchNameMap) {
@@ -539,12 +699,7 @@ function renderBranchTable(data) {
             <tr>
                 <td class="text-center fw-bold">${index + 1}</td>
                 <td class="fw-bold">${b.name}</td>
-                <td class="text-end">${formatCurrency(b.grossSale)}</td>
-                <td class="text-end">${formatCurrency(b.discountVal)}</td>
                 <td class="text-end">${b.discPct.toFixed(2)}%</td>
-                <td class="text-end">${formatCurrency(b.returnVal)}</td>
-                <td class="text-end">${formatCurrency(b.netSale)}</td> <!-- Sale Value used net for now -->
-                <td class="text-end">${formatCurrency(b.gst)}</td>
                 <td class="text-end fw-bold text-success">${formatCurrency(b.netSale)}</td>
                 <td class="text-end fw-bold">${formatCurrency(b.avgDailySale)}</td>
             </tr>
@@ -557,12 +712,7 @@ function renderBranchTable(data) {
     html += `
         <tr class="grand-total-row">
             <td colspan="2" class="text-center">Grand Total</td>
-            <td class="text-end">${formatCurrency(tGross)}</td>
-            <td class="text-end">${formatCurrency(tDiscVal)}</td>
             <td class="text-end">${totalDiscPct.toFixed(2)}%</td>
-            <td class="text-end">${formatCurrency(tRet)}</td>
-            <td class="text-end">${formatCurrency(tNet)}</td>
-            <td class="text-end">${formatCurrency(tGst)}</td>
             <td class="text-end">${formatCurrency(tNet)}</td>
             <td class="text-end">${formatCurrency(tAvg)}</td>
         </tr>

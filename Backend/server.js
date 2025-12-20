@@ -52,6 +52,7 @@ const cashSaleRoutes = require('./routes/cashSales');
 const healthRoutes = require('./routes/health');
 const expenseHeadRoutes = require('./routes/expenseHeads');
 const diagnosticRoutes = require('./routes/diagnostic');
+const supplierTaxRoutes = require('./routes/supplierTaxes');
 
 // Error handler
 const errorHandler = require('./middleware/errorHandler');
@@ -250,6 +251,7 @@ app.use('/api/v1/cash-sales', cashSaleRoutes);
 app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/expense-heads', expenseHeadRoutes);
 app.use('/api/v1/diagnostic', diagnosticRoutes);
+app.use('/api/v1/supplier-taxes', supplierTaxRoutes);
 
 // Serve login page at root
 app.get('/', (req, res) => {
@@ -409,6 +411,12 @@ app.get('/cash-counter.html', (req, res) => {
 });
 app.get('/closing-sheet.html', (req, res) => {
   res.sendFile(path.join(__dirname, '../Frontend/views', 'closing-sheet.html'));
+});
+app.get('/supplier-wh-tax.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../Frontend/views', 'supplier-wh-tax.html'));
+});
+app.get('/supplier-tax-report.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../Frontend/views', 'supplier-tax-report.html'));
 });
 
 // ... [skipping routes requires] ...

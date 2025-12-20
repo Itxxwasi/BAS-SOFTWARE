@@ -157,7 +157,9 @@ class SidebarNavigation {
                     { label: 'Parties', link: '/parties.html' },
                     { label: 'New Purchase', link: '/purchases.html' },
                     { label: 'Purchase Return', link: '/purchase-returns.html' },
-                    { label: 'Supplier Payment', link: '/supplier-payments.html' }
+                    { label: 'Supplier Payment', link: '/supplier-payments.html' },
+                    { label: 'Supplier WH Tax', link: '/supplier-wh-tax.html' },
+                    { label: 'Supplier Tax Report', link: '/supplier-tax-report.html' },
                 ]
             },
             {
