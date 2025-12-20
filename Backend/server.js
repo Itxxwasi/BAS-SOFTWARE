@@ -58,6 +58,7 @@ const attendanceRoutes = require('./routes/attendance');
 const customerDemandRoutes = require('./routes/customerDemands');
 const employeeRoutes = require('./routes/employees');
 const employeeAdjustmentRoutes = require('./routes/employeeAdjustments');
+const supplierRoutes = require('./routes/suppliers');
 const employeeAdvanceRoutes = require('./routes/employeeAdvances');
 const employeeClearanceRoutes = require('./routes/employeeClearances');
 const employeeCommissionRoutes = require('./routes/employeeCommissions');
@@ -248,6 +249,7 @@ app.use('/api/v1/reports', reportRoutes);
 app.use('/api/v1/settings', settingsRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/categories', categoryRoutes);
+app.use('/api/v1/suppliers', supplierRoutes);
 app.use('/api/v1/item-categories', itemCategoryRoutes);
 app.use('/api/v1/customer-categories', customerCategoryRoutes);
 app.use('/api/v1/supplier-categories', supplierCategoryRoutes);
@@ -478,6 +480,10 @@ app.get('/stores.html', (req, res) => {
 
 app.get('/holy-days.html', (req, res) => {
   res.sendFile(path.join(__dirname, '../Frontend/views', 'holy-days.html'));
+});
+
+app.get('/wht-supplier.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../Frontend/views', 'wht-supplier.html'));
 });
 
 app.get('/employee-commission.html', (req, res) => {

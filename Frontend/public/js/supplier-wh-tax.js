@@ -9,8 +9,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadSuppliers();
     await loadCategories();
 
+    // Default selection if available
+    const branchSelect = document.getElementById('branchSelect');
+    if (branchSelect.options.length > 1) {
+        branchSelect.selectedIndex = 1;
+    }
+
     setupCalculations();
     setupAddButton();
+
+    // Initial load of the records
+    await loadSavedData();
 });
 
 // --- Data Loading ---
@@ -36,55 +45,62 @@ async function loadBranches() {
     }
 }
 
-let suppliersMap = {}; // ID -> { name, ntn }
+let suppliersMap = {}; // ID -> { name, ntn, whtPer, advTaxPer }
 
 async function loadSuppliers() {
     try {
         const token = localStorage.getItem('token');
-        // Fetch parties (filtered by type=supplier if supported, otherwise all)
-        // Trying parties/type/supplier route pattern if exists, else query param
-        let res = await fetch('/api/v1/parties/type/supplier', {
+        const res = await fetch('/api/v1/suppliers?limit=1000', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-
-        // If the specific type route doesn't exist (404), fall back to query param or all
-        if (!res.ok) {
-            res = await fetch('/api/v1/parties?type=supplier', { headers: { 'Authorization': `Bearer ${token}` } });
-        }
-
-        // If still not ok or no query support, just all
-        if (!res.ok) {
-            res = await fetch('/api/v1/parties', { headers: { 'Authorization': `Bearer ${token}` } });
-        }
-
         const data = await res.json();
 
-        if (data.success || data.data) {
-            // Filter client-side just in case if we got all parties
-            const list = (data.data || []).filter(p => p.type === 'supplier' || !p.type); // inclusive if type missing
-            const select = document.getElementById('entrySupplier');
+        if (data.success) {
+            const list = data.data;
+            suppliersMap = {};
 
             list.forEach(sup => {
-                // Determine display name
-                const name = sup.name || sup.partyName;
-                const id = sup._id;
-                const ntn = sup.ntn || '';
-
-                suppliersMap[id] = { name, ntn };
-
-                const opt = document.createElement('option');
-                opt.value = id;
-                opt.textContent = name;
-                select.appendChild(opt);
+                suppliersMap[sup._id] = {
+                    name: sup.name,
+                    ntn: sup.ntn || '',
+                    subCategory: sup.subCategory || '',
+                    whtPer: sup.whtPer || 0,
+                    advTaxPer: sup.advTaxPer || 0
+                };
             });
 
-            // Supplier Selection Event for NTN
-            select.addEventListener('change', (e) => {
-                const id = e.target.value;
-                if (id && suppliersMap[id]) {
-                    document.getElementById('entryNTN').value = suppliersMap[id].ntn || '';
+            // --- Custom Search Dropdown Logic ---
+            const searchInput = document.getElementById('entrySupplierSearch');
+            const resultsDiv = document.getElementById('supplierSearchResults');
+
+            searchInput.addEventListener('input', function () {
+                const val = this.value.toLowerCase();
+                if (!val) {
+                    resultsDiv.style.display = 'none';
+                    return;
+                }
+
+                const matches = Object.keys(suppliersMap)
+                    .filter(id => suppliersMap[id].name.toLowerCase().includes(val))
+                    .slice(0, 15); // Show top 15 matches
+
+                if (matches.length > 0) {
+                    resultsDiv.innerHTML = matches.map(id => `
+                        <div class="search-result-item" onclick="selectSupplier('${id}')">
+                            <div class="fw-bold">${suppliersMap[id].name}</div>
+                            <small class="text-muted">${suppliersMap[id].subCategory || 'No Category'}</small>
+                        </div>
+                    `).join('');
+                    resultsDiv.style.display = 'block';
                 } else {
-                    document.getElementById('entryNTN').value = '';
+                    resultsDiv.style.display = 'none';
+                }
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function (e) {
+                if (!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
+                    resultsDiv.style.display = 'none';
                 }
             });
         }
@@ -93,16 +109,52 @@ async function loadSuppliers() {
     }
 }
 
+window.selectSupplier = function (id) {
+    const s = suppliersMap[id];
+    if (!s) return;
+
+    // Fill fields
+    document.getElementById('entrySupplierSearch').value = s.name;
+    document.getElementById('entrySupplier').value = id;
+    document.getElementById('entryNTN').value = s.ntn;
+    document.getElementById('entrySubCat').value = s.subCategory;
+    document.getElementById('entryTaxPct').value = s.whtPer;
+    document.getElementById('entryAiTaxPct').value = s.advTaxPer;
+
+    // Trigger calculation if amount exists
+    const amtInput = document.getElementById('entryInvAmt');
+    if (amtInput.value) {
+        const event = new Event('input');
+        amtInput.dispatchEvent(event);
+    }
+
+    // Hide results
+    document.getElementById('supplierSearchResults').style.display = 'none';
+
+    // Set focus to the next logical field (Date)
+    document.getElementById('entryDate').focus();
+}
+
 async function loadCategories() {
-    // Mocking or fetching if API exists. Steps suggest just dropping in.
-    // I'll leave empty or add dummy options.
-    const select = document.getElementById('categorySelect');
-    ['Medicine', 'Grocery', 'Cosmetics', 'General'].forEach(cat => {
-        const opt = document.createElement('option');
-        opt.value = cat;
-        opt.textContent = cat;
-        select.appendChild(opt);
-    });
+    try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/v1/supplier-categories', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+            const select = document.getElementById('categorySelect');
+            const qsSelect = document.getElementById('qsCategory');
+
+            const options = '<option value="">Select Supplier Category</option>' +
+                data.data.map(cat => `<option value="${cat._id}">${cat.name}</option>`).join('');
+
+            select.innerHTML = options;
+            if (qsSelect) qsSelect.innerHTML = options;
+        }
+    } catch (err) {
+        console.error('Error loading categories:', err);
+    }
 }
 
 // --- Logic ---
@@ -151,29 +203,44 @@ function setupAddButton() {
             return;
         }
 
+        const subCat = document.getElementById('entrySubCat').value;
         const supplierName = suppliersMap[supplierId]?.name || 'Unknown';
 
         const rowData = {
             id: Date.now(), // temp id
-            supplierId, supplierName, ntn, date, invNum, invAmt, taxPct, taxDed, aiPct, aiAmt
+            supplierId, supplierName, subCat, ntn, date, invNum, invAmt, taxPct, taxDed, aiPct, aiAmt
         };
 
         addedRows.push(rowData);
         renderTableRows();
         clearEntryInputs();
     });
+
+    // Add Enter key listener for Amount fields
+    ['entryInvAmt', 'entryAiTaxAmt'].forEach(id => {
+        document.getElementById(id).addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('addItemBtn').click();
+            }
+        });
+    });
 }
 
 function clearEntryInputs() {
+    document.getElementById('entrySupplierSearch').value = '';
     document.getElementById('entrySupplier').value = '';
+    document.getElementById('entrySubCat').value = '';
     document.getElementById('entryNTN').value = '';
-    // Keep date
     document.getElementById('entryInvNum').value = '';
     document.getElementById('entryInvAmt').value = '';
     document.getElementById('entryTaxPct').value = '';
     document.getElementById('entryTaxDed').value = '';
     document.getElementById('entryAiTaxPct').value = '';
     document.getElementById('entryAiTaxAmt').value = '';
+
+    // Set focus back to supplier search for next entry
+    document.getElementById('entrySupplierSearch').focus();
 }
 
 function renderTableRows() {
@@ -196,6 +263,7 @@ function renderTableRows() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${row.supplierName}</td>
+            <td>${row.subCat}</td>
             <td>${row.ntn}</td>
             <td>${row.date}</td>
             <td>${row.invNum}</td>
@@ -241,8 +309,7 @@ document.getElementById('searchFilterBtn').addEventListener('click', loadSavedDa
 document.getElementById('filterDate').addEventListener('change', loadSavedData);
 document.getElementById('branchSelect').addEventListener('change', loadSavedData);
 
-// Initial load
-setTimeout(loadSavedData, 1000);
+// Initial load already handled in DOMContentLoaded
 
 // Search Feature (Client Side Text Search)
 document.getElementById('listSearch').addEventListener('input', function (e) {
@@ -279,6 +346,7 @@ async function saveData() {
         entries: addedRows.map(r => ({
             supplier: r.supplierId,
             supplierName: r.supplierName,
+            subCategory: r.subCat,
             ntn: r.ntn,
             invoiceDate: r.date,
             invoiceNumber: r.invNum,
@@ -389,6 +457,7 @@ function renderSavedTable(records) {
             <td>${row.sheetDate}</td>
             <td>${row.branchName}</td>
             <td class="fw-bold">${row.supplierName || '-'}</td>
+            <td>${row.subCategory || '-'}</td>
             <td>${row.ntn || '-'}</td>
             <td>${row.invoiceNumber || '-'}</td>
             <td>${invDate}</td>
@@ -398,11 +467,63 @@ function renderSavedTable(records) {
             <td class="text-end">${row.aiTaxPct || 0}%</td>
             <td class="text-end fw-bold text-success">${(row.aiTaxAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
             <td>
-                <button class="btn btn-sm btn-outline-danger px-2" title="Delete Sheet" onclick="deleteRecord('${row.parentId}')"><i class="fas fa-trash"></i></button>
+                <div class="d-flex justify-content-center gap-1">
+                    <button class="btn btn-sm btn-outline-primary px-2" title="Edit Sheet" onclick="editRecord('${row.parentId}')"><i class="fas fa-edit"></i></button>
+                    <button class="btn btn-sm btn-outline-danger px-2" title="Delete Sheet" onclick="deleteRecord('${row.parentId}')"><i class="fas fa-trash"></i></button>
+                </div>
             </td>
         `;
         tbody.appendChild(tr);
     });
+}
+
+window.editRecord = function (id) {
+    const record = loadedRecords.find(r => r._id === id);
+    if (!record) return;
+
+    currentEditId = id;
+
+    // Set Header Data
+    document.getElementById('branchSelect').value = record.branch?._id || record.branch || '';
+    document.getElementById('filterDate').value = record.date ? new Date(record.date).toISOString().split('T')[0] : '';
+
+    // Load Entries
+    addedRows = record.entries.map(e => ({
+        id: e._id || Date.now() + Math.random(),
+        supplierId: e.supplier?._id || e.supplier,
+        supplierName: e.supplierName,
+        subCat: e.subCategory,
+        ntn: e.ntn,
+        date: e.invoiceDate ? new Date(e.invoiceDate).toISOString().split('T')[0] : '',
+        invNum: e.invoiceNumber,
+        invAmt: e.invoiceAmount,
+        taxPct: e.taxPct,
+        taxDed: e.taxDeducted,
+        aiPct: e.aiTaxPct,
+        aiAmt: e.aiTaxAmount
+    }));
+
+    renderTableRows();
+
+    // Population for first entry
+    if (addedRows.length > 0) {
+        const first = addedRows[0];
+        document.getElementById('entrySupplierSearch').value = first.supplierName;
+        document.getElementById('entrySupplier').value = first.supplierId;
+        document.getElementById('entryNTN').value = first.ntn;
+        document.getElementById('entrySubCat').value = first.subCat;
+        document.getElementById('entryTaxPct').value = first.taxPct;
+        document.getElementById('entryAiTaxPct').value = first.aiPct;
+    }
+
+    // Toggle Save Button to Update
+    const btn = document.getElementById('saveBtn');
+    btn.innerHTML = '<i class="fas fa-edit"></i> Update';
+    btn.classList.remove('btn-success');
+    btn.classList.add('btn-warning');
+
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 window.deleteRecord = async function (id) {
@@ -415,4 +536,63 @@ window.deleteRecord = async function (id) {
         });
         loadSavedData();
     } catch (e) { alert(e); }
+}
+// --- Quick Add Supplier ---
+
+window.openQuickSupplierModal = function () {
+    document.getElementById('quickSupplierForm').reset();
+    new bootstrap.Modal(document.getElementById('quickSupplierModal')).show();
+}
+
+window.saveQuickSupplier = async function () {
+    const formData = {
+        name: document.getElementById('qsName').value,
+        category: document.getElementById('qsCategory').value,
+        ntn: document.getElementById('qsNTN').value,
+        subCategory: document.getElementById('qsSubCat').value,
+        whtPer: parseFloat(document.getElementById('qsWht').value) || 0,
+        advTaxPer: parseFloat(document.getElementById('qsAdv').value) || 0,
+        isActive: true,
+        branch: document.getElementById('branchSelect').value // Default to current branch
+    };
+
+    if (!formData.name || !formData.category) {
+        alert('Please fill Supplier Name and Category');
+        return;
+    }
+
+    try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/v1/suppliers', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(formData)
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            alert('Supplier Added Successfully!');
+            bootstrap.Modal.getInstance(document.getElementById('quickSupplierModal')).hide();
+            await loadSuppliers();
+
+            // Auto-select the new supplier
+            const newSupId = data.data._id;
+            // Update map first so selectSupplier works
+            suppliersMap[newSupId] = {
+                name: formData.name,
+                ntn: formData.ntn,
+                subCategory: formData.subCategory,
+                whtPer: formData.whtPer,
+                advTaxPer: formData.advTaxPer
+            };
+            selectSupplier(newSupId);
+        } else {
+            alert('Error: ' + data.message);
+        }
+    } catch (err) {
+        console.error('Error saving quick supplier:', err);
+    }
 }

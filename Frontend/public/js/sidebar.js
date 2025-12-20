@@ -104,6 +104,7 @@ class SidebarNavigation {
             {
                 id: 'accounts', icon: 'fa-calculator', label: 'Accounts', permission: 'accounts',
                 children: [
+                    { label: 'Payment Vouchers', link: '/payment-vouchers.html' },
                     { label: 'Vouchers', link: '/voucher.html' },
                     { label: 'Expenses', link: '/expenses.html' },
                     { label: 'Account Register', link: '/accounts.html' },
@@ -159,6 +160,7 @@ class SidebarNavigation {
                     { label: 'Purchase Return', link: '/purchase-returns.html' },
                     { label: 'Supplier Payment', link: '/supplier-payments.html' },
                     { label: 'Supplier WH Tax', link: '/supplier-wh-tax.html' },
+                    { label: 'WHT Supplier', link: '/wht-supplier.html' },
                     { label: 'Supplier Tax Report', link: '/supplier-tax-report.html' },
                 ]
             },

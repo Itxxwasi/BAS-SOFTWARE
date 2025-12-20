@@ -88,6 +88,53 @@
         .color-header-green {
             color: #28a745;
         }
+
+        .bg-locked {
+            background-color: #007bff !important;
+            /* Blue */
+            color: white !important;
+            font-weight: bold;
+            cursor: not-allowed;
+        }
+
+        .bg-locked-green {
+            background-color: #28a745 !important;
+            /* Green */
+            color: white !important;
+            font-weight: bold;
+            cursor: not-allowed;
+        }
+
+        .search-results-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 5px;
+            right: 5px;
+            background: white;
+            border: 1px solid #ced4da;
+            border-top: none;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 1050;
+            border-radius: 0 0 5px 5px;
+        }
+
+        .search-result-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f8f9fa;
+            font-size: 0.85rem;
+            transition: background 0.2s;
+        }
+
+        .search-result-item:hover {
+            background-color: #e9ecef;
+            color: #007bff;
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
     </style>
 </head>
 
@@ -173,25 +220,38 @@
                         <table class="table table-bordered mb-0" id="taxTable">
                             <thead class="bg-light">
                                 <tr>
-                                    <th style="width: 250px;">Name of Supplier</th>
-                                    <th>Supplier NTN</th>
-                                    <th>Invoice Date</th>
-                                    <th>Invoice Number</th>
-                                    <th>Invoice Amount</th>
-                                    <th>Tax %</th>
-                                    <th class="color-header-red">Tax Deducted</th>
-                                    <th class="color-header-green">A.I. Tax %</th>
-                                    <th>A.I. Tax Amount</th>
-                                    <th style="width: 50px;">Action</th>
+                                    <th style="width: 350px;">Name of Supplier</th>
+                                    <th style="width: 130px;">Sub Category</th>
+                                    <th style="width: 120px;">Supplier NTN</th>
+                                    <th style="width: 135px;">Invoice Date</th>
+                                    <th style="width: 120px;">Invoice Number</th>
+                                    <th style="width: 120px;">Invoice Amount</th>
+                                    <th style="width: 80px;">Tax %</th>
+                                    <th style="width: 120px;" class="color-header-red">Tax Deducted</th>
+                                    <th style="width: 85px;" class="color-header-green">A.I. Tax %</th>
+                                    <th style="width: 120px;">A.I. Tax Amount</th>
+                                    <th style="width: 60px;">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <!-- Entry Row -->
                                 <tr class="align-middle bg-light">
+                                    <td style="position: relative;">
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" id="entrySupplierSearch" class="form-control"
+                                                autocomplete="off" placeholder="Type to search...">
+                                            <button type="button" class="btn btn-outline-primary"
+                                                title="Add New Supplier" onclick="openQuickSupplierModal()">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        </div>
+                                        <div id="supplierSearchResults" class="search-results-dropdown shadow-sm"
+                                            style="display: none;"></div>
+                                        <input type="hidden" id="entrySupplier">
+                                    </td>
                                     <td>
-                                        <select id="entrySupplier" class="form-select form-select-sm">
-                                            <option value="">Select Supplier</option>
-                                        </select>
+                                        <input type="text" id="entrySubCat"
+                                            class="form-control form-select-sm bg-locked" readonly>
                                     </td>
                                     <td>
                                         <input type="text" id="entryNTN"
@@ -208,8 +268,8 @@
                                             step="0.01">
                                     </td>
                                     <td>
-                                        <input type="number" id="entryTaxPct" class="form-control form-select-sm"
-                                            step="0.01">
+                                        <input type="number" id="entryTaxPct"
+                                            class="form-control form-select-sm bg-locked" step="0.01" readonly>
                                     </td>
                                     <td>
                                         <input type="number" id="entryTaxDed"
@@ -217,7 +277,7 @@
                                     </td>
                                     <td>
                                         <input type="number" id="entryAiTaxPct"
-                                            class="form-control form-select-sm bg-green-input" step="0.01">
+                                            class="form-control form-select-sm bg-locked-green" step="0.01" readonly>
                                     </td>
                                     <td>
                                         <input type="number" id="entryAiTaxAmt" class="form-control form-select-sm"
@@ -231,7 +291,7 @@
                             </tbody>
                             <tfoot>
                                 <tr class="fw-bold">
-                                    <td colspan="4" class="text-end">Total</td>
+                                    <td colspan="5" class="text-end">Total</td>
                                     <td id="totalInvAmt" class="text-end">0.00</td>
                                     <td></td>
                                     <td id="totalTaxDed" class="text-end">0.00</td>
@@ -262,18 +322,19 @@
                             style="font-size: 0.85rem; vertical-align: middle;">
                             <thead class="bg-light sticky-top" style="z-index: 5;">
                                 <tr>
-                                    <th>Sheet Date</th>
-                                    <th>Branch</th>
-                                    <th>Supplier</th>
-                                    <th>NTN</th>
-                                    <th>Inv #</th>
-                                    <th>Inv Date</th>
-                                    <th class="text-end">Amount</th>
-                                    <th class="text-end">Tax %</th>
-                                    <th class="text-end">Tax Ded</th>
-                                    <th class="text-end">A.I. %</th>
-                                    <th class="text-end">A.I. Tax</th>
-                                    <th>Action</th>
+                                    <th style="width: 100px;">Sheet Date</th>
+                                    <th style="width: 100px;">Branch</th>
+                                    <th style="width: 250px;">Supplier</th>
+                                    <th style="width: 120px;">Sub Cat</th>
+                                    <th style="width: 100px;">NTN</th>
+                                    <th style="width: 100px;">Inv #</th>
+                                    <th style="width: 100px;">Inv Date</th>
+                                    <th style="width: 110px;" class="text-end">Amount</th>
+                                    <th style="width: 70px;" class="text-end">Tax %</th>
+                                    <th style="width: 110px;" class="text-end">Tax Ded</th>
+                                    <th style="width: 70px;" class="text-end">A.I. %</th>
+                                    <th style="width: 110px;" class="text-end">A.I. Tax</th>
+                                    <th style="width: 60px;">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="savedRecordsBody">
@@ -284,6 +345,54 @@
                 </div>
             </div>
 
+        </div>
+    </div>
+
+    <!-- Quick Supplier Modal -->
+    <div class="modal fade" id="quickSupplierModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Quick Add Supplier</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="quickSupplierForm">
+                        <div class="row g-2">
+                            <div class="col-12">
+                                <label class="form-label">Supplier Name</label>
+                                <input type="text" id="qsName" class="form-control" required>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Category</label>
+                                <select id="qsCategory" class="form-select" required>
+                                    <option value="">Select Category</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">NTN</label>
+                                <input type="text" id="qsNTN" class="form-control">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Sub Category</label>
+                                <input type="text" id="qsSubCat" class="form-control">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">WHT %</label>
+                                <input type="number" id="qsWht" class="form-control" value="0" step="0.01">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Adv Tax %</label>
+                                <input type="number" id="qsAdv" class="form-control" value="0" step="0.01">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="saveQuickSupplier()">Save Supplier</button>
+                </div>
+            </div>
         </div>
     </div>
 

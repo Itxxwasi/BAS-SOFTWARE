@@ -17,6 +17,7 @@ const SupplierTaxSchema = new mongoose.Schema({
             required: true
         },
         supplierName: String,
+        subCategory: String,
         ntn: String,
         invoiceDate: Date,
         invoiceNumber: String,

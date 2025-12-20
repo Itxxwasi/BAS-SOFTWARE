@@ -309,7 +309,7 @@ async function handleQuickAdd(type) {
             }
 
             // Also try to auto-select the new item in the dropdown
-            const selectId = type; // Usually matches
+            const selectId = window._quickAddTargetSelectId || type;
             const select = document.getElementById(selectId);
             if (select && newItem) {
                 // If the callback didn't select it, we try to find it
@@ -344,7 +344,8 @@ async function handleQuickAdd(type) {
  * Select item from list (existing item)
  */
 function selectQuickAddItem(type, id, name) {
-    const select = document.getElementById(type); // ID of dropdown usually matches type
+    const targetId = window._quickAddTargetSelectId || type;
+    const select = document.getElementById(targetId);
     if (select) {
         // Try to match by ID first, then by Text
         let matched = false;

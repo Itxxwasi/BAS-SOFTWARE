@@ -82,6 +82,6 @@ exports.deleteSupplierTax = asyncHandler(async (req, res, next) => {
     if (!tax) {
         return next(new ErrorResponse(`No record found with id of ${req.params.id}`, 404));
     }
-    await tax.remove();
+    await tax.deleteOne();
     res.status(200).json({ success: true, data: {} });
 });
