@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadGroups() {
     try {
-        const response = await fetch('/api/v1/accounts/groups');
+        const response = await pageAccess.authenticatedFetch('/api/v1/accounts/groups');
         const data = await response.json();
 
         if (data.success) {
@@ -50,9 +50,8 @@ async function saveGroup() {
         const url = editId ? `/api/v1/accounts/groups/${editId}` : '/api/v1/accounts/groups';
         const method = editId ? 'PUT' : 'POST';
 
-        const response = await fetch(url, {
+        const response = await pageAccess.authenticatedFetch(url, {
             method: method,
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
@@ -80,7 +79,7 @@ async function deleteGroup(id) {
     if (!confirm('Area you sure?')) return;
 
     try {
-        const response = await fetch(`/api/v1/accounts/groups/${id}`, { method: 'DELETE' });
+        const response = await pageAccess.authenticatedFetch(`/api/v1/accounts/groups/${id}`, { method: 'DELETE' });
         const data = await response.json();
         if (data.success) loadGroups();
         else alert(data.message);

@@ -53,6 +53,17 @@ const healthRoutes = require('./routes/health');
 const expenseHeadRoutes = require('./routes/expenseHeads');
 const diagnosticRoutes = require('./routes/diagnostic');
 const supplierTaxRoutes = require('./routes/supplierTaxes');
+const accountRoutes = require('./routes/accounts');
+const attendanceRoutes = require('./routes/attendance');
+const customerDemandRoutes = require('./routes/customerDemands');
+const employeeRoutes = require('./routes/employees');
+const employeeAdjustmentRoutes = require('./routes/employeeAdjustments');
+const employeeAdvanceRoutes = require('./routes/employeeAdvances');
+const employeeClearanceRoutes = require('./routes/employeeClearances');
+const employeeCommissionRoutes = require('./routes/employeeCommissions');
+const employeePenaltyRoutes = require('./routes/employeePenalties');
+const holyDayRoutes = require('./routes/holyDays');
+
 
 // Error handler
 const errorHandler = require('./middleware/errorHandler');
@@ -252,6 +263,17 @@ app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/expense-heads', expenseHeadRoutes);
 app.use('/api/v1/diagnostic', diagnosticRoutes);
 app.use('/api/v1/supplier-taxes', supplierTaxRoutes);
+app.use('/api/v1/accounts', accountRoutes);
+app.use('/api/v1/attendance', attendanceRoutes);
+app.use('/api/v1/customer-demands', customerDemandRoutes);
+app.use('/api/v1/employees', employeeRoutes);
+app.use('/api/v1/employee-adjustments', employeeAdjustmentRoutes);
+app.use('/api/v1/employee-advances', employeeAdvanceRoutes);
+app.use('/api/v1/employee-clearances', employeeClearanceRoutes);
+app.use('/api/v1/employee-commissions', employeeCommissionRoutes);
+app.use('/api/v1/employee-penalties', employeePenaltyRoutes);
+app.use('/api/v1/holy-days', holyDayRoutes);
+
 
 // Serve login page at root
 app.get('/', (req, res) => {
@@ -365,6 +387,14 @@ app.get('/trial-balance.html', (req, res) => {
   res.sendFile(path.join(__dirname, '../Frontend/views', 'trial-balance.html'));
 });
 
+app.get('/voucher.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../Frontend/views/voucher.html'));
+});
+
+app.get('/voucher-list.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../Frontend/views/voucher-list.html'));
+});
+
 app.get('/users.html', (req, res) => {
   res.sendFile(path.join(__dirname, '../Frontend/views', 'users.html'));
 });
@@ -469,6 +499,10 @@ app.get('/employee-adjustment.html', (req, res) => {
 
 app.get('/print-invoice.html', (req, res) => {
   res.sendFile(path.join(__dirname, '../Frontend/views', 'print-invoice.html'));
+});
+
+app.get('/voucher-print.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../Frontend/views', 'voucher-print.html'));
 });
 
 // Serve the main HTML file for all other routes (catch-all)

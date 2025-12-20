@@ -4,7 +4,8 @@ const {
     getVoucher,
     createVoucher,
     updateVoucher,
-    deleteVoucher
+    deleteVoucher,
+    getNextVoucherNumber
 } = require('../controllers/voucherController');
 
 const router = express.Router();
@@ -12,6 +13,8 @@ const router = express.Router();
 const { protect } = require('../middleware/auth');
 
 router.use(protect);
+
+router.get('/next-number/:type', getNextVoucherNumber);
 
 router
     .route('/')

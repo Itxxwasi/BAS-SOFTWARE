@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadGroups() {
     try {
-        const response = await fetch('/api/v1/accounts/groups');
+        const response = await pageAccess.authenticatedFetch('/api/v1/accounts/groups');
         const data = await response.json();
 
         const select = document.getElementById('groupSelect');
@@ -27,7 +27,7 @@ async function loadGroups() {
 
 async function loadCategories() {
     try {
-        const response = await fetch('/api/v1/accounts/categories');
+        const response = await pageAccess.authenticatedFetch('/api/v1/accounts/categories');
         const data = await response.json();
 
         if (data.success) {
@@ -79,9 +79,8 @@ async function saveCategory() {
         const url = editId ? `/api/v1/accounts/categories/${editId}` : '/api/v1/accounts/categories';
         const method = editId ? 'PUT' : 'POST';
 
-        const response = await fetch(url, {
+        const response = await pageAccess.authenticatedFetch(url, {
             method: method,
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
@@ -110,7 +109,7 @@ async function deleteCategory(id) {
     if (!confirm('Area you sure?')) return;
 
     try {
-        const response = await fetch(`/api/v1/accounts/categories/${id}`, { method: 'DELETE' });
+        const response = await pageAccess.authenticatedFetch(`/api/v1/accounts/categories/${id}`, { method: 'DELETE' });
         const data = await response.json();
         if (data.success) loadCategories();
         else alert(data.message);

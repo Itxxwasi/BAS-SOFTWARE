@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadCategories() {
     try {
-        const response = await fetch('/api/v1/accounts/categories');
+        const response = await pageAccess.authenticatedFetch('/api/v1/accounts/categories');
         const data = await response.json();
         const select = document.getElementById('accountCategory');
 
@@ -24,7 +24,7 @@ async function loadCategories() {
 
 async function loadAccounts() {
     try {
-        const response = await fetch('/api/v1/accounts/ledger');
+        const response = await pageAccess.authenticatedFetch('/api/v1/accounts/ledger');
         const data = await response.json();
 
         if (data.success) {
@@ -74,9 +74,8 @@ async function saveAccount() {
         const url = editUid ? `/api/v1/accounts/ledger/${editUid}` : '/api/v1/accounts/ledger';
         const method = editUid ? 'PUT' : 'POST';
 
-        const response = await fetch(url, {
+        const response = await pageAccess.authenticatedFetch(url, {
             method,
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
@@ -103,7 +102,7 @@ function editAccount(uid, id, name, cls, cat, br) {
 async function deleteAccount(id) {
     if (!confirm('Are you sure?')) return;
     try {
-        const response = await fetch(`/api/v1/accounts/ledger/${id}`, { method: 'DELETE' });
+        const response = await pageAccess.authenticatedFetch(`/api/v1/accounts/ledger/${id}`, { method: 'DELETE' });
         const data = await response.json();
         if (data.success) loadAccounts();
         else alert(data.message);

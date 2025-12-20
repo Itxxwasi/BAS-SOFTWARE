@@ -30,7 +30,7 @@ const voucherSchema = new mongoose.Schema({
     },
     voucherType: {
         type: String,
-        enum: ['journal', 'payment', 'receipt', 'contra'],
+        enum: ['JV', 'CRV', 'CPV', 'BPV', 'BRV'],
         required: [true, 'Please select voucher type']
     },
     date: {
@@ -71,27 +71,22 @@ voucherSchema.index({ voucherType: 1 });
 voucherSchema.index({ date: -1 });
 voucherSchema.index({ createdBy: 1 });
 
-// Pre-save hook to generate voucher number and calculate totals
-voucherSchema.pre('save', async function (next) {
+// Combined Pre-save hook for Voucher No generation and totals calculation
+voucherSchema.pre('save', async function () {
     if (!this.voucherNo) {
         const count = await mongoose.model('Voucher').countDocuments({ voucherType: this.voucherType });
-        const prefix = this.voucherType.substring(0, 2).toUpperCase();
-        this.voucherNo = `${prefix}-${String(count + 1).padStart(5, '0')}`;
+        const prefix = this.voucherType.toUpperCase();
+        this.voucherNo = `${prefix}-${String(count + 1).padStart(2, '0')}`;
     }
 
     // Calculate totals
     this.totalDebit = this.entries.reduce((sum, entry) => sum + (entry.debit || 0), 0);
     this.totalCredit = this.entries.reduce((sum, entry) => sum + (entry.credit || 0), 0);
 
-    next();
-});
-
-// Validation: Debit and Credit must be equal
-voucherSchema.pre('save', function (next) {
+    // Validation
     if (Math.abs(this.totalDebit - this.totalCredit) > 0.01) {
-        return next(new Error('Total Debit and Total Credit must be equal'));
+        throw new Error('Total Debit and Total Credit must be equal');
     }
-    next();
 });
 
 module.exports = mongoose.model('Voucher', voucherSchema);
