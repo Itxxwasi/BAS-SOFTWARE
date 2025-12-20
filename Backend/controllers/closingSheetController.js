@@ -43,10 +43,25 @@ exports.getClosingSheetsReport = async (req, res) => {
         const end = new Date(endDate);
         end.setHours(23, 59, 59, 999);
 
-        const sheets = await ClosingSheet.find({
-            date: { $gte: start, $lte: end },
-            branch: branch || 'F-6'
-        }).lean(); // Use lean for performance as we don't need full documents
+        const query = {
+            date: { $gte: start, $lte: end }
+        };
+
+        // If branch is provided and not 'all', filter by it. 
+        // If 'all' or undefined, we might want all (for dashboard) or default (for specific reports).
+        // Let's assume for this specific controller method, we allow 'all'.
+        if (branch && branch !== 'all') {
+            query.branch = branch;
+        } else if (!branch) {
+            // Maintain backward compatibility? Or default to 'all'? 
+            // Previous default was 'F-6'. 
+            // Let's keep 'F-6' default ONLY if not explicitly 'all'? 
+            // User wants dashboard for "Branch Wise", implies ALL branches.
+            // Let's make it: if no branch param, default to 'F-6' (safe). If 'all', all.
+            query.branch = 'F-6';
+        }
+
+        const sheets = await ClosingSheet.find(query).lean();
 
         res.status(200).json({ success: true, data: sheets });
     } catch (err) {
@@ -166,7 +181,7 @@ exports.getIncomeStatementData = async (req, res) => {
             type: 'receipt'
         });
 
-        // 5. Fetch Opening Balance from MonthlyBalance
+        // 5. Fetch Opening Balance from MonthlyBalance git previous month closing balance
         let openingBalance = 0;
         const currentMonthString = `${queryDate.getFullYear()}-${String(queryDate.getMonth() + 1).padStart(2, '0')}`;
         const prevDate = new Date(queryDate.getFullYear(), queryDate.getMonth() - 1, 1);

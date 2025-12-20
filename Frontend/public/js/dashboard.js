@@ -1,394 +1,580 @@
-// Dashboard JavaScript
+// Dashboard JavaScript - Professional Upgrade
 let currentDateFilter = 'month';
 let currentFromDate = '';
 let currentToDate = '';
 let salesChart = null;
-let categoryChart = null;
 
 document.addEventListener('DOMContentLoaded', function () {
-    // Check if user is authenticated (handled by pageAccess.js)
-    // Set user name in navbar
-    setUserName();
+    // Check auth
+    if (window.pageAccess && typeof window.pageAccess.checkAuthentication === 'function') {
+        if (!window.pageAccess.checkAuthentication()) return;
+    } else {
+        // Fallback or skip if pageAccess not loaded yet (rare)
+        console.warn('pageAccess not loaded');
+    }
 
-    // Initialize role-based menu
-    initializeRoleBasedMenu();
+    // Set user name
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (document.getElementById('userName')) {
+        document.getElementById('userName').textContent = user.name || 'User';
+    }
 
-    // Set up logout functionality
-    setupLogout();
-
-    // Set default date range (current month)
+    // Initialize with Month filter
     setDateFilter('month');
 });
 
-// Set user name in navbar
-function setUserName() {
-    const user = getCurrentUser();
-    const userNameElement = document.getElementById('userName');
-    if (userNameElement && user) {
-        userNameElement.textContent = user.name || user.email;
-    }
-}
-
-// Initialize role-based menu
-function initializeRoleBasedMenu() {
-    const user = getCurrentUser();
-    if (!user) return;
-
-    const userRole = user.role;
-    const menuItems = document.querySelectorAll('[data-role]');
-
-    menuItems.forEach(item => {
-        const allowedRoles = item.getAttribute('data-role').split(',');
-        if (allowedRoles.includes(userRole)) {
-            item.style.display = 'block';
-        }
-    });
-
-    // Update active menu item
-    updateActiveMenuItem();
-}
-
-// Update active menu item based on current page
-function updateActiveMenuItem() {
-    const currentPath = window.location.pathname;
-    const menuLinks = document.querySelectorAll('.nav-link');
-
-    menuLinks.forEach(link => {
-        link.classList.remove('active');
-        if (link.getAttribute('href') === currentPath.split('/').pop()) {
-            link.classList.add('active');
-        }
-    });
-}
-
-// Setup logout functionality
-function setupLogout() {
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', async function (e) {
-            e.preventDefault();
-
-            if (confirm('Are you sure you want to logout?')) {
-                await window.pageAccess.logout();
-            }
-        });
-    }
-}
-
-// Set date filter
 function setDateFilter(filter) {
     currentDateFilter = filter;
 
-    // Update button states
-    document.querySelectorAll('.date-filter-pills .nav-link').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    // Find the button that was clicked or matches the filter
-    const clickedBtn = event ? event.target.closest('.nav-link') : document.querySelector(`.date-filter-pills .nav-link[data-filter="${filter}"]`);
-    if (clickedBtn) {
-        clickedBtn.classList.add('active');
-    }
+    // Update UI
+    document.querySelectorAll('.date-filter-pills .nav-link').forEach(btn => btn.classList.remove('active'));
+    document.querySelector(`.date-filter-pills .nav-link[data-filter="${filter}"]`).classList.add('active');
 
     const today = new Date();
     let fromDate, toDate;
 
     switch (filter) {
         case 'today':
-            fromDate = toDate = today.toISOString().split('T')[0];
-            document.getElementById('customDateRange').style.display = 'none';
+            fromDate = new Date(today);
+            toDate = new Date(today);
             break;
         case 'week':
-            const weekStart = new Date(today);
-            const day = today.getDay(); // 0 (Sunday) to 6 (Saturday)
-            // If today is Sunday (0), go back 6 days to last Monday. If Mon-Sat, go back day-1 days.
-            // Adjust to start on Monday or Last 7 days? Let's use Last 7 Days for "This Week" relative to now, or Start of Week (Monday)
-            // Let's go with Start of Week (assuming Monday start)
+            // Start of week (Monday)
+            const day = today.getDay();
             const diff = today.getDate() - day + (day === 0 ? -6 : 1);
-            weekStart.setDate(diff);
-            fromDate = weekStart.toISOString().split('T')[0];
-            toDate = today.toISOString().split('T')[0];
-            document.getElementById('customDateRange').style.display = 'none';
+            fromDate = new Date(today.setDate(diff));
+            toDate = new Date(); // Up to now
             break;
         case 'month':
-            fromDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-            toDate = today.toISOString().split('T')[0];
-            document.getElementById('customDateRange').style.display = 'none';
+            fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            toDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
             break;
         case 'custom':
-            document.getElementById('customDateRange').style.display = 'block';
-            document.getElementById('fromDate').value = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-            document.getElementById('toDate').value = today.toISOString().split('T')[0];
-            return; // Don't load data yet, wait for user to apply
+            document.getElementById('customDateRange').classList.remove('d-none');
+            return; // Wait for apply
     }
 
-    currentFromDate = fromDate;
-    currentToDate = toDate;
-
-    // Load dashboard with new dates
-    initDashboard();
+    if (filter !== 'custom') {
+        document.getElementById('customDateRange').classList.add('d-none');
+        currentFromDate = formatDateForAPI(fromDate);
+        currentToDate = formatDateForAPI(toDate);
+        refreshDashboard();
+    }
 }
 
-// Apply custom date filter
 function applyCustomDateFilter() {
-    currentFromDate = document.getElementById('fromDate').value;
-    currentToDate = document.getElementById('toDate').value;
+    const from = document.getElementById('fromDate').value;
+    const to = document.getElementById('toDate').value;
+    if (!from || !to) {
+        alert('Please select both dates');
+        return;
+    }
+    currentFromDate = from;
+    currentToDate = to;
+    refreshDashboard();
+}
 
-    if (!currentFromDate || !currentToDate) {
-        alert('Please select both from and to dates');
+function formatDateForAPI(date) {
+    return date.toISOString().split('T')[0];
+}
+
+async function refreshDashboard() {
+    const container = document.getElementById('branchCardsContainer');
+    const catContainer = document.getElementById('categoryBreakdownContainer');
+
+    container.innerHTML = `
+        <div class="col-12 text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Loading Data...</p>
+        </div>
+    `;
+    if (catContainer) catContainer.innerHTML = '<div class="text-center py-3 text-muted">Loading Categories...</div>';
+
+    try {
+        await loadDashboardData();
+    } catch (error) {
+        console.error("Dashboard Load Error", error);
+        container.innerHTML = `<div class="col-12 text-center text-danger py-5">Failed to load data: ${error.message}</div>`;
+    }
+}
+
+async function loadDashboardData() {
+    const token = localStorage.getItem('token');
+    const headers = { 'Authorization': `Bearer ${token}` };
+    const limit = 10000;
+
+    // Fetch Stores to filter visible branches
+    const storeRes = await fetch('/api/v1/stores', { headers });
+    const storeData = await storeRes.json();
+    const enabledStores = (storeData.data || []).filter(s => s.showOnDashboard);
+
+    // Normalization Logic for fuzzy matching (e.g. "PWD - 1" vs "PWD 1")
+    const normalize = (name) => (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const branchNameMap = new Map(); // normalized -> original name
+    enabledStores.forEach(s => {
+        branchNameMap.set(normalize(s.name), s.name);
+    });
+
+    // Fetch Departments (for Mapping)
+    const deptRes = await fetch('/api/v1/departments', { headers });
+    const deptData = await deptRes.json();
+    const departmentsMap = {}; // ID -> Name
+    (deptData.data || []).forEach(d => departmentsMap[d._id] = d.name);
+
+    // Fetch Warehouse Categories (for Breakdown) + New requirement: Use Warehouse Sale Categories instead of Departments
+    const catRes = await fetch('/api/v1/customer-categories', { headers });
+    const catData = await catRes.json();
+    const warehouseCatsMap = {}; // ID -> Name
+    (catData.data || []).forEach(c => warehouseCatsMap[c._id] = c.name);
+
+    // 1. Fetch Closing Sheets (Sales Data)
+    const sheetsRes = await fetch(`/api/v1/closing-sheets/report?startDate=${currentFromDate}&endDate=${currentToDate}&branch=all`, { headers });
+    const sheetsData = await sheetsRes.json();
+    const sheets = sheetsData.data || [];
+
+    // 2. Fetch Purchases (Cost Data)
+    const purchRes = await fetch(`/api/v1/purchases?startDate=${currentFromDate}&endDate=${currentToDate}&limit=${limit}`, { headers });
+    const purchData = await purchRes.json();
+    const purchases = purchData.data || [];
+
+    // 3. Fetch Expenses (Cost Data)
+    const expRes = await fetch(`/api/v1/expenses?startDate=${currentFromDate}&endDate=${currentToDate}&limit=${limit}`, { headers });
+    const expData = await expRes.json();
+    const expenses = expData.data || [];
+
+    // --- Aggregate Data by Branch (Top Section) ---
+    const branchStats = {};
+    const getBranchObj = (name) => {
+        if (!branchStats[name]) {
+            branchStats[name] = {
+                name: name,
+                grossSale: 0,
+                discountVal: 0,
+                returnVal: 0,
+                gst: 0,
+                netSale: 0,
+                cost: 0,
+                daysCount: new Set()
+            };
+        }
+        return branchStats[name];
+    };
+
+    // Initialize all enabled branches first (so they show up even with 0 sales)
+    enabledStores.forEach(store => {
+        getBranchObj(store.name);
+    });
+
+    sheets.forEach(sheet => {
+        const rawName = sheet.branch || 'Unknown';
+        const targetBranchName = branchNameMap.get(normalize(rawName));
+
+        if (!targetBranchName) return; // Filter: Skip if not mapped to an enabled store
+
+        const b = getBranchObj(targetBranchName);
+        b.daysCount.add(sheet.date.split('T')[0]);
+
+        if (sheet.closing02) {
+            // Main Card Totals still come from Departmental Sums (as per previous instructions)
+            // Or should they come from Warehouse Sale? 
+            // "1 day sale is pwd" refers to the Total column in Closing 2 Dept Table.
+            // So MAIN CARDS use DEPT TOTALS.
+            const dataObj = sheet.closing02.data || sheet.closing02; // Fallback for structure variations
+            if (!dataObj) return;
+
+            Object.values(dataObj).forEach(val => {
+                // Check if it looks like a dept object (has sale/discount properties)
+                if (val && typeof val === 'object' && (val.totalSaleComputer !== undefined || val.netSale !== undefined)) {
+                    const sale = parseFloat(val.totalSaleComputer || val.grossSale || val.netSale || 0);
+                    const disc = parseFloat(val.discountValue || 0);
+                    b.netSale += sale;
+                    b.discountVal += disc;
+                    if (val.grossSale) {
+                        b.grossSale += parseFloat(val.grossSale);
+                    } else {
+                        b.grossSale += (sale + disc);
+                    }
+                }
+            });
+        }
+    });
+
+    // Purchases/Expenses to Branch Cost
+    purchases.forEach(p => {
+        const rawName = p.branch || 'Head Office';
+        const targetBranchName = branchNameMap.get(normalize(rawName));
+        if (!targetBranchName) return;
+
+        const b = getBranchObj(targetBranchName);
+        b.cost += (p.grandTotal || 0);
+    });
+    expenses.forEach(e => {
+        const rawName = e.branch || 'Head Office';
+        const targetBranchName = branchNameMap.get(normalize(rawName));
+        if (!targetBranchName) return;
+
+        const b = getBranchObj(targetBranchName);
+        b.cost += (e.amount || 0);
+    });
+
+    const finalBranchData = Object.values(branchStats).map(b => {
+        const profit = b.netSale - b.cost;
+        return {
+            ...b,
+            profit: profit,
+            margin: b.netSale > 0 ? (profit / b.netSale) * 100 : 0,
+            discPct: b.grossSale > 0 ? (b.discountVal / b.grossSale) * 100 : 0,
+            avgDailySale: b.netSale / (b.daysCount.size || 1)
+        };
+    });
+    finalBranchData.sort((a, b) => b.netSale - a.netSale);
+
+    renderBranchCards(finalBranchData);
+    renderSalesChart(finalBranchData);
+    renderBranchTable(finalBranchData);
+
+    // --- Process Category Breakdown (Warehouse Sale) ---
+    // Ensure the container exists in HTML or cleared properly
+    if (document.getElementById('categoryBreakdownContainer')) {
+        processAndRenderCategoryBreakdown(sheets, warehouseCatsMap, branchNameMap);
+    } else {
+        console.warn("categoryBreakdownContainer not found");
+    }
+}
+
+function processAndRenderCategoryBreakdown(sheets, categoriesMap, branchNameMap) {
+    // Normalization Logic
+    const normalize = (name) => (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    // Map<CategoryName, Map<BranchName, {netSale, cost}>>
+    const catStats = {};
+
+    // 1. Initialize stats for all known Categories and allowed branches
+    const allowedBranchList = Array.from(new Set(branchNameMap.values()));
+
+    Object.values(categoriesMap).forEach(catName => {
+        catStats[catName] = {};
+        allowedBranchList.forEach(branchName => {
+            catStats[catName][branchName] = {
+                branch: branchName,
+                netSale: 0,
+                cost: 0
+            };
+        });
+    });
+
+    // 2. Populate with Data from Warehouse Sale
+    sheets.forEach(sheet => {
+        const rawName = sheet.branch || 'Unknown';
+        const targetBranchName = branchNameMap.get(normalize(rawName));
+
+        if (!targetBranchName) return; // Filter check
+
+        // Check for warehouseSale data in closing02.data
+        const dataObj = sheet.closing02?.data || sheet.closing02;
+        if (dataObj && dataObj.warehouseSale && Array.isArray(dataObj.warehouseSale)) {
+            dataObj.warehouseSale.forEach(item => {
+                const catName = categoriesMap[item.category];
+                if (!catName) return; // Unknown category
+
+                // Initialize if missing (e.g. if category list changed)
+                if (!catStats[catName]) {
+                    catStats[catName] = {};
+                    allowedBranchList.forEach(b => {
+                        catStats[catName][b] = { branch: b, netSale: 0, cost: 0 };
+                    });
+                }
+
+                if (catStats[catName][targetBranchName]) {
+                    catStats[catName][targetBranchName].netSale += parseFloat(item.sale || 0);
+                    catStats[catName][targetBranchName].cost += parseFloat(item.cost || 0);
+                }
+            });
+        }
+    });
+
+    // Departments/Categories to display
+    const sortedCats = Object.entries(catStats).map(([name, branches]) => {
+        const totalSale = Object.values(branches).reduce((sum, b) => sum + b.netSale, 0);
+        return { name, branches, totalSale };
+    }).sort((a, b) => b.totalSale - a.totalSale);
+
+
+    renderCategoryCards(sortedCats);
+    renderCategoryBreakdown(sortedCats);
+}
+
+function renderCategoryCards(categories) {
+    const container = document.getElementById('categoryCardsContainer');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (categories.length === 0) {
+        container.innerHTML = '<div class="col-12 text-center text-muted">No category data</div>';
         return;
     }
 
-    initDashboard();
+    categories.forEach(cat => {
+        // Aggregate totals for the card
+        let tSale = 0, tCost = 0;
+        Object.values(cat.branches).forEach(b => {
+            tSale += b.netSale;
+            tCost += b.cost;
+        });
+        const tProfit = tSale - tCost;
+        const margin = tSale > 0 ? (tProfit / tSale) * 100 : 0;
+
+        const cardHtml = `
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="branch-card">
+                    <div class="branch-card-header" style="background: linear-gradient(45deg, #0288d1, #26c6da);">
+                        ${cat.name}
+                    </div>
+                    <div class="branch-card-body">
+                        <div class="stat-box red">
+                            <span class="stat-label"><i class="fas fa-shopping-cart"></i> TOTAL SALE</span>
+                            <span class="stat-value">${formatCurrency(tSale)}</span>
+                        </div>
+                        <div class="stat-box blue">
+                            <span class="stat-label"><i class="fas fa-money-bill-wave"></i> TOTAL COST</span>
+                            <span class="stat-value">${formatCurrency(tCost)}</span>
+                        </div>
+                        <div class="stat-box green">
+                            <span class="stat-label"><i class="fas fa-chart-line"></i> TOTAL PROFIT</span>
+                            <span class="stat-value">${formatCurrency(tProfit)}</span>
+                        </div>
+                         <div class="stat-box dark">
+                            <span class="stat-label"><i class="fas fa-percentage"></i> MARGIN</span>
+                            <span class="stat-value">${margin.toFixed(1)}%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.innerHTML += cardHtml;
+    });
 }
 
-// Refresh dashboard
-function refreshDashboard() {
-    initDashboard();
-}
+function renderCategoryBreakdown(categories) {
+    const container = document.getElementById('categoryBreakdownContainer');
+    if (!container) return;
+    container.innerHTML = '';
 
-// Initialize dashboard
-async function initDashboard() {
-    try {
-        // Load dashboard statistics
-        await loadDashboardStats();
-
-        // Load recent transactions
-        await loadRecentTransactions();
-
-        // Initialize charts
-        await initCharts();
-
-    } catch (error) {
-        console.error('Dashboard initialization error:', error);
-        alert('Failed to load dashboard data');
-    }
-}
-
-// Load dashboard statistics
-async function loadDashboardStats() {
-    try {
-        const token = localStorage.getItem('token');
-
-        // Load sales
-        const salesResponse = await fetch(`/api/v1/sales?startDate=${currentFromDate}&endDate=${currentToDate}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (salesResponse.ok) {
-            const salesData = await salesResponse.json();
-            const totalSales = salesData.data ? salesData.data.reduce((sum, sale) => sum + (sale.grandTotal || 0), 0) : 0;
-            document.getElementById('todaySales').textContent = totalSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
-
-        // Load purchases
-        const purchasesResponse = await fetch(`/api/v1/purchases?startDate=${currentFromDate}&endDate=${currentToDate}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (purchasesResponse.ok) {
-            const purchasesData = await purchasesResponse.json();
-            const totalPurchases = purchasesData.data ? purchasesData.data.reduce((sum, purchase) => sum + (purchase.grandTotal || 0), 0) : 0;
-            document.getElementById('todayPurchases').textContent = totalPurchases.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
-
-        // Load customer count
-        const customersResponse = await fetch('/api/v1/parties?partyType=customer', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (customersResponse.ok) {
-            const customersData = await customersResponse.json();
-            document.getElementById('totalCustomers').textContent = customersData.data ? customersData.data.length : 0;
-        }
-
-        // Load low stock items
-        const itemsResponse = await fetch('/api/v1/items', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (itemsResponse.ok) {
-            const itemsData = await itemsResponse.json();
-            const lowStock = itemsData.data ? itemsData.data.filter(item => (item.currentStock || 0) < (item.minStock || 10)) : [];
-            document.getElementById('lowStockItems').textContent = lowStock.length;
-        }
-
-    } catch (error) {
-        console.error('Error loading dashboard stats:', error);
-        throw error;
-    }
-}
-
-// Load recent transactions
-async function loadRecentTransactions() {
-    try {
-        const token = localStorage.getItem('token');
-
-        // Load recent sales
-        const salesResponse = await fetch(`/api/v1/sales?startDate=${currentFromDate}&endDate=${currentToDate}&limit=5`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (salesResponse.ok) {
-            const salesData = await salesResponse.json();
-            displayRecentSales(salesData.data || []);
-        }
-
-        // Load recent purchases
-        const purchasesResponse = await fetch(`/api/v1/purchases?startDate=${currentFromDate}&endDate=${currentToDate}&limit=5`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (purchasesResponse.ok) {
-            const purchasesData = await purchasesResponse.json();
-            displayRecentPurchases(purchasesData.data || []);
-        }
-
-    } catch (error) {
-        console.error('Error loading recent transactions:', error);
-        throw error;
-    }
-}
-
-// Display recent sales
-function displayRecentSales(sales) {
-    const tbody = document.getElementById('recentSales');
-
-    if (!sales || sales.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center">No recent sales</td></tr>';
+    if (categories.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted">No category data available</div>';
         return;
     }
 
-    tbody.innerHTML = sales.map(sale => `
-        <tr>
-            <td>${sale.invoiceNo || sale.invoiceNumber || '-'}</td>
-            <td>${new Date(sale.date).toLocaleDateString()}</td>
-            <td>${sale.customer?.name || sale.partyName || sale.party?.name || '-'}</td>
-            <td>${(sale.grandTotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-            <td><span class="badge bg-success">Completed</span></td>
-        </tr>
-    `).join('');
-}
+    categories.forEach(cat => {
+        // Prepare branch list for this category
+        const branchList = Object.values(cat.branches).sort((a, b) => b.netSale - a.netSale);
 
-// Display recent purchases
-function displayRecentPurchases(purchases) {
-    const tbody = document.getElementById('recentPurchases');
+        let tableRows = '';
+        let tSale = 0, tCost = 0, tProfit = 0;
 
-    if (!purchases || purchases.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center">No recent purchases</td></tr>';
-        return;
-    }
+        branchList.forEach((b, idx) => {
+            const margin = b.netSale > 0 ? ((b.netSale - b.cost) / b.netSale) * 100 : 0; // Cost is 0 so margin 100%?
+            // If cost is 0, Profit = Sale. Margin = 100%. 
+            // Display Cost/Profit only if meaningful? The Image shows them.
+            // I'll display 0 for cost and Sale for profit if cost missing, but maybe "-" is better.
 
-    tbody.innerHTML = purchases.map(purchase => `
-        <tr>
-            <td>${purchase.invoiceNo || '-'}</td>
-            <td>${new Date(purchase.date).toLocaleDateString()}</td>
-            <td>${purchase.supplier?.name || purchase.partyName || purchase.party?.name || '-'}</td>
-            <td>${(purchase.grandTotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-            <td><span class="badge bg-success">Received</span></td>
-        </tr>
-    `).join('');
-}
+            tSale += b.netSale;
+            tCost += b.cost;
+            tProfit += (b.netSale - b.cost);
 
-// Initialize charts
-async function initCharts() {
-    try {
-        const token = localStorage.getItem('token');
-
-        // Destroy existing charts
-        if (salesChart) salesChart.destroy();
-        if (categoryChart) categoryChart.destroy();
-
-        // Load sales data for chart
-        const salesResponse = await fetch(`/api/v1/sales?startDate=${currentFromDate}&endDate=${currentToDate}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            tableRows += `
+                <tr>
+                    <td class="text-center fw-bold">${idx + 1}</td>
+                    <td>${b.branch}</td>
+                    <td class="text-end">${formatCurrency(b.netSale)}</td>
+                    <td class="text-end">${b.cost > 0 ? formatCurrency(b.cost) : '-'}</td>
+                    <td class="text-end text-success">${formatCurrency(b.netSale - b.cost)}</td>
+                    <td class="text-end"><span class="badge bg-success">${margin.toFixed(1)}%</span></td>
+                </tr>
+            `;
         });
 
-        let salesByDate = {};
-        if (salesResponse.ok) {
-            const salesData = await salesResponse.json();
-            if (salesData.data) {
-                salesData.data.forEach(sale => {
-                    const date = new Date(sale.date).toLocaleDateString();
-                    salesByDate[date] = (salesByDate[date] || 0) + (sale.grandTotal || 0);
-                });
-            }
-        }
+        // Grand total for Category
+        const totalMargin = tSale > 0 ? (tProfit / tSale) * 100 : 0;
 
-        const labels = Object.keys(salesByDate).slice(-7); // Last 7 days
-        const data = labels.map(label => salesByDate[label] || 0);
+        const cardHtml = `
+            <div class="category-detail-card">
+                <div class="category-header">
+                     <i class="fas fa-cubes"></i> ${cat.name}
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th width="5%" class="text-center">Rank</th>
+                                <th>Branch</th>
+                                <th class="text-end">Sales</th>
+                                <th class="text-end">Cost</th>
+                                <th class="text-end">Profit</th>
+                                <th class="text-end">Margin</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                            <tr class="grand-total-row">
+                                <td colspan="2" class="text-center">Grand Total</td>
+                                <td class="text-end">${formatCurrency(tSale)}</td>
+                                <td class="text-end">${tCost > 0 ? formatCurrency(tCost) : '-'}</td>
+                                <td class="text-end">${formatCurrency(tProfit)}</td>
+                                <td class="text-end"><span class="badge bg-success">${totalMargin.toFixed(1)}%</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        container.innerHTML += cardHtml;
+    });
+}
 
-        // Sales chart
-        const salesCtx = document.getElementById('salesChart').getContext('2d');
-        salesChart = new Chart(salesCtx, {
-            type: 'line',
-            data: {
-                labels: labels.length > 0 ? labels : ['No Data'],
-                datasets: [{
-                    label: 'Sales',
-                    data: data.length > 0 ? data : [0],
-                    borderColor: 'rgb(75, 192, 192)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                    tension: 0.1
-                }]
+function renderBranchCards(data) {
+    const container = document.getElementById('branchCardsContainer');
+    container.innerHTML = '';
+
+    data.forEach(b => {
+        const cardHtml = `
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="branch-card">
+                    <div class="branch-card-header">
+                        ${b.name}
+                    </div>
+                    <div class="branch-card-body">
+                        <div class="stat-box red">
+                            <span class="stat-label"><i class="fas fa-shopping-cart"></i> TOTAL SALE</span>
+                            <span class="stat-value">${formatCurrency(b.netSale)}</span>
+                        </div>
+                        <div class="stat-box blue">
+                            <span class="stat-label"><i class="fas fa-money-bill-wave"></i> TOTAL COST</span>
+                            <span class="stat-value">${formatCurrency(b.cost)}</span>
+                        </div>
+                        <div class="stat-box green">
+                            <span class="stat-label"><i class="fas fa-chart-line"></i> TOTAL PROFIT</span>
+                            <span class="stat-value">${formatCurrency(b.profit)}</span>
+                        </div>
+                        <div class="stat-box yellow">
+                            <span class="stat-label"><i class="fas fa-tags"></i> BRANCH DISC %</span>
+                            <span class="stat-value">${b.discPct.toFixed(1)}%</span>
+                        </div>
+                        <div class="stat-box dark">
+                            <span class="stat-label"><i class="fas fa-percentage"></i> MARGIN</span>
+                            <span class="stat-value">${b.margin.toFixed(1)}%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.innerHTML += cardHtml;
+    });
+}
+
+function renderSalesChart(data) {
+    const ctx = document.getElementById('salesChart').getContext('2d');
+
+    const labels = data.map(d => d.name);
+    const sales = data.map(d => d.netSale);
+
+    // Colorful bars
+    const colors = [
+        '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796', '#5a5c69'
+    ];
+    const bgColors = labels.map((_, i) => colors[i % colors.length]);
+
+    if (salesChart) {
+        salesChart.destroy();
+    }
+
+    salesChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Net Sale',
+                data: sales,
+                backgroundColor: bgColors,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                title: { display: false }
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                    },
-                    title: {
-                        display: true,
-                        text: 'Sales Trend'
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function (value) {
+                            return value.toLocaleString();
+                        }
                     }
                 }
             }
-        });
-
-        // Category distribution chart (placeholder data)
-        const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-        categoryChart = new Chart(categoryCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Sales', 'Purchases', 'Returns', 'Other'],
-                datasets: [{
-                    data: [40, 30, 20, 10],
-                    backgroundColor: [
-                        'rgba(255, 99, 132, 0.8)',
-                        'rgba(54, 162, 235, 0.8)',
-                        'rgba(255, 206, 86, 0.8)',
-                        'rgba(75, 192, 192, 0.8)'
-                    ],
-                    borderColor: [
-                        'rgb(255, 99, 132)',
-                        'rgb(54, 162, 235)',
-                        'rgb(255, 206, 86)',
-                        'rgb(75, 192, 192)'
-                    ],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                    },
-                    title: {
-                        display: true,
-                        text: 'Transaction Distribution'
-                    }
-                }
-            }
-        });
-    } catch (error) {
-        console.error('Error initializing charts:', error);
-    }
+        }
+    });
 }
 
-// Change chart period
-function changeChartPeriod(period) {
-    setDateFilter(period);
+function renderBranchTable(data) {
+    const tbody = document.getElementById('branchTableBody');
+    let html = '';
+
+    // Totals
+    let tGross = 0, tDiscVal = 0, tRet = 0, tSaleVal = 0, tGst = 0, tNet = 0, tAvg = 0;
+
+    data.forEach((b, index) => {
+        tGross += b.grossSale;
+        tDiscVal += b.discountVal;
+        tRet += b.returnVal;
+        tGst += b.gst;
+        tNet += b.netSale;
+        tAvg += b.avgDailySale;
+
+        html += `
+            <tr>
+                <td class="text-center fw-bold">${index + 1}</td>
+                <td class="fw-bold">${b.name}</td>
+                <td class="text-end">${formatCurrency(b.grossSale)}</td>
+                <td class="text-end">${formatCurrency(b.discountVal)}</td>
+                <td class="text-end">${b.discPct.toFixed(2)}%</td>
+                <td class="text-end">${formatCurrency(b.returnVal)}</td>
+                <td class="text-end">${formatCurrency(b.netSale)}</td> <!-- Sale Value used net for now -->
+                <td class="text-end">${formatCurrency(b.gst)}</td>
+                <td class="text-end fw-bold text-success">${formatCurrency(b.netSale)}</td>
+                <td class="text-end fw-bold">${formatCurrency(b.avgDailySale)}</td>
+            </tr>
+        `;
+    });
+
+    // Grand Total
+    const totalDiscPct = tGross > 0 ? (tDiscVal / tGross) * 100 : 0;
+
+    html += `
+        <tr class="grand-total-row">
+            <td colspan="2" class="text-center">Grand Total</td>
+            <td class="text-end">${formatCurrency(tGross)}</td>
+            <td class="text-end">${formatCurrency(tDiscVal)}</td>
+            <td class="text-end">${totalDiscPct.toFixed(2)}%</td>
+            <td class="text-end">${formatCurrency(tRet)}</td>
+            <td class="text-end">${formatCurrency(tNet)}</td>
+            <td class="text-end">${formatCurrency(tGst)}</td>
+            <td class="text-end">${formatCurrency(tNet)}</td>
+            <td class="text-end">${formatCurrency(tAvg)}</td>
+        </tr>
+    `;
+
+    tbody.innerHTML = html;
 }
+
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(amount || 0);
+}
+

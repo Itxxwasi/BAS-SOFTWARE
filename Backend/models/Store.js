@@ -18,6 +18,10 @@ const storeSchema = new mongoose.Schema({
     isActive: {
         type: Boolean,
         default: true
+    },
+    showOnDashboard: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true

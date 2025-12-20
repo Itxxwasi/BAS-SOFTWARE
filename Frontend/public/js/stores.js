@@ -72,7 +72,8 @@ async function saveStore() {
         kamla: document.getElementById('kamla').value,
         targetSale: document.getElementById('targetSale').value,
         simpleNadraCard: document.getElementById('simpleNadraCard').value,
-        isActive: document.getElementById('isActive').checked
+        isActive: document.getElementById('isActive').checked,
+        showOnDashboard: document.getElementById('showOnDashboard').checked
     };
 
     if (!storeData.name) {
@@ -132,6 +133,7 @@ async function editStore(id) {
             document.getElementById('targetSale').value = store.targetSale || '';
             document.getElementById('simpleNadraCard').value = store.simpleNadraCard || '';
             document.getElementById('isActive').checked = store.isActive;
+            document.getElementById('showOnDashboard').checked = store.showOnDashboard || false;
         }
     } catch (error) {
         console.error('Error loading store:', error);
@@ -177,4 +179,5 @@ function clearForm() {
     document.getElementById('targetSale').value = '';
     document.getElementById('simpleNadraCard').value = '';
     document.getElementById('isActive').checked = true;
+    document.getElementById('showOnDashboard').checked = false;
 }
