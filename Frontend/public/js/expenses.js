@@ -85,7 +85,7 @@ function displayExpenses(expenses) {
     tbody.innerHTML = expenses.map(expense => `
         <tr>
             <td><input type="checkbox" class="expense-checkbox" data-id="${expense._id}"></td>
-            <td>${expense.expenseNumber}</td>
+            <td>${expense.expenseNo}</td>
             <td>${formatDate(expense.date)}</td>
             <td><span class="badge">${expense.category}</span></td>
             <td>${expense.description}</td>
@@ -258,7 +258,7 @@ async function viewExpense(expenseId) {
 
 // Print expense
 function printExpense(expenseId) {
-    window.open(`/api/v1/expenses/${expenseId}/print`, '_blank');
+    window.open(`/voucher-print.html?type=expense&id=${expenseId}`, '_blank', 'width=1000,height=800');
 }
 
 // Edit expense

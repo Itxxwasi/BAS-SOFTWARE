@@ -281,6 +281,7 @@
 
             try {
                 const token = localStorage.getItem('token');
+                const type = urlParams.get('type') || 'voucher';
 
                 // 1. Fetch Company Info
                 const companyRes = await fetch('/api/v1/settings/company-info', {
@@ -297,48 +298,63 @@
                     `;
                 }
 
-                // 2. Fetch Voucher Data
-                const vRes = await fetch(`/api/v1/vouchers/${id}`, {
+                // 2. Fetch Data (Voucher or Expense)
+                const endpoint = type === 'expense' ? `/api/v1/expenses/${id}` : `/api/v1/vouchers/${id}`;
+                const res = await fetch(endpoint, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                const vData = await vRes.json();
-                if (vData.success) {
-                    const v = vData.data;
+                const responseData = await res.json();
 
-                    document.getElementById('vNo').textContent = v.voucherNo;
-                    document.getElementById('vDate').textContent = new Date(v.date).toLocaleDateString();
+                if (responseData.success) {
+                    const doc = responseData.data;
 
-                    // Determine Title and "Paid To / Received From"
-                    let typeTitle = 'Voucher';
-                    let targetLabel = 'Account';
+                    if (type === 'expense') {
+                        // MAP EXPENSE DATA
+                        document.getElementById('vNo').textContent = doc.expenseNo || '-';
+                        document.getElementById('vDate').textContent = new Date(doc.date).toLocaleDateString();
+                        document.getElementById('vTypeTitle').textContent = 'Expense Voucher';
+                        document.getElementById('targetLabel').textContent = 'Paid to';
 
-                    if (v.voucherType === 'CPV' || v.voucherType === 'BPV') {
-                        typeTitle = 'Payment Voucher';
-                        targetLabel = 'Paid to';
-                    } else if (v.voucherType === 'CRV' || v.voucherType === 'BRV') {
-                        typeTitle = 'Receipt Voucher';
-                        targetLabel = 'Received from';
+                        const amount = doc.amount || 0;
+                        document.getElementById('vAmount').textContent = amount.toLocaleString(undefined, { minimumFractionDigits: 2 });
+                        document.getElementById('amountWords').textContent = numberToWords(amount) + ' ONLY';
+
+                        document.getElementById('targetAccount').textContent = doc.description || doc.category || 'General Expense';
+                        document.getElementById('vDetail').textContent = `Category: ${doc.category}${doc.notes ? ' | ' + doc.notes : ''}`;
+
                     } else {
-                        typeTitle = 'Journal Voucher';
-                        targetLabel = 'Debit Account';
+                        // MAP VOUCHER DATA
+                        document.getElementById('vNo').textContent = doc.voucherNo;
+                        document.getElementById('vDate').textContent = new Date(doc.date).toLocaleDateString();
+
+                        let typeTitle = 'Voucher';
+                        let targetLabel = 'Account';
+
+                        if (doc.voucherType === 'CPV' || doc.voucherType === 'BPV') {
+                            typeTitle = 'Payment Voucher';
+                            targetLabel = 'Paid to';
+                        } else if (doc.voucherType === 'CRV' || doc.voucherType === 'BRV') {
+                            typeTitle = 'Receipt Voucher';
+                            targetLabel = 'Received from';
+                        } else {
+                            typeTitle = 'Journal Voucher';
+                            targetLabel = 'Debit Account';
+                        }
+
+                        document.getElementById('vTypeTitle').textContent = typeTitle;
+                        document.getElementById('targetLabel').textContent = targetLabel;
+
+                        const amount = doc.totalDebit;
+                        document.getElementById('vAmount').textContent = amount.toLocaleString(undefined, { minimumFractionDigits: 2 });
+                        document.getElementById('amountWords').textContent = numberToWords(amount) + ' ONLY';
+
+                        const mainLines = doc.entries.filter(e => !(e.detail && e.detail.includes('Auto-balanced')));
+                        const accountNames = mainLines.map(e => e.account).join(', ');
+                        const details = mainLines.map(e => e.detail).filter(d => d).join(', ') || doc.narration || '';
+
+                        document.getElementById('targetAccount').textContent = accountNames;
+                        document.getElementById('vDetail').textContent = details;
                     }
-
-                    document.getElementById('vTypeTitle').textContent = typeTitle;
-                    document.getElementById('targetLabel').textContent = targetLabel;
-
-                    // Get total amount and target account
-                    const amount = v.totalDebit;
-                    document.getElementById('vAmount').textContent = amount.toLocaleString(undefined, { minimumFractionDigits: 2 });
-                    document.getElementById('amountWords').textContent = numberToWords(amount) + ' ONLY';
-
-                    // For single-sided vouchers, find the non-cash account
-                    // Actually, let's just show all accounts minus the auto-balanced one
-                    const mainLines = v.entries.filter(e => !(e.detail && e.detail.includes('Auto-balanced')));
-                    const accountNames = mainLines.map(e => e.account).join(', ');
-                    const details = mainLines.map(e => e.detail).filter(d => d).join(', ') || v.narration || '';
-
-                    document.getElementById('targetAccount').textContent = accountNames;
-                    document.getElementById('vDetail').textContent = details;
                 }
 
             } catch (err) {
