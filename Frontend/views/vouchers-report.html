@@ -470,6 +470,17 @@
                     vouchers = vouchers.filter(v => (v.voucherNumber || '').toLowerCase().includes(sl) || (v.narration || '').toLowerCase().includes(sl));
                 }
 
+                // Context filtering (Supplier vs Category)
+                const urlParams = new URLSearchParams(window.location.search);
+                const context = urlParams.get('context');
+                if (context === 'supplier') {
+                    vouchers = vouchers.filter(v => v.type === 'payment' && (v.narration || v.description) !== 'Category Wise Payment');
+                    if (document.querySelector('.data-header h5')) document.querySelector('.data-header h5').textContent = 'Supplier Payment Vouchers';
+                } else if (context === 'category') {
+                    vouchers = vouchers.filter(v => v.type === 'payment' && (v.narration || v.description) === 'Category Wise Payment');
+                    if (document.querySelector('.data-header h5')) document.querySelector('.data-header h5').textContent = 'Category Payment Vouchers';
+                }
+
                 let total = vouchers.length, payments = 0, receipts = 0, journals = 0;
                 let totalDebit = 0, totalCredit = 0;
                 vouchers.forEach(v => {

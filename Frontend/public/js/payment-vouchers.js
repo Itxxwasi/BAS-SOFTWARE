@@ -12,26 +12,59 @@ document.addEventListener('DOMContentLoaded', async () => {
         input.value = today;
     });
 
-    // Permission Check for Tabs
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const rights = user.rights || {};
-    // If admin, rights might be undefined but admin has access. However, granular checks usually require looking at role.
-    // If user.role === 'admin' or user.group.isAdmin, we assume true.
     const isAdmin = user.role === 'admin' || (user.group && user.group.isAdmin) || (user.groupId && user.groupId.isAdmin);
 
-    const canSupplier = isAdmin || rights.pv_supplier;
-    const canCategory = isAdmin || rights.pv_category;
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
 
-    if (!canSupplier) {
-        document.getElementById('tab-li-supplier').style.display = 'none';
-        document.getElementById('supplier-content').classList.remove('active', 'show');
+    // Force context isolation if tabParam is present (User requested separate screens)
+    let forceSupplier = tabParam === 'supplier';
+    let forceCategory = tabParam === 'category';
+
+    const canSupplier = (isAdmin || rights.pv_supplier) && !forceCategory;
+    const canCategory = (isAdmin || rights.pv_category) && !forceSupplier;
+
+    // Update page title if isolated
+    if (forceSupplier || forceCategory) {
+        const titleEl = document.querySelector('.page-title');
+        if (titleEl) {
+            titleEl.textContent = forceSupplier ? 'Supplier Voucher List' : 'Category Voucher List';
+        }
     }
-    if (!canCategory) {
+
+    // Hiding Tabs (Entry Page)
+    if (!canSupplier && document.getElementById('tab-li-supplier')) {
+        document.getElementById('tab-li-supplier').style.display = 'none';
+        document.getElementById('supplier-content')?.classList.remove('active', 'show');
+    }
+    if (!canCategory && document.getElementById('tab-li-category')) {
         document.getElementById('tab-li-category').style.display = 'none';
-        // If category was default active (unlikely), handle it?
-        // Usually supplier is active. If supplier is hidden, we must activate category.
-        if (!canSupplier && canCategory) {
-            const catTab = new bootstrap.Tab(document.getElementById('category-tab'));
+        document.getElementById('category-content')?.classList.remove('active', 'show');
+        if (canSupplier) {
+            const supTab = new bootstrap.Tab(document.getElementById('supplier-tab'));
+            supTab.show();
+        }
+    }
+
+    // Hiding Tabs (List Page)
+    if (!canSupplier && document.getElementById('list-tab-li-supplier')) {
+        document.getElementById('list-tab-li-supplier').style.display = 'none';
+    }
+    if (!canCategory && document.getElementById('list-tab-li-category')) {
+        document.getElementById('list-tab-li-category').style.display = 'none';
+        if (canSupplier && document.getElementById('list-supplier-tab')) {
+            const supTab = new bootstrap.Tab(document.getElementById('list-supplier-tab'));
+            supTab.show();
+        }
+    }
+
+    // Default activation logic if current active tab is hidden
+    if (!canSupplier && canCategory) {
+        const catTabEl = document.getElementById('category-tab') || document.getElementById('list-category-tab');
+        if (catTabEl) {
+            const catTab = new bootstrap.Tab(catTabEl);
             catTab.show();
         }
     }
@@ -52,8 +85,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadInitialData();
 
     // Navigation and tab handling - Use Bootstrap Tab API for reliability
-    const urlParams = new URLSearchParams(window.location.search);
-    const tabParam = urlParams.get('tab');
     if (tabParam === 'category') {
         const catTabEl = document.getElementById('category-tab') || document.getElementById('list-category-tab');
         if (catTabEl) {
