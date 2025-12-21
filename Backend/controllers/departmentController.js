@@ -5,7 +5,9 @@ const Department = require('../models/Department');
 // @access  Private
 exports.getDepartments = async (req, res) => {
     try {
-        const departments = await Department.find().sort({ name: 1 });
+        const departments = await Department.find()
+            .populate('parentDepartment', 'name branch')
+            .sort({ name: 1 });
         res.status(200).json({ success: true, count: departments.length, data: departments });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });

@@ -49,9 +49,30 @@ async function loadDepartments() {
             allDepartments = data.data;
             console.log('Loaded departments:', allDepartments.length);
             renderTable(allDepartments);
+            populateParentDepartmentDropdown();
         }
     } catch (e) {
         console.error(e);
+    }
+}
+
+function populateParentDepartmentDropdown() {
+    const select = document.getElementById('parentDepartment');
+    const currentValue = select.value;
+    select.innerHTML = '<option value="">None (Main Department)</option>';
+
+    // Only show non-cash-counter departments as parent options
+    const mainDepartments = allDepartments.filter(d => !d.isCashCounter && d.isActive);
+    mainDepartments.forEach(dept => {
+        const option = document.createElement('option');
+        option.value = dept._id;
+        option.textContent = `${dept.name} (${dept.branch})`;
+        select.appendChild(option);
+    });
+
+    // Restore previous selection if exists
+    if (currentValue) {
+        select.value = currentValue;
     }
 }
 
@@ -111,6 +132,7 @@ async function saveDepartment() {
         deductUgSaleFromAllDep: document.getElementById('deductUgSaleFromAllDep').checked,
         closing: document.getElementById('closing').checked,
         isCashCounter: document.getElementById('isCashCounter').checked,
+        parentDepartment: document.getElementById('parentDepartment').value || null,
         closing2CompSale: document.getElementById('closing2CompSale').checked,
         closing2DeptDropDown: document.getElementById('closing2DeptDropDown').checked,
         isActive: document.getElementById('isActive').checked
@@ -185,6 +207,7 @@ async function editDepartment(id) {
             document.getElementById('deductUgSaleFromAllDep').checked = d.deductUgSaleFromAllDep;
             document.getElementById('closing').checked = d.closing;
             document.getElementById('isCashCounter').checked = d.isCashCounter || false;
+            document.getElementById('parentDepartment').value = d.parentDepartment || '';
             document.getElementById('closing2CompSale').checked = d.closing2CompSale || false;
             document.getElementById('closing2DeptDropDown').checked = d.closing2DeptDropDown || false;
             document.getElementById('isActive').checked = d.isActive;
@@ -215,6 +238,7 @@ function clearForm() {
     document.getElementById('deptId').value = '';
     document.getElementById('name').value = '';
     document.getElementById('code').value = '';
+    document.getElementById('parentDepartment').value = '';
     document.querySelectorAll('input[type=number]').forEach(i => i.value = '0');
     document.querySelectorAll('input[type=checkbox]').forEach(i => i.checked = false);
     document.getElementById('isActive').checked = true;

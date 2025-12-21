@@ -262,10 +262,10 @@ async function saveVoucher(payload) {
 async function fetchVoucherList() {
     try {
         const token = localStorage.getItem('token');
-        const fromDate = document.getElementById('listFromDate').value;
-        const toDate = document.getElementById('listToDate').value;
-        const branch = document.getElementById('listBranchFilter').value;
-        const supplier = document.getElementById('listSupplierFilter').value;
+        const fromDate = document.getElementById('listFromDate')?.value || '';
+        const toDate = document.getElementById('listToDate')?.value || '';
+        const branch = document.getElementById('listBranchFilter')?.value || '';
+        const supplier = document.getElementById('listSupplierFilter')?.value || '';
 
         let url = `/api/v1/vouchers?limit=100&sort=-date&startDate=${fromDate}&endDate=${toDate}`;
         // Note: Backend might not filter by branch/supplier directly in the query, we might need to filter client-side or use a better API

@@ -98,6 +98,12 @@ class SidebarNavigation {
                             { label: 'Expense Report', link: '/expense-report.html' },
                             { label: 'Vouchers', link: '/vouchers-report.html' }
                         ]
+                    },
+                    {
+                        id: 'cash-counter-reports', label: 'Cash Counter Reports', icon: 'fa-cash-register',
+                        submenu: [
+                            { label: 'Cash Counter Report', link: '/cash-counter-report.html' }
+                        ]
                     }
                 ]
             },

@@ -108,12 +108,36 @@ async function loadDashboardData() {
     const storeData = await storeRes.json();
     const enabledStores = (storeData.data || []).filter(s => s.showOnDashboard);
 
+    // Populate branch filter dropdown
+    const branchFilter = document.getElementById('dashboardBranchFilter');
+    if (branchFilter && branchFilter.options.length === 1) { // Only populate once
+        enabledStores.forEach(store => {
+            const option = document.createElement('option');
+            option.value = store.name;
+            option.textContent = store.name;
+            branchFilter.appendChild(option);
+        });
+    }
+
+    // Get selected branch filter
+    const selectedBranch = branchFilter ? branchFilter.value : 'all';
+
     // Normalization Logic for fuzzy matching (e.g. "PWD - 1" vs "PWD 1")
     const normalize = (name) => (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const branchNameMap = new Map(); // normalized -> original name
-    enabledStores.forEach(s => {
-        branchNameMap.set(normalize(s.name), s.name);
-    });
+
+    // If specific branch selected, only map that branch
+    if (selectedBranch !== 'all') {
+        const selectedStore = enabledStores.find(s => s.name === selectedBranch);
+        if (selectedStore) {
+            branchNameMap.set(normalize(selectedStore.name), selectedStore.name);
+        }
+    } else {
+        // Map all enabled stores
+        enabledStores.forEach(s => {
+            branchNameMap.set(normalize(s.name), s.name);
+        });
+    }
 
     // Fetch Departments (for Mapping)
     const deptRes = await fetch('/api/v1/departments', { headers });
@@ -247,19 +271,19 @@ async function loadDashboardData() {
     }
 
     // --- Process Payment Section ---
-    processPaymentSection(sheets, vouchers, warehouseCatsMap, branchNameMap);
+    processPaymentSection(sheets, expenses, warehouseCatsMap, branchNameMap);
 }
 
 let paymentDataCache = []; // Store calculated data for filtering
 
-function processPaymentSection(sheets, vouchers, categoriesMap, branchNameMap) {
+function processPaymentSection(sheets, expenses, categoriesMap, branchNameMap) {
     const normalize = (name) => (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const allowedBranchList = Array.from(new Set(branchNameMap.values()));
 
     // Structure: Map<CategoryName, Map<BranchName, {sale, cost, payment}>>
     const stats = {};
 
-    // Init
+    // Initialize with warehouse categories (customer categories) only
     Object.values(categoriesMap).forEach(catName => {
         stats[catName] = {};
         allowedBranchList.forEach(b => {
@@ -267,7 +291,7 @@ function processPaymentSection(sheets, vouchers, categoriesMap, branchNameMap) {
         });
     });
 
-    // Fill Sale/Cost (Same logic as Breakdown)
+    // Fill Sale/Cost from warehouse categories
     sheets.forEach(sheet => {
         const rawName = sheet.branch || 'Unknown';
         const targetBranchName = branchNameMap.get(normalize(rawName));
@@ -279,8 +303,16 @@ function processPaymentSection(sheets, vouchers, categoriesMap, branchNameMap) {
                 const catName = categoriesMap[item.category];
                 if (!catName) return;
 
-                if (!stats[catName]) stats[catName] = {}; // safety
-                if (!stats[catName][targetBranchName]) stats[catName][targetBranchName] = { branch: targetBranchName, sale: 0, cost: 0, payment: 0 };
+                if (!stats[catName]) {
+                    stats[catName] = {};
+                    allowedBranchList.forEach(b => {
+                        stats[catName][b] = { branch: b, sale: 0, cost: 0, payment: 0 };
+                    });
+                }
+
+                if (!stats[catName][targetBranchName]) {
+                    stats[catName][targetBranchName] = { branch: targetBranchName, sale: 0, cost: 0, payment: 0 };
+                }
 
                 stats[catName][targetBranchName].sale += parseFloat(item.sale || 0);
                 stats[catName][targetBranchName].cost += parseFloat(item.cost || 0);
@@ -288,123 +320,194 @@ function processPaymentSection(sheets, vouchers, categoriesMap, branchNameMap) {
         }
     });
 
-    // Fill Payments from Vouchers
-    vouchers.forEach(v => {
-        const rawName = v.branch || 'Unknown';
+    // Fill Payments from Expenses - Match expense head to warehouse category name
+    console.log('=== Processing Expenses for Payments ===');
+    console.log('Total expenses:', expenses.length);
+    console.log('Available categories:', Object.values(categoriesMap));
+
+    expenses.forEach(exp => {
+        const rawName = exp.branch || 'Unknown';
         const targetBranchName = branchNameMap.get(normalize(rawName));
         if (!targetBranchName) return;
 
-        if (v.entries) {
-            v.entries.forEach(e => {
-                // Determine if entry is for a Category
-                // Using stats keys (Category Names) to check
-                const catName = e.account;
+        // Match expense head to customer category name
+        const expenseHead = exp.head;
+        if (!expenseHead) return;
 
-                if (stats[catName] && stats[catName][targetBranchName]) {
-                    // Payment is Debit
-                    stats[catName][targetBranchName].payment += (e.debit || 0);
-                }
-            });
+        console.log(`Trying to match expense: "${expenseHead}" (${exp.amount}) from branch ${targetBranchName}`);
+
+        // Find matching category (exact match or contains)
+        const matchingCategory = Object.values(categoriesMap).find(catName => {
+            return normalize(catName) === normalize(expenseHead) ||
+                normalize(expenseHead).includes(normalize(catName)) ||
+                normalize(catName).includes(normalize(expenseHead));
+        });
+
+        if (matchingCategory && stats[matchingCategory] && stats[matchingCategory][targetBranchName]) {
+            console.log(`✓ Matched to category: "${matchingCategory}"`);
+            stats[matchingCategory][targetBranchName].payment += (exp.amount || 0);
+        } else {
+            console.log(`✗ No match found for "${expenseHead}"`);
         }
     });
 
+    console.log('=== Payment Stats After Processing ===', stats);
+
     paymentDataCache = stats;
 
-    // Populate Dropdown
-    const dropdown = document.getElementById('paymentCategoryFilter');
-    if (dropdown) {
-        const currentSel = dropdown.value;
-        dropdown.innerHTML = '<option value="all">All Categories</option>';
-        Object.keys(stats).sort().forEach(c => {
-            dropdown.innerHTML += `<option value="${c}">${c}</option>`;
-        });
-        if (currentSel && stats[currentSel]) dropdown.value = currentSel;
-
-        // Bind change event
-        dropdown.onchange = renderPaymentUI;
-    }
-
+    // Populate Dropdowns
+    populatePaymentFilters(stats, allowedBranchList);
     renderPaymentUI();
 }
 
+function populatePaymentFilters(stats, branches) {
+    // Populate Branch Filter
+    const branchFilter = document.getElementById('paymentBranchFilter');
+    if (branchFilter) {
+        const currentBranch = branchFilter.value;
+        branchFilter.innerHTML = '<option value="all">All Branches</option>';
+        branches.forEach(b => {
+            branchFilter.innerHTML += `<option value="${b}">${b}</option>`;
+        });
+        if (currentBranch) branchFilter.value = currentBranch;
+        branchFilter.onchange = renderPaymentUI;
+    }
+
+    // Populate Category Filter
+    const categoryFilter = document.getElementById('paymentCategoryFilter');
+    if (categoryFilter) {
+        const currentCat = categoryFilter.value;
+        categoryFilter.innerHTML = '<option value="all">All Categories</option>';
+        Object.keys(stats).sort().forEach(c => {
+            categoryFilter.innerHTML += `<option value="${c}">${c}</option>`;
+        });
+        if (currentCat && stats[currentCat]) categoryFilter.value = currentCat;
+        categoryFilter.onchange = renderPaymentUI;
+    }
+}
+
 function renderPaymentUI() {
-    const dropdown = document.getElementById('paymentCategoryFilter');
-    if (!dropdown) return;
+    const branchFilter = document.getElementById('paymentBranchFilter');
+    const categoryFilter = document.getElementById('paymentCategoryFilter');
+    const container = document.getElementById('paymentCategoryBreakdown');
 
-    const category = dropdown.value;
-    const tbody = document.getElementById('paymentTableBody');
-    const title = document.getElementById('paymentTableTitle');
-
-    if (!paymentDataCache || Object.keys(paymentDataCache).length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No Data</td></tr>';
+    if (!container || !paymentDataCache || Object.keys(paymentDataCache).length === 0) {
+        if (container) container.innerHTML = '<div class="text-center text-muted py-3">No payment data available</div>';
         return;
     }
 
-    let branchesData = {}; // Branch -> {sale, cost, payment}
+    const selectedBranch = branchFilter ? branchFilter.value : 'all';
+    const selectedCategory = categoryFilter ? categoryFilter.value : 'all';
 
-    // Filter and Aggregate
-    Object.keys(paymentDataCache).forEach(catName => {
-        if (category !== 'all' && catName !== category) return;
-
-        const branchMap = paymentDataCache[catName];
-        Object.values(branchMap).forEach(b => {
-            if (!branchesData[b.branch]) branchesData[b.branch] = { branch: b.branch, sale: 0, cost: 0, payment: 0 };
-            branchesData[b.branch].sale += b.sale;
-            branchesData[b.branch].cost += b.cost;
-            branchesData[b.branch].payment += b.payment;
-        });
-    });
-
-    // Update Title
-    title.innerHTML = category === 'all' ? '<i class="fas fa-money-bill"></i> All Categories Payment Report' : `<i class="fas fa-money-bill"></i> ${category}`;
-
-    // Calculate Grand Totals
-    let tSale = 0, tCost = 0, tPay = 0;
-    const sortedBranches = Object.values(branchesData).sort((a, b) => b.sale - a.sale);
-
+    let totalSale = 0, totalCost = 0, totalPayment = 0;
     let html = '';
-    sortedBranches.forEach((b, i) => {
-        tSale += b.sale;
-        tCost += b.cost;
-        tPay += b.payment;
-        const bal = b.cost - b.payment; // Balance logic as per instruction/image (Cost(Due) - Paid = Balance)
 
-        html += `
-            <tr>
-                <td class="text-center fw-bold">${i + 1}</td>
-                <td>${b.branch}</td>
-                <td class="text-end">${formatCurrency(b.sale)}</td>
-                <td class="text-end">${formatCurrency(b.cost)}</td>
-                <td class="text-end">${formatCurrency(b.payment)}</td>
-                <td class="text-end fw-bold ${bal > 0 ? 'text-success' : 'text-danger'}">${formatCurrency(bal)}</td>
-            </tr>
-        `;
+    // Filter categories
+    const categoriesToShow = selectedCategory === 'all' ?
+        Object.keys(paymentDataCache).sort() :
+        [selectedCategory];
+
+    categoriesToShow.forEach(catName => {
+        const branchMap = paymentDataCache[catName];
+        if (!branchMap) return;
+
+        let catSale = 0, catCost = 0, catPayment = 0;
+        let branchRows = '';
+
+        // Filter and aggregate branches
+        const branchesToShow = selectedBranch === 'all' ?
+            Object.values(branchMap) :
+            Object.values(branchMap).filter(b => b.branch === selectedBranch);
+
+        const sortedBranches = branchesToShow.sort((a, b) => b.sale - a.sale);
+
+        sortedBranches.forEach((b, idx) => {
+            if (b.sale === 0 && b.cost === 0 && b.payment === 0) return; // Skip empty rows
+
+            catSale += b.sale;
+            catCost += b.cost;
+            catPayment += b.payment;
+
+            const balance = b.cost - b.payment;
+
+            branchRows += `
+                <tr>
+                    <td class="text-center fw-bold">${idx + 1}</td>
+                    <td>${b.branch}</td>
+                    <td class="text-end">${formatCurrency(b.sale)}</td>
+                    <td class="text-end">${formatCurrency(b.cost)}</td>
+                    <td class="text-end">${formatCurrency(b.payment)}</td>
+                    <td class="text-end fw-bold ${balance > 0 ? 'text-danger' : 'text-success'}">${formatCurrency(balance)}</td>
+                </tr>
+            `;
+        });
+
+        if (branchRows) {
+            totalSale += catSale;
+            totalCost += catCost;
+            totalPayment += catPayment;
+
+            const catBalance = catCost - catPayment;
+
+            html += `
+                <div class="category-detail-card mb-3">
+                    <div class="category-header" style="background-color: #0288d1;">
+                        <i class="fas fa-box me-2"></i> ${catName}
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th width="5%" class="text-center">Rank</th>
+                                    <th>Branch</th>
+                                    <th class="text-end">Sale</th>
+                                    <th class="text-end">Cost</th>
+                                    <th class="text-end">Category Payments</th>
+                                    <th class="text-end">Balance Payment</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${branchRows}
+                                <tr class="grand-total-row">
+                                    <td colspan="2" class="text-center fw-bold">Grand Total</td>
+                                    <td class="text-end fw-bold">${formatCurrency(catSale)}</td>
+                                    <td class="text-end fw-bold">${formatCurrency(catCost)}</td>
+                                    <td class="text-end fw-bold">${formatCurrency(catPayment)}</td>
+                                    <td class="text-end fw-bold">${formatCurrency(catBalance)}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
     });
 
-    // Grand Total Row
-    const totalBal = tCost - tPay;
-    html += `
-         <tr class="grand-total-row">
-            <td colspan="2" class="text-center">Grand Total</td>
-            <td class="text-end">${formatCurrency(tSale)}</td>
-            <td class="text-end">${formatCurrency(tCost)}</td>
-            <td class="text-end">${formatCurrency(tPay)}</td>
-            <td class="text-end">${formatCurrency(totalBal)}</td>
-        </tr>
-    `;
+    if (!html) {
+        html = '<div class="text-center text-muted py-3">No data for selected filters</div>';
+    }
 
-    tbody.innerHTML = html;
+    container.innerHTML = html;
 
-    // Update Cards
-    document.getElementById('payStatSale').textContent = formatCurrency(tSale);
-    document.getElementById('payStatCost').textContent = formatCurrency(tCost);
-    document.getElementById('payStatPayment').textContent = formatCurrency(tPay);
-    document.getElementById('payStatBalance').textContent = formatCurrency(totalBal);
+    // Update stat cards
+    const totalBalance = totalCost - totalPayment;
+    document.getElementById('payStatSale').textContent = formatCurrency(totalSale);
+    document.getElementById('payStatCost').textContent = formatCurrency(totalCost);
+    document.getElementById('payStatPayment').textContent = formatCurrency(totalPayment);
+    document.getElementById('payStatBalance').textContent = formatCurrency(totalBalance);
+}
+
+function refreshPaymentData() {
+    refreshDashboard();
 }
 
 function processAndRenderCategoryBreakdown(sheets, categoriesMap, branchNameMap) {
     // Normalization Logic
     const normalize = (name) => (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    console.log('=== Processing Category Breakdown ===');
+    console.log('Total closing sheets:', sheets.length);
+    console.log('Available categories:', Object.values(categoriesMap));
 
     // Map<CategoryName, Map<BranchName, {netSale, cost}>>
     const catStats = {};
@@ -432,9 +535,27 @@ function processAndRenderCategoryBreakdown(sheets, categoriesMap, branchNameMap)
 
         // Check for warehouseSale data in closing02.data
         const dataObj = sheet.closing02?.data || sheet.closing02;
+
+        console.log(`Sheet for branch ${rawName}:`, {
+            hasClosing02: !!sheet.closing02,
+            hasData: !!dataObj,
+            hasWarehouseSale: !!(dataObj && dataObj.warehouseSale),
+            warehouseSaleLength: dataObj?.warehouseSale?.length || 0,
+            warehouseSale: dataObj?.warehouseSale
+        });
+
         if (dataObj && dataObj.warehouseSale && Array.isArray(dataObj.warehouseSale)) {
+            console.log(`Processing ${dataObj.warehouseSale.length} warehouse sale items for ${targetBranchName}`);
+
             dataObj.warehouseSale.forEach(item => {
                 const catName = categoriesMap[item.category];
+                console.log(`Warehouse item:`, {
+                    categoryId: item.category,
+                    categoryName: catName,
+                    sale: item.sale,
+                    cost: item.cost
+                });
+
                 if (!catName) return; // Unknown category
 
                 // Initialize if missing (e.g. if category list changed)
@@ -448,10 +569,15 @@ function processAndRenderCategoryBreakdown(sheets, categoriesMap, branchNameMap)
                 if (catStats[catName][targetBranchName]) {
                     catStats[catName][targetBranchName].netSale += parseFloat(item.sale || 0);
                     catStats[catName][targetBranchName].cost += parseFloat(item.cost || 0);
+                    console.log(`Added to ${catName} - ${targetBranchName}: Sale ${item.sale}, Cost ${item.cost}`);
                 }
             });
+        } else {
+            console.log(`No warehouse sale data found for ${rawName}`);
         }
     });
+
+    console.log('=== Final Category Stats ===', catStats);
 
     // Departments/Categories to display
     const sortedCats = Object.entries(catStats).map(([name, branches]) => {
