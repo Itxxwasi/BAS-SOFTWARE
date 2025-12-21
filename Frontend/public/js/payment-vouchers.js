@@ -12,6 +12,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         input.value = today;
     });
 
+    // Fix for tabs displaying below each other (stacking issue)
+    const voucherTabs = document.querySelectorAll('#paymentTabs button[data-bs-toggle="tab"]');
+    voucherTabs.forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function (e) {
+            const targetId = e.target.getAttribute('data-bs-target');
+            document.querySelectorAll('#paymentTabsContent .tab-pane').forEach(pane => {
+                if ('#' + pane.id !== targetId) {
+                    pane.classList.remove('show', 'active');
+                }
+            });
+        });
+    });
+
     await loadInitialData();
 
     // Navigation and tab handling - Use Bootstrap Tab API for reliability

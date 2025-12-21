@@ -94,6 +94,10 @@ const saleSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+    branch: {
+        type: String,
+        default: ''
+    },
     isActive: {
         type: Boolean,
         default: true

@@ -6,7 +6,7 @@ const User = require('../models/User');
 // @route   GET /api/v1/users
 // @access  Private/Admin
 exports.getUsers = asyncHandler(async (req, res, next) => {
-    const users = await User.find().select('-password');
+    const users = await User.find().select('-password').populate('groupId');
 
     res.status(200).json({
         success: true,
@@ -32,15 +32,20 @@ exports.getUser = asyncHandler(async (req, res, next) => {
 // @route   POST /api/v1/users
 // @access  Private/Admin
 exports.createUser = asyncHandler(async (req, res, next) => {
-    const { name, email, password, role, permissions, isActive } = req.body;
+    const { name, email, password, groupId, isActive, permissions, branch, department, zakat, userType, saleDeleteLimit } = req.body;
 
     const user = await User.create({
         name,
         email,
         password,
-        role,
+        groupId,
+        isActive,
         permissions,
-        isActive
+        branch,
+        department,
+        zakat,
+        userType,
+        saleDeleteLimit
     });
 
     res.status(201).json({

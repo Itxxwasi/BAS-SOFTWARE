@@ -141,32 +141,26 @@
 <body>
     <!-- Main Content Wrapper -->
     <div class="main-content">
-        <!-- Top Navigation -->
-        <nav class="top-nav">
-            <div class="d-flex align-items-center">
-                <button id="sidebarToggle" class="btn btn-link text-dark me-3">
-                    <i class="fas fa-bars"></i>
-                </button>
+        <div class="page-header px-3">
+            <div style="flex: 1; display: flex; align-items: center;">
+                <i class="fas fa-bars me-3" id="sidebarToggle" style="cursor:pointer; font-size: 1rem;"></i>
                 <h4 class="mb-0">Supplier WH Tax</h4>
             </div>
-
-            <div class="user-info dropdown">
-                <div class="d-flex align-items-center" data-bs-toggle="dropdown" style="cursor: pointer;">
-                    <div class="user-avatar text-white bg-primary rounded-circle d-flex align-items-center justify-content-center"
-                        style="width: 35px; height: 35px;">
-                        <i class="fas fa-user"></i>
+            <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center;">
+                <div class="dropdown">
+                    <div class="d-flex align-items-center text-dark" data-bs-toggle="dropdown"
+                        style="cursor: pointer;">
+                        <i class="fas fa-user-circle me-2" style="font-size: 1.2rem;"></i>
+                        <span id="userName" class="me-2">User</span>
+                        <i class="fas fa-chevron-down" style="font-size: 0.7rem;"></i>
                     </div>
-                    <span class="ms-2 d-none d-md-block" id="userName">User</span>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                        <li><a class="dropdown-item logout-btn" href="#"><i
+                                    class="fas fa-sign-out-alt me-2 text-danger"></i>Sign Out</a></li>
+                    </ul>
                 </div>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <li><a class="dropdown-item" href="/profile.html">Profile</a></li>
-                    <li>
-                        <hr class="dropdown-divider">
-                    </li>
-                    <li><a class="dropdown-item" href="#" onclick="window.pageAccess.logout()">Logout</a></li>
-                </ul>
             </div>
-        </nav>
+        </div>
 
         <div class="container-fluid mt-3">
 

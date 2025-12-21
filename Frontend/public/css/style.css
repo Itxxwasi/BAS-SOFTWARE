@@ -482,8 +482,8 @@ body {
 
 /* Table Styles */
 .table-responsive {
-    max-height: 300px;
-    overflow-y: auto;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .table th {

@@ -127,35 +127,27 @@
 <body>
     <!-- Main Content Wrapper -->
     <div class="main-content">
-        <!-- Top Navigation -->
-        <nav class="top-nav">
-            <div class="d-flex align-items-center">
-                <button id="sidebarToggle" class="btn btn-link text-dark me-3">
-                    <i class="fas fa-bars"></i>
-                </button>
+        <!-- Standardized Page Header -->
+        <div class="page-header px-3">
+            <div style="flex: 1; display: flex; align-items: center;">
+                <i class="fas fa-bars me-3" id="sidebarToggle" style="cursor:pointer; font-size: 1rem;"></i>
                 <h4 class="mb-0">Settings</h4>
-                <a href="/main.html" class="btn btn-outline-primary ms-3 btn-sm" style="border-radius: 20px;">
-                    <i class="fas fa-home me-1"></i> Home Page
-                </a>
             </div>
-
-            <div class="user-info dropdown">
-                <div class="d-flex align-items-center" data-bs-toggle="dropdown" style="cursor: pointer;">
-                    <div class="user-avatar text-white bg-primary rounded-circle d-flex align-items-center justify-content-center"
-                        style="width: 35px; height: 35px;">
-                        <i class="fas fa-user"></i>
+            <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center;">
+                <div class="dropdown">
+                    <div class="d-flex align-items-center text-dark" data-bs-toggle="dropdown"
+                        style="cursor: pointer;">
+                        <i class="fas fa-user-circle me-2" style="font-size: 1.2rem;"></i>
+                        <span id="userName" class="me-2">User</span>
+                        <i class="fas fa-chevron-down" style="font-size: 0.7rem;"></i>
                     </div>
-                    <span class="ms-2 d-none d-md-block" id="userName">User</span>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                        <li><a class="dropdown-item logout-btn" href="#"><i
+                                    class="fas fa-sign-out-alt me-2 text-danger"></i>Sign Out</a></li>
+                    </ul>
                 </div>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <li><a class="dropdown-item" href="/profile.html">Profile</a></li>
-                    <li>
-                        <hr class="dropdown-divider">
-                    </li>
-                    <li><a class="dropdown-item" href="#" onclick="window.pageAccess.logout()">Logout</a></li>
-                </ul>
             </div>
-        </nav>
+        </div>
 
         <!-- Main Content -->
         <div class="container-fluid mt-4">
@@ -186,13 +178,6 @@
                                         type="button" role="tab">
                                         <i class="fas fa-percentage me-2"></i>
                                         <span class="d-none d-md-inline">Tax</span>
-                                    </button>
-                                </li>
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users"
-                                        type="button" role="tab">
-                                        <i class="fas fa-users me-2"></i>
-                                        <span class="d-none d-md-inline">Users</span>
                                     </button>
                                 </li>
                                 <li class="nav-item" role="presentation">
@@ -430,37 +415,7 @@
                     </div>
                 </div>
 
-                <!-- Users Settings -->
-                <div class="tab-pane fade" id="users" role="tabpanel">
-                    <div class="card shadow mt-3">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-4">
-                                <h5 class="card-title mb-0">User Management</h5>
-                                <button class="btn btn-primary" onclick="prepareAddUser()">
-                                    <i class="fas fa-plus me-1"></i> Add User
-                                </button>
-                            </div>
 
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Email</th>
-                                            <th>Role</th>
-                                            <th>Status</th>
-                                            <th>Created</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="usersTableBody">
-                                        <!-- Will be populated by JavaScript -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Backup Settings -->
                 <div class="tab-pane fade" id="backup" role="tabpanel">
@@ -538,105 +493,7 @@
             </div>
         </div>
 
-        <!-- User Modal -->
-        <div class="modal fade" id="userModal" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="userModalTitle">Add User</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <form id="userForm">
-                            <input type="hidden" id="userId">
-                            <div class="mb-3">
-                                <label for="userFormName" class="form-label">Name *</label>
-                                <input type="text" class="form-control" id="userFormName" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="userEmail" class="form-label">Email *</label>
-                                <input type="email" class="form-control" id="userEmail" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="userPassword" class="form-label">Password *</label>
-                                <input type="password" class="form-control" id="userPassword" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="userRole" class="form-label">Role *</label>
-                                <select class="form-select" id="userRole" required>
-                                    <option value="">Select Role</option>
-                                    <option value="admin">Admin</option>
-                                    <option value="manager">Manager</option>
-                                    <option value="sales">Sales User</option>
-                                    <option value="accounts">Accounts User</option>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label for="userPhone" class="form-label">Phone</label>
-                                <input type="tel" class="form-control" id="userPhone">
-                            </div>
-                            <!-- Permissions Section -->
-                            <div class="mb-3">
-                                <label class="form-label">Tab Permissions</label>
-                                <div class="row" id="permissionsContainer">
-                                    <div class="col-md-6">
-                                        <div class="form-check">
-                                            <input class="form-check-input permission-check" type="checkbox"
-                                                value="dashboard" id="perm_dashboard">
-                                            <label class="form-check-label" for="perm_dashboard">Dashboard</label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input permission-check" type="checkbox"
-                                                value="items" id="perm_items">
-                                            <label class="form-check-label" for="perm_items">Items</label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input permission-check" type="checkbox"
-                                                value="parties" id="perm_parties">
-                                            <label class="form-check-label" for="perm_parties">Parties</label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input permission-check" type="checkbox"
-                                                value="sales" id="perm_sales">
-                                            <label class="form-check-label" for="perm_sales">Sales</label>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="form-check">
-                                            <input class="form-check-input permission-check" type="checkbox"
-                                                value="purchases" id="perm_purchases">
-                                            <label class="form-check-label" for="perm_purchases">Purchases</label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input permission-check" type="checkbox"
-                                                value="reports" id="perm_reports">
-                                            <label class="form-check-label" for="perm_reports">Reports</label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input permission-check" type="checkbox"
-                                                value="settings" id="perm_settings">
-                                            <label class="form-check-label" for="perm_settings">Settings</label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="mb-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="userActive" checked>
-                                    <label class="form-check-label" for="userActive">
-                                        Active
-                                    </label>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="button" class="btn btn-primary" onclick="saveUser()">Save User</button>
-                    </div>
-                </div>
-            </div>
-        </div>
+
 
         <!-- Scripts -->
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

@@ -53,10 +53,11 @@
             display: flex !important;
             flex-direction: row !important;
             flex-wrap: nowrap !important;
+            justify-content: flex-start !important;
             /* Force 1 row */
             border-bottom: 2px solid #e2e8f0;
             margin-bottom: 25px;
-            gap: 5px;
+            gap: 0px !important;
             background: #ffffff;
             padding: 8px 15px 0 15px;
             border-radius: 10px 10px 0 0;
@@ -262,177 +263,173 @@
 
 <body>
     <!-- Top Nav -->
-    <nav class="top-nav d-flex justify-content-between align-items-center">
-        <div class="d-flex align-items-center">
-            <h5 class="mb-0 fw-bold text-primary">BAS</h5>
+    <!-- Standardized Page Header -->
+    <div class="page-header px-3 mt-3">
+        <div style="flex: 1; display: flex; align-items: center;">
+            <i class="fas fa-bars me-3" id="sidebarToggle" style="cursor:pointer; font-size: 1rem;"></i>
+            <h4 class="mb-0">Payment Vouchers</h4>
         </div>
-        <div class="user-info dropdown ms-auto">
-            <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark"
-                data-bs-toggle="dropdown">
-                <div class="avatar-circle me-2 bg-primary text-white d-flex align-items-center justify-content-center"
-                    style="width: 35px; height: 35px; border-radius: 50%; font-weight: bold;">
-                    A
-                </div>
-                <span id="userNameDisplay">Admin</span>
-            </a>
-            <ul class="dropdown-menu dropdown-menu-end shadow border-0">
-                <li><a class="dropdown-item" href="/profile.html"><i class="fas fa-user-circle me-2"></i> Profile</a>
-                </li>
-                <li>
-                    <hr class="dropdown-divider">
-                </li>
-                <li><a class="dropdown-item text-danger fw-bold" href="#" onclick="window.pageAccess.logout()">
-                        <i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
-            </ul>
-        </div>
-    </nav>
-
-    <div class="main-content">
-        <div class="page-header">
-            <h1 class="page-title">Payment Vouchers</h1>
-            <p class="page-subtitle">Create and manage payment vouchers</p>
-        </div>
-
-        <!-- Horizontal Tabs -->
-        <ul class="nav nav-tabs nav-tabs-custom" id="paymentTabs" role="tablist">
-            <li class="nav-item">
-                <button class="nav-link active" id="supplier-tab" data-bs-toggle="tab"
-                    data-bs-target="#supplier-content" type="button" role="tab"><i class="fas fa-truck"></i> Supplier
-                    Voucher</button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link" id="category-tab" data-bs-toggle="tab" data-bs-target="#category-content"
-                    type="button" role="tab"><i class="fas fa-tags"></i> Category Voucher</button>
-            </li>
-        </ul>
-
-        <div class="tab-content" id="paymentTabsContent">
-            <!-- Supplier Voucher Tab -->
-            <div class="tab-pane fade show active" id="supplier-content" role="tabpanel">
-                <div class="card card-custom">
-                    <div class="card-header-blue">Create Supplier Payment Voucher</div>
-                    <div class="card-body">
-                        <form id="supplierVoucherForm">
-                            <div class="row g-4">
-                                <div class="col-md-6">
-                                    <label class="form-label">Voucher Number</label>
-                                    <input type="text" id="voucherNo" class="form-control" readonly
-                                        placeholder="PV1189">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Date</label>
-                                    <input type="date" id="voucherDate" class="form-control">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Supplier</label>
-                                    <select id="supplierSelect" class="form-select">
-                                        <option value="">Select Supplier</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Branch</label>
-                                    <select id="branchSelect" class="form-select">
-                                        <option value="">Select Branch</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Payment Method</label>
-                                    <select id="paymentMethod" class="form-select">
-                                        <option value="Cash">Cash</option>
-                                        <option value="Bank">Bank</option>
-                                        <option value="Cheque">Cheque</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Amount (PKR)</label>
-                                    <input type="number" id="voucherAmount" class="form-control" placeholder="0.00">
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Description</label>
-                                    <textarea id="voucherDescription" class="form-control" rows="4"></textarea>
-                                </div>
-                                <div class="col-12 text-end mt-4">
-                                    <button type="button" class="btn btn-info text-white me-2"
-                                        onclick="window.location.href='/payment-vouchers-list.html?tab=supplier'"><i
-                                            class="fas fa-list me-2"></i> Voucher List</button>
-                                    <button type="button" class="btn btn-custom-reset me-2"
-                                        onclick="resetForm('supplierVoucherForm')"><i class="fas fa-redo me-2"></i>
-                                        Reset</button>
-                                    <button type="submit" class="btn btn-custom-save"><i class="fas fa-save me-2"></i>
-                                        Save Voucher</button>
-                                </div>
-                            </div>
-                        </form>
+        <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center;">
+            <div class="dropdown">
+                <div class="d-flex align-items-center text-dark" data-bs-toggle="dropdown" style="cursor: pointer;">
+                    <div class="avatar-circle me-2 bg-primary text-white d-flex align-items-center justify-content-center"
+                        style="width: 35px; height: 35px; border-radius: 50%; font-weight: bold;">
+                        <i class="fas fa-user"></i>
                     </div>
+                    <span id="userName" class="me-2">User</span>
+                    <i class="fas fa-chevron-down" style="font-size: 0.7rem;"></i>
                 </div>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                    <li><a class="dropdown-item" href="/profile.html"><i class="fas fa-user-circle me-2"></i>
+                            Profile</a></li>
+                    <li>
+                        <hr class="dropdown-divider">
+                    </li>
+                    <li><a class="dropdown-item logout-btn" href="#"><i
+                                class="fas fa-sign-out-alt me-2 text-danger"></i>Sign Out</a></li>
+                </ul>
             </div>
+        </div>
+    </div>
 
-            <!-- Category Voucher Tab -->
-            <div class="tab-pane fade" id="category-content" role="tabpanel">
-                <div class="card card-custom">
-                    <div class="card-header-blue bg-success">Create Category Payment Voucher</div>
-                    <div class="card-body">
-                        <form id="categoryVoucherForm">
-                            <div class="row g-4">
-                                <div class="col-md-6">
-                                    <label class="form-label">Voucher Number</label>
-                                    <input type="text" id="catVoucherNo" class="form-control" readonly
-                                        placeholder="PV1190">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Date</label>
-                                    <input type="date" id="catVoucherDate" class="form-control">
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <label class="form-label mb-0">Customer Category</label>
-                                        <button type="button" class="btn btn-sm btn-outline-success border-0 p-0"
-                                            onclick="openQuickAddCategory()" title="Add New Category">
-                                            <i class="fas fa-plus-circle"></i>
-                                        </button>
-                                    </div>
-                                    <select id="catCustomerCategory" class="form-select">
-                                        <option value="">Select Category</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Branch</label>
-                                    <select id="catBranchSelect" class="form-select">
-                                        <option value="">Select Branch</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Payment Method</label>
-                                    <select id="catPaymentMethod" class="form-select">
-                                        <option value="Cash">Cash</option>
-                                        <option value="Bank">Bank</option>
-                                        <option value="Cheque">Cheque</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Amount (PKR)</label>
-                                    <input type="number" id="catVoucherAmount" class="form-control" placeholder="0.00">
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Description</label>
-                                    <textarea id="catVoucherDescription" class="form-control" rows="4"></textarea>
-                                </div>
-                                <div class="col-12 text-end mt-4">
-                                    <button type="button" class="btn btn-info text-white me-2"
-                                        onclick="window.location.href='/payment-vouchers-list.html?tab=category'"><i
-                                            class="fas fa-list me-2"></i> Voucher List</button>
-                                    <button type="button" class="btn btn-custom-reset me-2"
-                                        onclick="resetForm('categoryVoucherForm')"><i class="fas fa-redo me-2"></i>
-                                        Reset</button>
-                                    <button type="submit" class="btn btn-custom-save bg-success"><i
-                                            class="fas fa-save me-2"></i> Save Voucher</button>
-                                </div>
+    <!-- Horizontal Tabs -->
+    <ul class="nav nav-tabs nav-tabs-custom" id="paymentTabs" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active" id="supplier-tab" data-bs-toggle="tab" data-bs-target="#supplier-content"
+                type="button" role="tab"><i class="fas fa-truck"></i> Supplier
+                Voucher</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" id="category-tab" data-bs-toggle="tab" data-bs-target="#category-content"
+                type="button" role="tab"><i class="fas fa-tags"></i> Category Voucher</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="paymentTabsContent">
+        <!-- Supplier Voucher Tab -->
+        <div class="tab-pane fade show active" id="supplier-content" role="tabpanel">
+            <div class="card card-custom">
+                <div class="card-header-blue">Create Supplier Payment Voucher</div>
+                <div class="card-body">
+                    <form id="supplierVoucherForm">
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Voucher Number</label>
+                                <input type="text" id="voucherNo" class="form-control" readonly placeholder="PV1189">
                             </div>
-                        </form>
-                    </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Date</label>
+                                <input type="date" id="voucherDate" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Supplier</label>
+                                <select id="supplierSelect" class="form-select">
+                                    <option value="">Select Supplier</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Branch</label>
+                                <select id="branchSelect" class="form-select">
+                                    <option value="">Select Branch</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Payment Method</label>
+                                <select id="paymentMethod" class="form-select">
+                                    <option value="Cash">Cash</option>
+                                    <option value="Bank">Bank</option>
+                                    <option value="Cheque">Cheque</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Amount (PKR)</label>
+                                <input type="number" id="voucherAmount" class="form-control" placeholder="0.00">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Description</label>
+                                <textarea id="voucherDescription" class="form-control" rows="4"></textarea>
+                            </div>
+                            <div class="col-12 text-end mt-4">
+                                <button type="button" class="btn btn-info text-white me-2"
+                                    onclick="window.location.href='/payment-vouchers-list.html?tab=supplier'"><i
+                                        class="fas fa-list me-2"></i> Voucher List</button>
+                                <button type="button" class="btn btn-custom-reset me-2"
+                                    onclick="resetForm('supplierVoucherForm')"><i class="fas fa-redo me-2"></i>
+                                    Reset</button>
+                                <button type="submit" class="btn btn-custom-save"><i class="fas fa-save me-2"></i>
+                                    Save Voucher</button>
+                            </div>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
+
+        <!-- Category Voucher Tab -->
+        <div class="tab-pane fade" id="category-content" role="tabpanel">
+            <div class="card card-custom">
+                <div class="card-header-blue bg-success">Create Category Payment Voucher</div>
+                <div class="card-body">
+                    <form id="categoryVoucherForm">
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Voucher Number</label>
+                                <input type="text" id="catVoucherNo" class="form-control" readonly placeholder="PV1190">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Date</label>
+                                <input type="date" id="catVoucherDate" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label mb-0">Customer Category</label>
+                                    <button type="button" class="btn btn-sm btn-outline-success border-0 p-0"
+                                        onclick="openQuickAddCategory()" title="Add New Category">
+                                        <i class="fas fa-plus-circle"></i>
+                                    </button>
+                                </div>
+                                <select id="catCustomerCategory" class="form-select">
+                                    <option value="">Select Category</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Branch</label>
+                                <select id="catBranchSelect" class="form-select">
+                                    <option value="">Select Branch</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Payment Method</label>
+                                <select id="catPaymentMethod" class="form-select">
+                                    <option value="Cash">Cash</option>
+                                    <option value="Bank">Bank</option>
+                                    <option value="Cheque">Cheque</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Amount (PKR)</label>
+                                <input type="number" id="catVoucherAmount" class="form-control" placeholder="0.00">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Description</label>
+                                <textarea id="catVoucherDescription" class="form-control" rows="4"></textarea>
+                            </div>
+                            <div class="col-12 text-end mt-4">
+                                <button type="button" class="btn btn-info text-white me-2"
+                                    onclick="window.location.href='/payment-vouchers-list.html?tab=category'"><i
+                                        class="fas fa-list me-2"></i> Voucher List</button>
+                                <button type="button" class="btn btn-custom-reset me-2"
+                                    onclick="resetForm('categoryVoucherForm')"><i class="fas fa-redo me-2"></i>
+                                    Reset</button>
+                                <button type="submit" class="btn btn-custom-save bg-success"><i
+                                        class="fas fa-save me-2"></i> Save Voucher</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
     </div>
 
     <!-- Hidden Print Container -->
