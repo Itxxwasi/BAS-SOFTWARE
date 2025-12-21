@@ -288,11 +288,15 @@
         // Init
         document.addEventListener('DOMContentLoaded', () => {
             // Set default dates
+            // Set default dates (Avoid valueAsDate due to UTC shift)
             const today = new Date();
-            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-            document.getElementById('filterFromDate').valueAsDate = firstDay;
-            document.getElementById('filterToDate').valueAsDate = today;
-            document.getElementById('cprDate').valueAsDate = today;
+            const y = today.getFullYear();
+            const m = String(today.getMonth() + 1).padStart(2, '0');
+            const d = String(today.getDate()).padStart(2, '0');
+
+            document.getElementById('filterFromDate').value = `${y}-${m}-01`;
+            document.getElementById('filterToDate').value = `${y}-${m}-${d}`;
+            document.getElementById('cprDate').value = `${y}-${m}-${d}`;
 
             loadBranches();
             loadSuppliers();
@@ -551,7 +555,7 @@
                                 }
                                 totalAmount += parseFloat(e.invoiceAmount || 0);
                                 totalTax += parseFloat(e.taxDeducted || 0);
-                                relevantEntries.push(e);
+                                relevantEntries.push({ ...e, sheetDate: record.date });
                                 if (!entryMeta.ntn && e.ntn) entryMeta.ntn = e.ntn;
                                 if (!entryMeta.subCat && e.subCategory) entryMeta.subCat = e.subCategory;
                             }
@@ -735,8 +739,9 @@
             // 1. Group tax by Month/Year
             const monthlyTaxMap = {};
             relevantEntries.forEach(ent => {
-                if (ent.invoiceDate) {
-                    const d = new Date(ent.invoiceDate);
+                const dateToUse = ent.sheetDate || ent.invoiceDate;
+                if (dateToUse) {
+                    const d = new Date(dateToUse);
                     const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
                     monthlyTaxMap[key] = (monthlyTaxMap[key] || 0) + (ent.taxDeducted || 0);
                 }
@@ -775,6 +780,12 @@
 
         function formatDate(d) {
             if (!d) return '';
+            // Manually parse YYYY-MM-DD to avoid timezone shifts
+            if (typeof d === 'string' && d.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                const [y, m, day] = d.split('-').map(Number);
+                const date = new Date(y, m - 1, day);
+                return date.toLocaleDateString();
+            }
             return new Date(d).toLocaleDateString();
         }
 

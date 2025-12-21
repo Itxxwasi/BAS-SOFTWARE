@@ -3,9 +3,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Set default dates
     const d = new Date();
     const today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-    const firstDay = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01';
+    // const firstDay = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01'; // Unused
     document.getElementById('filterDate').value = today;
-    document.getElementById('filterDateFrom').value = firstDay;
+    // document.getElementById('filterDateFrom').value = firstDay; // Removed
     document.getElementById('entryDate').value = today;
 
     await loadBranches();
@@ -14,8 +14,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Default selection
     const branchSelect = document.getElementById('branchSelect');
-    if (branchSelect.options.length > 1) {
+    // Only auto-select if user has exactly one branch (options include placeholder)
+    if (branchSelect.options.length === 2) {
         branchSelect.selectedIndex = 1;
+    } else {
+        // If multiple branches (e.g. Admin), default to "Select Branch" (Index 0)
+        branchSelect.selectedIndex = 0;
     }
 
     setupCalculations();
@@ -421,7 +425,7 @@ document.getElementById('listBtn').addEventListener('click', () => {
 
 document.getElementById('searchFilterBtn').addEventListener('click', loadSavedData);
 document.getElementById('filterDate').addEventListener('change', loadSavedData);
-document.getElementById('filterDateFrom').addEventListener('change', loadSavedData);
+// document.getElementById('filterDateFrom').addEventListener('change', loadSavedData);
 document.getElementById('branchSelect').addEventListener('change', loadSavedData);
 
 document.getElementById('listSearch').addEventListener('input', function (e) {
@@ -505,12 +509,11 @@ async function saveData() {
 
 async function loadSavedData() {
     const branch = document.getElementById('branchSelect').value;
-    const dateTo = document.getElementById('filterDate').value;
-    const dateFrom = document.getElementById('filterDateFrom').value;
+    const date = document.getElementById('filterDate').value;
+
     let url = '/api/v1/supplier-taxes?limit=1000';
     if (branch) url += `&branch=${branch}`;
-    if (dateFrom && dateTo) url += `&startDate=${dateFrom}&endDate=${dateTo}`;
-    else if (dateTo) url += `&date=${dateTo}`;
+    if (date) url += `&date=${date}`;
 
     try {
         const token = localStorage.getItem('token');
@@ -519,7 +522,7 @@ async function loadSavedData() {
         if (data.success) {
             loadedRecords = data.data;
             renderSavedTable(data.data);
-            renderGrandSummary(data.data);
+            // renderGrandSummary(data.data);
         }
     } catch (err) { console.error(err); }
 }
@@ -565,7 +568,7 @@ function renderSavedTable(records) {
         tr.innerHTML = `
             <td>${row.sheetDate}</td>
             <td>${row.branchName}</td>
-            <td class="fw-bold">${row.supplierName || '-'}</td>
+            <td class="fw-bold">${row.supplierName || '-'} <span class="text-muted fw-normal small">(${row.subCategory || '-'})</span></td>
             <td>${row.categoryName || '-'}</td>
             <td>${row.subCategory || '-'}</td>
             <td>${row.ntn || '-'}</td>
@@ -684,7 +687,7 @@ window.editRecord = function (id) {
     document.getElementById('branchSelect').value = record.branch?._id || record.branch || '';
     const recDate = record.date ? new Date(record.date).toISOString().split('T')[0] : '';
     document.getElementById('filterDate').value = recDate;
-    document.getElementById('filterDateFrom').value = recDate;
+    // document.getElementById('filterDateFrom').value = recDate;
     addedRows = record.entries.map(e => ({
         id: e._id || Date.now() + Math.random(),
         supplierId: e.supplier?._id || e.supplier,

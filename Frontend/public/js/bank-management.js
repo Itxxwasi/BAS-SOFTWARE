@@ -152,8 +152,8 @@ async function loadBranches() {
                     opt.textContent = b.name;
                     sel.appendChild(opt);
                 });
-                // Default to first if available or PWD-1
-                if (allBranches.length > 0) sel.value = allBranches[0].name;
+                // Default to first if only one available
+                if (allBranches.length === 1) sel.value = allBranches[0].name;
             });
             // Trigger department load for all scopes
             document.querySelectorAll('.tab-pane').forEach(scope => loadDepartments(scope));

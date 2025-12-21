@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function loadBranches() {
     const branchSelect = document.getElementById('branch');
     const branches = ['F-6', 'G-10', 'I-8'];
+    branchSelect.innerHTML = '<option value="">Select Branch</option>';
     branches.forEach(b => {
         const opt = document.createElement('option');
         opt.value = b;

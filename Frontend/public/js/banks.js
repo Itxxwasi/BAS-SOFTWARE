@@ -72,15 +72,17 @@ async function loadBranches() {
         if (data.success) {
             const select = document.getElementById('branch');
             const currentVal = select.value;
-            select.innerHTML = ''; // Clear default options
+            select.innerHTML = '<option value="">Select Branch</option>'; // Clear default options
             data.data.forEach(store => {
                 const option = document.createElement('option');
                 option.value = store.name;
                 option.textContent = store.name;
                 select.appendChild(option);
             });
-            // Should I add "Shop" option if previously it had one?
-            // Usually Store list replaces static list.
+            // Auto Select if single branch
+            if (data.data.length === 1) {
+                select.value = data.data[0].name;
+            }
         }
     } catch (e) {
         console.error('Error loading branches:', e);

@@ -100,15 +100,15 @@ async function loadBranches() {
         const data = await response.json();
         if (data.success) {
             const select = document.getElementById('branch');
-            select.innerHTML = ''; // Clear default options
+            select.innerHTML = '<option value="">Select Branch</option>'; // Clear default options
             data.data.forEach(store => {
                 const option = document.createElement('option');
                 option.value = store.name;
                 option.textContent = store.name;
                 select.appendChild(option);
             });
-            // Trigger change to load departments for first branch
-            if (data.data.length > 0) {
+            // Trigger change to load departments for first branch only if single branch
+            if (data.data.length === 1) {
                 select.value = data.data[0].name;
             }
         }

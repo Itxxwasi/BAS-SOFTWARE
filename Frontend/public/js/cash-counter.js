@@ -60,7 +60,7 @@ async function loadBranches() {
         const data = await response.json();
         if (data.success) {
             const select = document.getElementById('branch');
-            select.innerHTML = ''; // Clear default options
+            select.innerHTML = '<option value="">Select Branch</option>'; // Clear default options
             data.data.forEach(store => {
                 const option = document.createElement('option');
                 option.value = store.name;
@@ -68,7 +68,7 @@ async function loadBranches() {
                 select.appendChild(option);
             });
             // Trigger load departments if stores loaded
-            if (data.data.length > 0) {
+            if (data.data.length === 1) {
                 select.value = data.data[0].name;
             }
         }
