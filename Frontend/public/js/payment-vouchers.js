@@ -12,6 +12,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         input.value = today;
     });
 
+    // Permission Check for Tabs
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const rights = user.rights || {};
+    // If admin, rights might be undefined but admin has access. However, granular checks usually require looking at role.
+    // If user.role === 'admin' or user.group.isAdmin, we assume true.
+    const isAdmin = user.role === 'admin' || (user.group && user.group.isAdmin) || (user.groupId && user.groupId.isAdmin);
+
+    const canSupplier = isAdmin || rights.pv_supplier;
+    const canCategory = isAdmin || rights.pv_category;
+
+    if (!canSupplier) {
+        document.getElementById('tab-li-supplier').style.display = 'none';
+        document.getElementById('supplier-content').classList.remove('active', 'show');
+    }
+    if (!canCategory) {
+        document.getElementById('tab-li-category').style.display = 'none';
+        // If category was default active (unlikely), handle it?
+        // Usually supplier is active. If supplier is hidden, we must activate category.
+        if (!canSupplier && canCategory) {
+            const catTab = new bootstrap.Tab(document.getElementById('category-tab'));
+            catTab.show();
+        }
+    }
+
     // Fix for tabs displaying below each other (stacking issue)
     const voucherTabs = document.querySelectorAll('#paymentTabs button[data-bs-toggle="tab"]');
     voucherTabs.forEach(tab => {

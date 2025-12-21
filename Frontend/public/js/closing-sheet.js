@@ -342,7 +342,8 @@ async function loadSheet() {
                 netValue = openingAmount;
                 if (netValue < 0) {
                     showInList = true;
-                } else if (d.receivingForward && netValue > 0) {
+                } else if (netValue > 0) {
+                    // Medicine positive opening ALWAYS contributes to Department Total
                     calculatedDepartmentTotal += netValue;
                 }
 

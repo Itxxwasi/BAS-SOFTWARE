@@ -62,12 +62,13 @@
             padding: 8px 15px 0 15px;
             border-radius: 10px 10px 0 0;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-            overflow-x: auto;
-            /* Scroll horizontally if too many */
+            overflow: hidden !important;
         }
 
         .nav-tabs-custom .nav-item {
             margin-bottom: -2px;
+            margin-right: 0 !important;
+            flex: 0 0 auto !important;
         }
 
         .nav-tabs-custom .nav-link {
@@ -294,12 +295,12 @@
 
     <!-- Horizontal Tabs -->
     <ul class="nav nav-tabs nav-tabs-custom" id="paymentTabs" role="tablist">
-        <li class="nav-item">
+        <li class="nav-item" id="tab-li-supplier">
             <button class="nav-link active" id="supplier-tab" data-bs-toggle="tab" data-bs-target="#supplier-content"
                 type="button" role="tab"><i class="fas fa-truck"></i> Supplier
                 Voucher</button>
         </li>
-        <li class="nav-item">
+        <li class="nav-item" id="tab-li-category">
             <button class="nav-link" id="category-tab" data-bs-toggle="tab" data-bs-target="#category-content"
                 type="button" role="tab"><i class="fas fa-tags"></i> Category Voucher</button>
         </li>
