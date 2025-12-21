@@ -46,6 +46,9 @@ exports.getCPRs = asyncHandler(async (req, res, next) => {
 // @route   POST /api/v1/supplier-tax-cprs
 // @access  Private
 exports.createCPR = asyncHandler(async (req, res, next) => {
+    // defensive check
+    if (req.body.supplier === '') req.body.supplier = null;
+
     // Auto-Generate Certificate Number
     let nextCertNo = 1;
     const lastCPR = await SupplierTaxCPR.findOne().sort({ createdAt: -1 });
@@ -75,6 +78,9 @@ exports.createCPR = asyncHandler(async (req, res, next) => {
 // @route   PUT /api/v1/supplier-tax-cprs/:id
 // @access  Private
 exports.updateCPR = asyncHandler(async (req, res, next) => {
+    // defensive check
+    if (req.body.supplier === '') req.body.supplier = null;
+
     let cpr = await SupplierTaxCPR.findById(req.params.id);
 
     if (!cpr) {

@@ -14,7 +14,7 @@ const SupplierTaxCPRSchema = new mongoose.Schema({
     supplier: {
         type: mongoose.Schema.ObjectId,
         ref: 'Supplier',
-        required: [true, 'Please add a supplier']
+        required: false
     },
     date: {
         type: Date,

@@ -155,7 +155,7 @@
                 </div>
                 <div class="col">
                     <label>Branch</label>
-                    <select id="filterBranch" class="form-select form-select-sm"></select>
+                    <select id="filterBranch" class="form-select form-select-sm" onchange="loadSuppliers()"></select>
                 </div>
                 <div class="col" style="min-width: 250px; flex-grow: 2;">
                     <label>Supplier</label>
@@ -192,7 +192,7 @@
                         </div>
                         <div class="col-md-3">
                             <label class="small fw-bold">Branch</label>
-                            <select id="cprBranch" class="form-select">
+                            <select id="cprBranch" class="form-select" onchange="loadCPRSuitableSuppliers()">
                                 <option value="">Branch</option>
                             </select>
                         </div>
@@ -251,7 +251,8 @@
                     </div>
 
                     <div class="bg-white p-2 border">
-                        <input type="text" id="cprSearch" class="form-control mb-2" placeholder="Search Certificates">
+                        <input type="text" id="cprSearch" class="form-control mb-2" placeholder="Search Certificates"
+                            onkeyup="filterCPRTable()">
                         <table class="table table-striped table-sm" id="cprListTable">
                             <thead class="bg-primary text-white">
                                 <tr style="color: white !important;">
@@ -301,14 +302,33 @@
 
         async function loadSuppliers() {
             try {
-                // Using generic Suppliers API, usually 1000 limit
-                const res = await fetch('/api/v1/suppliers?limit=5000', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
+                const branchId = document.getElementById('filterBranch').value;
+                let url = '/api/v1/suppliers?limit=5000';
+                if (branchId) url += `&branch=${branchId}`;
+
+                const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
                 const data = await res.json();
-                // Filter WHT or show all? Assuming show all for now
-                const opts = '<option value="">Select Supplier</option>' + data.data.map(s => `<option value="${s._id}">${s.name}</option>`).join('');
+
+                const formatSupp = (s) => `${s.name} ${s.subCategory ? `(${s.subCategory})` : ''}`;
+                const opts = '<option value="">Select Supplier</option>' + data.data.map(s => `<option value="${s._id}">${formatSupp(s)}</option>`).join('');
                 document.getElementById('filterSupplier').innerHTML = opts;
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadCPRSuitableSuppliers() {
+            try {
+                const branchId = document.getElementById('cprBranch').value;
+                let url = '/api/v1/suppliers?limit=5000';
+                if (branchId) url += `&branch=${branchId}`;
+
+                const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
+                const data = await res.json();
+
+                const formatSupp = (s) => `${s.name} ${s.subCategory ? `(${s.subCategory})` : ''}`;
+
                 if (document.getElementById('cprSupplier')) {
-                    document.getElementById('cprSupplier').innerHTML = opts;
+                    const cprOpts = '<option value="">All Suppliers</option>' + data.data.map(s => `<option value="${s._id}">${formatSupp(s)}</option>`).join('');
+                    document.getElementById('cprSupplier').innerHTML = cprOpts;
                 }
             } catch (e) { console.error(e); }
         }
@@ -318,10 +338,10 @@
         let currentCPRId = null;
 
         function openCPRModal() {
-            currentCPRId = null;
             document.getElementById('cprCertNo').value = '';
             document.getElementById('cprNumber').value = '';
             if (document.getElementById('cprSupplier')) document.getElementById('cprSupplier').value = '';
+            loadCPRSuitableSuppliers();
             loadCPRList();
             cprModal.show();
         }
@@ -343,7 +363,8 @@
                 const monthNames = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
                 result.data.forEach(c => {
                     const sId = c.supplier ? (c.supplier._id || c.supplier) : '';
-                    const sName = c.supplier ? c.supplier.name : '-';
+                    let sName = c.supplier ? c.supplier.name : '-';
+                    if (c.supplier && c.supplier.subCategory) sName += ` (${c.supplier.subCategory})`;
                     const taxPeriod = c.month ? `${monthNames[c.month]} ${c.year}` : '-';
                     rows += `
                          <tr>
@@ -370,7 +391,9 @@
             currentCPRId = id;
             document.getElementById('cprCertNo').value = certNo;
             document.getElementById('cprBranch').value = branchId;
-            if (document.getElementById('cprSupplier')) document.getElementById('cprSupplier').value = supplierId;
+            if (document.getElementById('cprSupplier')) {
+                document.getElementById('cprSupplier').value = supplierId || "";
+            }
             document.getElementById('cprDate').value = new Date(date).toISOString().split('T')[0];
             document.getElementById('cprNumber').value = cprNo;
             if (month) document.getElementById('cprMonth').value = month;
@@ -386,10 +409,21 @@
             const month = parseInt(document.getElementById('cprMonth').value);
             const year = parseInt(document.getElementById('cprYear').value);
 
-            if (!branch || !supplier || !cprNo || !month || !year) return alert('Please fill required fields (Branch, Supplier, Date, Tax Month, Tax Year, CPR Number)');
+            if (!branch || !cprNo || isNaN(month) || isNaN(year)) {
+                return alert('Please fill required fields (Branch, Date, Tax Month, Tax Year, CPR Number)');
+            }
 
-            const payload = { branch, supplier, date, cprNumber: cprNo, month, year };
+            const payload = {
+                branch,
+                supplier: supplier === "" ? null : supplier,
+                date,
+                cprNumber: cprNo,
+                month,
+                year
+            };
+
             if (currentCPRId) payload.certificateNumber = certNo;
+
             const method = currentCPRId ? 'PUT' : 'POST';
             const url = currentCPRId ? `/api/v1/supplier-tax-cprs/${currentCPRId}` : '/api/v1/supplier-tax-cprs';
 
@@ -428,6 +462,14 @@
             } catch (e) { alert(e); }
         }
 
+        function filterCPRTable() {
+            const search = document.getElementById('cprSearch').value.toLowerCase();
+            const rows = document.querySelectorAll('#cprListTable tbody tr');
+            rows.forEach(row => {
+                row.style.display = row.innerText.toLowerCase().includes(search) ? '' : 'none';
+            });
+        }
+
 
         // --- Certificate Generation ---
         function generateCertificate() {
@@ -452,12 +494,27 @@
                 fetch(`/api/v1/suppliers/${supplierId}`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()),
                 fetch(taxUrl, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()),
                 // FETCH ALL CPRs for this supplier & branch (Filtering by Month/Year coverage in JS)
-                fetch(`/api/v1/supplier-tax-cprs?branch=${branchId || ''}&supplier=${supplierId}`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()),
+                fetch(`/api/v1/supplier-tax-cprs?branch=${branchId || ''}`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()),
                 fetch(`/api/v1/settings/company-info`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json())
             ]).then(([suppRes, taxRes, cprRes, settingsRes]) => {
                 console.log('Fetched Data:', { supp: suppRes.data, taxes: taxRes.count, cprs: cprRes.count });
                 if (!suppRes.data) throw new Error('Supplier data not found');
-                renderCertificate(suppRes.data, taxRes.data, cprRes.data, settingsRes.data || {}, fromDate, toDate, supplierId);
+
+                // Filter CPRs to only those relevant to the report period if dates are provided
+                let filteredCPRs = cprRes.data;
+                if (fromDate && toDate) {
+                    const fDate = new Date(fromDate);
+                    const tDate = new Date(toDate);
+                    const fYM = fDate.getFullYear() * 12 + fDate.getMonth();
+                    const tYM = tDate.getFullYear() * 12 + tDate.getMonth();
+
+                    filteredCPRs = filteredCPRs.filter(c => {
+                        const cYM = c.year * 12 + (c.month - 1);
+                        return cYM >= fYM && cYM <= tYM;
+                    });
+                }
+
+                renderCertificate(suppRes.data, taxRes.data, filteredCPRs, settingsRes.data || {}, fromDate, toDate, supplierId);
             }).catch(err => {
                 alert('Error generating certificate: ' + err.message);
                 document.querySelector('#certificateContainer').innerHTML = '';
@@ -623,7 +680,7 @@
                          </tr>
                      </thead>
                      <tbody>
-                         ${generateCPRRows(listCPRs, relevantEntries)}
+                         ${generateCPRRows(listCPRs, relevantEntries, targetSuppId)}
                      </tbody>
                 </table>
                 
@@ -663,40 +720,48 @@
             document.querySelector('#certificateContainer').innerHTML = html;
         }
 
-        function generateCPRRows(cprs, relevantEntries) {
-            let rows = '';
-            if (!cprs || cprs.length === 0) return '<tr><td colspan="3" class="text-center">No CPRs Found</td></tr>';
+        function generateCPRRows(cprs, relevantEntries, targetSuppId) {
+            if (!relevantEntries || relevantEntries.length === 0) return '<tr><td colspan="3" class="text-center">No Tax Deductions Found</td></tr>';
 
-            // Sort CPRs by Date
-            cprs.sort((a, b) => new Date(a.date) - new Date(b.date));
+            // 1. Group tax by Month/Year
+            const monthlyTaxMap = {};
+            relevantEntries.forEach(ent => {
+                if (ent.invoiceDate) {
+                    const d = new Date(ent.invoiceDate);
+                    const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
+                    monthlyTaxMap[key] = (monthlyTaxMap[key] || 0) + (ent.taxDeducted || 0);
+                }
+            });
 
+            // 2. Identify the best CPR for each Month/Year
+            const rows = [];
             const monthNames = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-            cprs.forEach(c => {
-                // Calculate tax for this CPR's Month/Year
-                const cMonth = c.month ? c.month - 1 : new Date(c.date).getMonth();
-                const cYear = c.year ? parseInt(c.year) : new Date(c.date).getFullYear();
+            Object.keys(monthlyTaxMap).sort().forEach(key => {
+                const [year, month] = key.split('-').map(Number);
+                const tax = monthlyTaxMap[key];
 
-                let monthlyTax = 0;
-
-                relevantEntries.forEach(ent => {
-                    if (ent.invoiceDate) {
-                        const iDate = new Date(ent.invoiceDate);
-                        if (iDate.getMonth() === cMonth && iDate.getFullYear() === cYear) {
-                            monthlyTax += (ent.taxDeducted || 0);
-                        }
-                    }
+                // Find CPRs matching this month/year for THIS supplier or GLOBAL
+                const matchingCPRs = cprs.filter(c => {
+                    if (c.month !== month || c.year !== year) return false;
+                    const cprSuppId = c.supplier ? (c.supplier._id || c.supplier) : null;
+                    return !cprSuppId || String(cprSuppId) === String(targetSuppId);
                 });
 
-                rows += `
-                <tr>
-                         <td>${monthNames[cMonth + 1]} ${cYear}</td>
-                         <td>${c.cprNumber}</td>
-                         <td class="text-end">${Math.round(monthlyTax).toLocaleString()}</td>
-                     </tr>
-                 `;
+                // Prioritize specific supplier CPR over global
+                let bestCPR = matchingCPRs.find(c => c.supplier);
+                if (!bestCPR) bestCPR = matchingCPRs.find(c => !c.supplier);
+
+                rows.push(`
+                    <tr>
+                        <td>${monthNames[month]} ${year}</td>
+                        <td>${bestCPR ? bestCPR.cprNumber : '__________'}</td>
+                        <td class="text-end">${Math.round(tax).toLocaleString()}</td>
+                    </tr>
+                `);
             });
-            return rows;
+
+            return rows.join('') || '<tr><td colspan="3" class="text-center">No Data</td></tr>';
         }
 
         function formatDate(d) {
