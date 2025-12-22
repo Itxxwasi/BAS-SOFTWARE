@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile - Bilal Accounting System (BAS)</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/css/desktop-style.css" rel="stylesheet">
+    <link href="/css/sidebar.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+    <style>
+        .profile-header {
+            background: linear-gradient(135deg, #1a5f7a 0%, #0288d1 100%);
+            height: 150px;
+            border-radius: 8px 8px 0 0;
+            position: relative;
+        }
+
+        .profile-avatar-container {
+            position: absolute;
+            bottom: -50px;
+            left: 50px;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 4px solid white;
+            background-color: #f8f9fa;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .profile-avatar-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .profile-avatar-placeholder {
+            font-size: 3rem;
+            color: #dee2e6;
+        }
+
+        .profile-upload-btn {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            width: 100%;
+            text-align: center;
+            padding: 5px 0;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: background 0.3s;
+            opacity: 1;
+        }
+
+        .profile-avatar-container:hover .profile-upload-btn {
+            opacity: 1;
+        }
+
+        .profile-content {
+            padding-top: 60px;
+        }
+
+        .info-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            height: 100%;
+            transition: transform 0.2s;
+        }
+
+        .info-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .info-label {
+            font-size: 0.85rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .info-value {
+            font-size: 1rem;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+
+        /* Loading Overlay */
+        #uploadOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Main Content Wrapper -->
+    <div class="main-content">
+        <!-- Standardized Page Header -->
+        <div class="page-header px-3">
+            <div style="flex: 1; display: flex; align-items: center;">
+                <i class="fas fa-bars me-3" id="sidebarToggle" style="cursor:pointer; font-size: 1rem;"></i>
+                <h4 class="mb-0">User Profile</h4>
+            </div>
+            <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center;">
+                <div class="dropdown">
+                    <div class="d-flex align-items-center text-dark" data-bs-toggle="dropdown" style="cursor: pointer;">
+                        <div class="user-avatar text-white bg-primary rounded-circle d-flex align-items-center justify-content-center me-2"
+                            style="width: 35px; height: 35px;">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <span id="headerUserName" class="me-2 d-none d-md-block">User</span>
+                        <i class="fas fa-chevron-down" style="font-size: 0.7rem;"></i>
+                    </div>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                        <li><a class="dropdown-item active" href="/profile.html">Profile</a></li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li><a class="dropdown-item logout-btn" href="#"><i
+                                    class="fas fa-sign-out-alt me-2 text-danger"></i>Sign Out</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Content -->
+        <div class="container-fluid mt-4">
+
+            <div class="row justify-content-center">
+                <div class="col-lg-10">
+                    <div class="card border-0 shadow-sm rounded-lg overflow-hidden">
+                        <!-- Header / Banner -->
+                        <div class="profile-header">
+                            <h2 class="text-white pt-4 ps-5 ms-md-5" style="padding-left: 90px !important;">My Profile
+                            </h2>
+
+                            <!-- Avatar Section (Moved Inside Header to position correctly) -->
+                            <div class="profile-avatar-container">
+                                <img id="profileImage" src="" alt="Profile" class="profile-avatar-img d-none">
+                                <i id="profilePlaceholder" class="fas fa-user profile-avatar-placeholder"></i>
+
+                                <!-- Hidden File Input -->
+                                <input type="file" id="profileUploadInput" accept="image/*" style="display: none;">
+
+                                <div class="profile-upload-btn"
+                                    onclick="document.getElementById('profileUploadInput').click()">
+                                    <i class="fas fa-camera"></i> Change
+                                </div>
+
+                                <!-- Loading Spinner for Upload -->
+                                <div id="uploadOverlay" class="d-none">
+                                    <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card-body profile-content px-4 px-md-5 pb-5">
+                            <div class="row pt-3">
+                                <div class="col-md-6 mb-4">
+                                    <div class="info-card p-3">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="rounded-circle bg-light p-2 me-3 text-primary">
+                                                <i class="fas fa-id-card"></i>
+                                            </div>
+                                            <div class="info-label mb-0">Full Name</div>
+                                        </div>
+                                        <div class="ps-5">
+                                            <div class="info-value" id="profileName">Loading...</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6 mb-4">
+                                    <div class="info-card p-3">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="rounded-circle bg-light p-2 me-3 text-success">
+                                                <i class="fas fa-envelope"></i>
+                                            </div>
+                                            <div class="info-label mb-0">Email / Login ID</div>
+                                        </div>
+                                        <div class="ps-5">
+                                            <div class="info-value" id="profileEmail">Loading...</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6 mb-4">
+                                    <div class="info-card p-3">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="rounded-circle bg-light p-2 me-3 text-info">
+                                                <i class="fas fa-user-tag"></i>
+                                            </div>
+                                            <div class="info-label mb-0">Role</div>
+                                        </div>
+                                        <div class="ps-5">
+                                            <div class="info-value" id="profileRole">Loading...</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6 mb-4">
+                                    <div class="info-card p-3">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="rounded-circle bg-light p-2 me-3 text-warning">
+                                                <i class="fas fa-building"></i>
+                                            </div>
+                                            <div class="info-label mb-0">Branch / Department</div>
+                                        </div>
+                                        <div class="ps-5">
+                                            <div class="info-value" id="profileBranch">Loading...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-info border-0 bg-light p-3 mt-2 rounded">
+                                <div class="d-flex">
+                                    <i class="fas fa-info-circle me-3 mt-1 text-info"></i>
+                                    <div>
+                                        <h6 class="alert-heading fw-bold mb-1">Information Update</h6>
+                                        <p class="mb-0 text-muted small">
+                                            Your primary account details (Name, Login ID, Role) are managed by the
+                                            administrator.
+                                            Contact your system admin to update these details. You can only update your
+                                            profile picture here.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="/js/pageAccess.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async function () {
+            // Initial load of user data
+            const user = window.getCurrentUser();
+
+            if (user) {
+                // Populate Header
+                document.getElementById('headerUserName').textContent = user.name || 'User';
+
+                // Populate Profile Fields
+                document.getElementById('profileName').textContent = user.name || 'N/A';
+                document.getElementById('profileEmail').textContent = user.email || 'N/A';
+                document.getElementById('profileRole').textContent = (user.role || 'N/A').toUpperCase();
+
+                // Determine Branch/Dept text
+                let branchText = 'N/A';
+                if (user.branch && user.branch.length > 0) {
+                    branchText = user.branch.join(', ');
+                }
+                if (user.department) {
+                    branchText += (branchText !== 'N/A' ? ' / ' : '') + user.department;
+                }
+                document.getElementById('profileBranch').textContent = branchText;
+
+                // Handle Profile Picture
+                if (user.profilePicture) {
+                    showProfileImage(user.profilePicture);
+                }
+
+                // Setup file upload listener
+                const fileInput = document.getElementById('profileUploadInput');
+                fileInput.addEventListener('change', handleFileUpload);
+            }
+        });
+
+        function showProfileImage(src) {
+            const img = document.getElementById('profileImage');
+            const placeholder = document.getElementById('profilePlaceholder');
+
+            img.src = src;
+            img.classList.remove('d-none');
+            placeholder.classList.add('d-none');
+        }
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Basic validation
+            if (!file.type.match('image.*')) {
+                alert('Please select an image file');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('uploadOverlay').classList.remove('d-none');
+
+            try {
+                // Determine approach: API Upload or LocalStorage (Fallback)
+                // Since we want to try to be "comprehensive", we will try an API endpoint if it existed, 
+                // but since we are respecting the current codebase state, we might need to be clever.
+                // 
+                // Plan:
+                // 1. Convert to Base64 for immediate preview
+                // 2. Try to send to backend if endpoint exists (we will try to implement one)
+
+                const reader = new FileReader();
+                reader.onload = async function (e) {
+                    const base64Image = e.target.result;
+
+                    // Optimistic update
+                    showProfileImage(base64Image);
+
+                    // TODO: Implement actual backend upload here
+                    // For now, we simulate a success message or store in localStorage as a temporary measure 
+                    // if the backend isn't ready. 
+                    // Update: I will create the backend endpoint next.
+
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    try {
+                        const token = window.getAuthToken();
+                        const response = await fetch('/api/v1/auth/profile-photo', {
+                            method: 'POST', // or PUT
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: formData
+                        });
+
+                        const data = await response.json();
+
+                        if (response.ok && data.success) {
+                            // Update local user object
+                            const user = window.getCurrentUser();
+                            user.profilePicture = data.data; // URL from server
+                            localStorage.setItem('user', JSON.stringify(user));
+                            window.showSuccess('Profile photo updated successfully!');
+                        } else {
+                            console.warn('Backend upload failed, keeping local preview', data.message);
+                            // Fallback: If backend fails (endpoint not passed), we just warn
+                            // The user might not see it persist on refresh if backend doesn't save it.
+                            if (data.message) window.showError('Create the backend endpoint to save permanent: ' + data.message);
+                        }
+                    } catch (err) {
+                        console.error('Upload Error', err);
+                        // window.showError('Failed to upload photo to server');
+                    }
+
+                    document.getElementById('uploadOverlay').classList.add('d-none');
+                };
+
+                reader.readAsDataURL(file);
+
+            } catch (error) {
+                console.error(error);
+                document.getElementById('uploadOverlay').classList.add('d-none');
+                alert('Error processing image');
+            }
+        }
+    </script>
+</body>
+
+</html>

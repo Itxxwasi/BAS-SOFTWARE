@@ -497,9 +497,24 @@ class SidebarNavigation {
         });
 
         // Update avatars if any
-        document.querySelectorAll('.user-avatar-img, .header-avatar').forEach(img => {
-            img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`;
-        });
+        if (user.profilePicture) {
+            // update img tags
+            document.querySelectorAll('.user-avatar-img, .header-avatar').forEach(img => {
+                img.src = user.profilePicture;
+            });
+
+            // update div containers (header dropdowns)
+            document.querySelectorAll('.user-avatar').forEach(div => {
+                div.innerHTML = `<img src="${user.profilePicture}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+                div.classList.remove('bg-primary'); // Remove blue background
+                div.classList.add('bg-white');
+            });
+        } else {
+            // Fallback to UI Avatars if needed
+            document.querySelectorAll('.user-avatar-img, .header-avatar').forEach(img => {
+                img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`;
+            });
+        }
 
         // Setup Logout buttons
         document.querySelectorAll('.logout-btn, #logoutBtn').forEach(btn => {

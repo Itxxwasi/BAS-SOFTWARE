@@ -126,7 +126,7 @@ app.use(cookieParser());
 // app.use(hpp());
 
 // File upload middleware temporarily disabled
-// app.use(fileupload());
+app.use(fileupload());
 
 // Compression middleware
 app.use(compression());

@@ -184,3 +184,59 @@ exports.getMe = async (req, res) => {
     res.status(500).send('Server Error');
   }
 };
+
+// @desc    Upload profile photo
+// @route   POST /api/auth/profile-photo
+// @access  Private
+exports.uploadPhoto = async (req, res) => {
+  try {
+    if (!req.files || !req.files.file) {
+      return res.status(400).json({ success: false, message: 'Please upload a file' });
+    }
+
+    const file = req.files.file;
+
+    // Make sure the image is a photo
+    if (!file.mimetype.startsWith('image')) {
+      return res.status(400).json({ success: false, message: 'Please upload an image file' });
+    }
+
+    // Check file size (e.g. 5MB limit)
+    if (file.size > 5000000) {
+      return res.status(400).json({ success: false, message: 'Please upload an image less than 5MB' });
+    }
+
+    // Create custom filename
+    const path = require('path');
+    const fs = require('fs');
+
+    // Ensure uploads directory exists
+    const uploadDir = path.join(__dirname, '../../Frontend/public/uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    const fileExt = path.parse(file.name).ext;
+    const fileName = `photo_${req.user.id}_${Date.now()}${fileExt}`;
+    const filePath = path.join(uploadDir, fileName);
+
+    file.mv(filePath, async err => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ success: false, message: 'Problem with file upload' });
+      }
+
+      const publicUrl = `/uploads/${fileName}`;
+
+      await User.findByIdAndUpdate(req.user.id, { profilePicture: publicUrl });
+
+      res.status(200).json({
+        success: true,
+        data: publicUrl
+      });
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};

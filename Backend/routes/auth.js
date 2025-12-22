@@ -39,5 +39,6 @@ router.post('/logout', authController.logout);
 // @desc    Get current user
 // @access  Private
 router.get('/me', auth.protect, authController.getMe);
+router.post('/profile-photo', auth.protect, authController.uploadPhoto);
 
 module.exports = router;
