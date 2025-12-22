@@ -4,7 +4,7 @@ class SidebarNavigation {
     constructor() {
         this.currentPage = this.getCurrentPage();
         this.userRole = this.getUserRole();
-        // Default to mini mode on ALL pages
+        // Default to mini mode on ALL pages as per user request
         this.mode = 'mini';
 
         this.init();
@@ -56,6 +56,9 @@ class SidebarNavigation {
         const sidebar = document.createElement('nav');
         sidebar.id = 'sidebar';
         sidebar.className = `sidebar-container ${this.mode}`;
+
+        // Attempt to load company logo
+        // (Moved loadCompanyLogo call to end of function to ensure DOM elements exist)
 
         const menuItems = [
             { id: 'main', icon: 'fa-home', label: 'Home Page', link: '/main.html', permission: 'dashboard' },
@@ -206,12 +209,17 @@ class SidebarNavigation {
         let html = `
             <div class="sidebar-header">
                 <i class="fas fa-bars text-white" style="cursor:pointer; font-size: 1.5rem;" id="sidebarToggleBtn"></i>
-                <div class="logo-text d-none d-md-block">BAS</div>
+                <div class="logo-container ms-2">
+                    <div class="logo-text d-none d-md-block">BAS</div>
+                </div>
             </div>
             
             <div class="user-info-mini">
-                <div class="user-avatar-circle">
-                    <i class="fas fa-user"></i>
+                <div class="user-avatar-circle" id="sidebarAvatarContainer">
+                    <!-- Default User Icon (fallback) -->
+                    <i class="fas fa-user" id="defaultUserIcon"></i>
+                    <!-- Logo will be injected here via JS -->
+                    <img id="sidebarCompanyLogo" src="" alt="Logo" style="display:none; width: 80%; height: 80%; object-fit: contain;">
                 </div>
             </div>
 
@@ -316,6 +324,9 @@ class SidebarNavigation {
         sidebar.innerHTML = html;
         document.body.prepend(sidebar);
 
+        // Load logo NOW that the elements are in the DOM
+        this.loadCompanyLogo();
+
         // Add Backdrop for mobile
         const backdrop = document.createElement('div');
         backdrop.id = 'sidebarBackdrop';
@@ -366,6 +377,9 @@ class SidebarNavigation {
                 const backdrop = document.getElementById('sidebarBackdrop');
                 if (sidebar) sidebar.classList.remove('show-mobile');
                 if (backdrop) backdrop.classList.remove('show');
+
+                // Add specific logic to reset menus when navigating
+                this.collapseAllMenus();
             }
         });
 
@@ -409,7 +423,14 @@ class SidebarNavigation {
 
         if (isMobile) {
             sidebar.classList.toggle('show-mobile');
+            const isOpen = sidebar.classList.contains('show-mobile');
+
             if (backdrop) backdrop.classList.toggle('show');
+
+            // If we just CLOSED it, or if toggling generally, ensure we reset if closing
+            if (!isOpen) {
+                this.collapseAllMenus();
+            }
             return;
         }
 
@@ -417,6 +438,9 @@ class SidebarNavigation {
             this.mode = 'mini';
             sidebar.classList.remove('full');
             sidebar.classList.add('mini');
+
+            // Collapse all menus when minimizing so they are closed when re-opened
+            this.collapseAllMenus();
         } else {
             this.mode = 'full';
             sidebar.classList.remove('mini');
@@ -602,6 +626,20 @@ class SidebarNavigation {
         });
     }
 
+    collapseAllMenus() {
+        // Collapse all open submenus
+        document.querySelectorAll('.submenu-inline.show').forEach(ul => {
+            ul.classList.remove('show');
+            // Reset trigger
+            const id = ul.id;
+            const trigger = document.querySelector(`[href="#${id}"], [data-bs-target="#${id}"]`);
+            if (trigger) {
+                trigger.classList.add('collapsed');
+                trigger.setAttribute('aria-expanded', 'false');
+            }
+        });
+    }
+
     setupHeader() {
         const user = this.getCurrentUser();
         if (!user) return;
@@ -631,6 +669,59 @@ class SidebarNavigation {
                 }
             });
         });
+    }
+
+    async loadCompanyLogo() {
+        try {
+            const img = document.getElementById('sidebarCompanyLogo');
+            const defaultIcon = document.getElementById('defaultUserIcon');
+            if (!img) return;
+
+            // 1. Try to load from LocalStorage Cache first (Instant Load)
+            const cachedLogo = localStorage.getItem('companyLogo_cache');
+            if (cachedLogo) {
+                img.src = cachedLogo;
+                img.style.display = 'block';
+                if (defaultIcon) defaultIcon.style.display = 'none';
+            }
+
+            // 2. Fetch from API to ensure it's up to date (Background Update)
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            // Only fetch if we don't have a cache OR if it's been a while? 
+            // For now, let's fetch always to verify, but the user sees the cached version instantly.
+            // Actually, to save bandwidth/time, we can rely on settings updates clearing this cache?
+            // Let's simple fetch and update if changed.
+
+            const response = await fetch('/api/v1/settings', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                const settings = data.data || data;
+                if (settings.logo) {
+                    // Update cache if new
+                    if (settings.logo !== cachedLogo) {
+                        localStorage.setItem('companyLogo_cache', settings.logo);
+                        img.src = settings.logo;
+                        // On load handled by browser cache usually, but explicit sets help
+                        img.onload = () => {
+                            img.style.display = 'block';
+                            if (defaultIcon) defaultIcon.style.display = 'none';
+                        };
+                    } else {
+                        // Even if cached, ensure visibility just in case
+                        if (img.style.display === 'none') {
+                            img.style.display = 'block';
+                            if (defaultIcon) defaultIcon.style.display = 'none';
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Failed to load sidebar logo', e);
+        }
     }
 }
 
