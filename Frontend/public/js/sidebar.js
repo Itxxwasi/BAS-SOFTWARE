@@ -651,10 +651,66 @@ class SidebarNavigation {
             if (el) el.innerText = user.name;
         });
 
-        // Update avatars if any
-        document.querySelectorAll('.user-avatar-img, .header-avatar').forEach(img => {
-            img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`;
-        });
+        // Built-in Avatar SVGs (same as in profile.html)
+        const AVATARS = [
+            // Avatar 1 - Blue Professional Male
+            `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#3498db"/><circle cx="50" cy="40" r="20" fill="#f5d0c5"/><ellipse cx="50" cy="85" rx="30" ry="25" fill="#2980b9"/><circle cx="43" cy="37" r="3" fill="#333"/><circle cx="57" cy="37" r="3" fill="#333"/><path d="M 45 47 Q 50 52 55 47" stroke="#333" stroke-width="2" fill="none"/><path d="M 30 25 Q 50 5 70 25 Q 70 35 50 30 Q 30 35 30 25" fill="#4a3728"/></svg>`,
+            // Avatar 2 - Pink Professional Female
+            `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#e91e63"/><circle cx="50" cy="40" r="20" fill="#f5d0c5"/><ellipse cx="50" cy="85" rx="30" ry="25" fill="#c2185b"/><circle cx="43" cy="37" r="3" fill="#333"/><circle cx="57" cy="37" r="3" fill="#333"/><path d="M 45 47 Q 50 52 55 47" stroke="#c0392b" stroke-width="2" fill="none"/><path d="M 25 35 Q 25 10 50 15 Q 75 10 75 35 Q 70 45 50 55 Q 30 45 25 35" fill="#5d4037"/></svg>`,
+            // Avatar 3 - Green Tech Guy
+            `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#27ae60"/><circle cx="50" cy="40" r="20" fill="#fce4d6"/><ellipse cx="50" cy="85" rx="30" ry="25" fill="#1e8449"/><rect x="36" y="32" width="10" height="8" rx="2" fill="#333"/><rect x="54" y="32" width="10" height="8" rx="2" fill="#333"/><path d="M 45 48 Q 50 51 55 48" stroke="#333" stroke-width="2" fill="none"/><path d="M 30 28 Q 50 20 70 28 L 65 35 Q 50 30 35 35 Z" fill="#2c3e50"/></svg>`,
+            // Avatar 4 - Purple Creative Female
+            `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#9b59b6"/><circle cx="50" cy="40" r="20" fill="#f5d0c5"/><ellipse cx="50" cy="85" rx="30" ry="25" fill="#8e44ad"/><circle cx="43" cy="37" r="3" fill="#333"/><circle cx="57" cy="37" r="3" fill="#333"/><path d="M 43 47 Q 50 53 57 47" stroke="#e74c3c" stroke-width="2" fill="none"/><path d="M 20 40 Q 25 10 50 15 Q 75 10 80 40 Q 75 50 50 60 Q 25 50 20 40" fill="#6c3483"/></svg>`,
+            // Avatar 5 - Orange Business Male
+            `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#e67e22"/><circle cx="50" cy="40" r="20" fill="#fce4d6"/><ellipse cx="50" cy="85" rx="30" ry="25" fill="#d35400"/><circle cx="43" cy="37" r="3" fill="#333"/><circle cx="57" cy="37" r="3" fill="#333"/><path d="M 45 47 Q 50 50 55 47" stroke="#333" stroke-width="2" fill="none"/><path d="M 32 30 Q 50 22 68 30 L 65 25 Q 50 18 35 25 Z" fill="#1a1a1a"/><rect x="47" y="60" width="6" height="10" fill="#2c3e50"/></svg>`,
+            // Avatar 6 - Teal Doctor/Medical
+            `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#1abc9c"/><circle cx="50" cy="40" r="20" fill="#f5d0c5"/><ellipse cx="50" cy="85" rx="30" ry="25" fill="#fff"/><circle cx="43" cy="37" r="3" fill="#333"/><circle cx="57" cy="37" r="3" fill="#333"/><path d="M 45 47 Q 50 51 55 47" stroke="#333" stroke-width="2" fill="none"/><path d="M 30 25 Q 50 10 70 25 Q 65 30 50 28 Q 35 30 30 25" fill="#2c3e50"/><circle cx="35" cy="70" r="5" fill="#e74c3c"/><rect x="33" y="68" width="4" height="4" fill="#fff"/><rect x="34" y="67" width="2" height="6" fill="#fff"/></svg>`,
+            // Avatar 7 - Red Bold Male
+            `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#e74c3c"/><circle cx="50" cy="40" r="20" fill="#fce4d6"/><ellipse cx="50" cy="85" rx="30" ry="25" fill="#c0392b"/><circle cx="43" cy="37" r="3" fill="#333"/><circle cx="57" cy="37" r="3" fill="#333"/><path d="M 44 47 Q 50 52 56 47" stroke="#333" stroke-width="2" fill="none"/><ellipse cx="50" cy="22" rx="22" ry="12" fill="#2c3e50"/></svg>`,
+            // Avatar 8 - Indigo Professional Female
+            `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#3f51b5"/><circle cx="50" cy="40" r="20" fill="#f5d0c5"/><ellipse cx="50" cy="85" rx="30" ry="25" fill="#303f9f"/><circle cx="43" cy="37" r="3" fill="#333"/><circle cx="57" cy="37" r="3" fill="#333"/><path d="M 45 47 Q 50 52 55 47" stroke="#e74c3c" stroke-width="2" fill="none"/><path d="M 22 38 Q 28 8 50 12 Q 72 8 78 38 Q 72 48 50 50 Q 28 48 22 38" fill="#1a1a1a"/><circle cx="43" cy="33" r="5" fill="none" stroke="#333" stroke-width="1"/><circle cx="57" cy="33" r="5" fill="none" stroke="#333" stroke-width="1"/></svg>`,
+            // Avatar 9 - Cyan Modern Male
+            `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#00bcd4"/><circle cx="50" cy="40" r="20" fill="#fce4d6"/><ellipse cx="50" cy="85" rx="30" ry="25" fill="#0097a7"/><circle cx="43" cy="37" r="3" fill="#333"/><circle cx="57" cy="37" r="3" fill="#333"/><path d="M 45 48 Q 50 52 55 48" stroke="#333" stroke-width="2" fill="none"/><path d="M 30 32 Q 35 15 50 18 Q 65 15 70 32 L 65 28 Q 50 22 35 28 Z" fill="#5d4037"/><rect x="28" y="45" width="6" height="4" rx="1" fill="#ffc107"/></svg>`,
+            // Avatar 10 - Amber Casual Female
+            `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#ffc107"/><circle cx="50" cy="40" r="20" fill="#f5d0c5"/><ellipse cx="50" cy="85" rx="30" ry="25" fill="#ffa000"/><circle cx="43" cy="37" r="3" fill="#333"/><circle cx="57" cy="37" r="3" fill="#333"/><path d="M 44 47 Q 50 53 56 47" stroke="#e74c3c" stroke-width="2" fill="none"/><path d="M 25 30 Q 30 5 50 10 Q 70 5 75 30" fill="#ff9800" stroke="none"/><path d="M 25 30 Q 25 45 35 55 L 30 60 Q 20 50 25 30" fill="#ff9800"/><path d="M 75 30 Q 75 45 65 55 L 70 60 Q 80 50 75 30" fill="#ff9800"/></svg>`,
+            // Avatar 11 - Navy Executive
+            `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#34495e"/><circle cx="50" cy="40" r="20" fill="#fce4d6"/><ellipse cx="50" cy="85" rx="30" ry="25" fill="#2c3e50"/><circle cx="43" cy="37" r="3" fill="#333"/><circle cx="57" cy="37" r="3" fill="#333"/><path d="M 45 47 Q 50 50 55 47" stroke="#333" stroke-width="2" fill="none"/><path d="M 32 28 Q 50 18 68 28 L 66 22 Q 50 14 34 22 Z" fill="#566573"/><path d="M 40 60 L 50 70 L 60 60" fill="#e74c3c"/><rect x="47" y="60" width="6" height="8" fill="#fff"/></svg>`,
+            // Avatar 12 - Lime Friendly
+            `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#8bc34a"/><circle cx="50" cy="40" r="20" fill="#f5d0c5"/><ellipse cx="50" cy="85" rx="30" ry="25" fill="#689f38"/><circle cx="43" cy="37" r="4" fill="#333"/><circle cx="57" cy="37" r="4" fill="#333"/><circle cx="44" cy="36" r="1.5" fill="#fff"/><circle cx="58" cy="36" r="1.5" fill="#fff"/><path d="M 42 47 Q 50 55 58 47" stroke="#333" stroke-width="2" fill="none"/><path d="M 28 30 Q 35 10 50 12 Q 65 10 72 30 Q 68 35 50 32 Q 32 35 28 30" fill="#5d4037"/></svg>`
+        ];
+
+        // Check for saved avatar in localStorage
+        const savedAvatarIndex = localStorage.getItem('userAvatar');
+
+        if (savedAvatarIndex !== null && AVATARS[parseInt(savedAvatarIndex)]) {
+            const avatarSvg = AVATARS[parseInt(savedAvatarIndex)];
+
+            // Update all user-avatar divs with the selected avatar
+            document.querySelectorAll('.user-avatar').forEach(div => {
+                div.innerHTML = avatarSvg;
+                div.style.background = 'transparent';
+                div.classList.remove('bg-primary');
+            });
+
+            // Also update headerAvatarDisplay if it exists
+            const headerAvatarDisplay = document.getElementById('headerAvatarDisplay');
+            if (headerAvatarDisplay) {
+                headerAvatarDisplay.innerHTML = avatarSvg;
+                headerAvatarDisplay.style.background = 'transparent';
+                headerAvatarDisplay.classList.remove('bg-primary');
+            }
+        } else if (user.profilePicture) {
+            // Fallback to profile picture if no built-in avatar selected
+            document.querySelectorAll('.user-avatar-img, .header-avatar').forEach(img => {
+                img.src = user.profilePicture;
+            });
+
+            document.querySelectorAll('.user-avatar').forEach(div => {
+                div.innerHTML = `<img src="${user.profilePicture}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+                div.classList.remove('bg-primary');
+                div.classList.add('bg-white');
+            });
+        }
 
         // Setup Logout buttons
         document.querySelectorAll('.logout-btn, #logoutBtn').forEach(btn => {

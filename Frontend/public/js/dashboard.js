@@ -977,6 +977,10 @@ function processAndRenderBranchDeptBreakdown(sheets, branchNameMap, departmentsM
             deptList.forEach(d => {
                 const discPct = d.gross > 0 ? (d.disc / d.gross) * 100 : 0;
                 const saleVal = d.gross - d.disc - d.ret;
+
+                // Filter out Unknown Dept or empty rows
+                if (d.name === 'Unknown Dept' && d.gross === 0 && d.net === 0) return;
+
                 const avg = d.net / (d.days.size || 1);
                 tGross += d.gross; tDisc += d.disc; tRet += d.ret; tSaleVal += saleVal; tGst += d.gst; tNet += d.net; tAvgSum += avg;
 

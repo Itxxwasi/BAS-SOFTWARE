@@ -6,6 +6,7 @@ const path = require('path');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const compression = require('compression');
+const { wasiPerformanceBooster, wasiApiHealthMonitor, wasiSystemHealthCheck } = require('./middleware/wasiPerformance');
 const cookieParser = require('cookie-parser');
 const fileupload = require('express-fileupload');
 const morgan = require('morgan');
@@ -73,6 +74,9 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
+// WASI Health Monitor (Before other middleware to capture all requests)
+app.use(wasiApiHealthMonitor);
+
 // Global Request Logger
 app.use((req, res, next) => {
   console.log('\n========================================');
@@ -126,10 +130,12 @@ app.use(cookieParser());
 // app.use(hpp());
 
 // File upload middleware temporarily disabled
-// app.use(fileupload());
+app.use(fileupload());
 
 // Compression middleware
-app.use(compression());
+// Compression middleware (Replaced by WASI Booster)
+// app.use(compression());
+wasiPerformanceBooster(app);
 
 // CORS
 app.use(cors({
@@ -222,6 +228,9 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/sales-inven
 app.get('/api/v1/ping', (req, res) => {
   res.json({ status: 'ok' });
 });
+
+// WASI System Health Check
+app.get('/api/v1/wasi-health', wasiSystemHealthCheck);
 
 // Mount routers
 app.use('/api/v1/auth', authRoutes);

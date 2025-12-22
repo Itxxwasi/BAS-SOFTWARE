@@ -147,7 +147,15 @@ async function loadSheet() {
 
         const filteredDepts = currentDepartments
             .filter(d => d.branch === branch && d.isActive)
-            .sort((a, b) => (parseInt(a.code) || 999999) - (parseInt(b.code) || 999999));
+            .sort((a, b) => {
+                const codeA = a.code && !isNaN(parseInt(a.code)) ? parseInt(a.code) : 999999;
+                const codeB = b.code && !isNaN(parseInt(b.code)) ? parseInt(b.code) : 999999;
+
+                if (codeA !== codeB) {
+                    return codeA - codeB;
+                }
+                return (a.name || '').localeCompare(b.name || '');
+            });
 
         window.currentFilteredDepts = filteredDepts;
 
@@ -1830,8 +1838,16 @@ function addDeptSaleRow(deptId = '', sale = 0, cost = 0) {
 
     // Build Department Options
     let options = '<option value="">Select Department</option>';
-    currentDepartments.forEach(d => {
+    // Use the sorted, filtered list from loadSheet
+    const deptsToUse = window.currentFilteredDepts || currentDepartments;
+
+    deptsToUse.forEach(d => {
         if (!d.closing2CompSale) return; // User Request: Only show 'Closing 2 Comp Sale' departments
+
+        // Filter by branch if we fell back to currentDepartments (safety check)
+        const branch = document.getElementById('branch').value;
+        if (d.branch && d.branch !== branch) return;
+
         const selected = d._id === deptId ? 'selected' : '';
         options += `<option value="${d._id}" ${selected}>${d.name}</option>`;
     });
