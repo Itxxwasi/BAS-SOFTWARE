@@ -9,17 +9,17 @@ document.addEventListener('DOMContentLoaded', async function () {
         return;
     }
 
-    // Set default dates (current month)
+    // Set default dates (current date)
     const today = new Date();
-    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-    document.getElementById('filterFromDate').value = firstDay.toISOString().split('T')[0];
-    document.getElementById('filterToDate').value = today.toISOString().split('T')[0];
+    const todayStr = today.toISOString().split('T')[0];
+    document.getElementById('filterFromDate').value = todayStr;
+    document.getElementById('filterToDate').value = todayStr;
 
     // Initial Load
-    await Promise.all([
-        loadBranches(),
-        loadDepartments()
-    ]);
+    await loadBranches();
+    await loadDepartments();
+
+    document.getElementById('filterBranch').addEventListener('change', loadDepartments);
 });
 
 async function loadBranches() {
@@ -56,10 +56,15 @@ async function loadDepartments() {
         if (response.ok) {
             const data = await response.json();
             const counterSelect = document.getElementById('filterCounter');
-            counterSelect.innerHTML = '<option value="">All Cash Counters</option>';
+            counterSelect.innerHTML = '<option value="">All Departments</option>';
+
+            const branch = document.getElementById('filterBranch').value;
 
             (data.data || []).forEach(d => {
-                if (d.isCashCounter) {
+                // Filter by Branch (if selected) AND combineDepSales
+                const branchMatch = !branch || d.branch === branch;
+
+                if (d.isActive && d.combineDepSales && branchMatch) {
                     const opt = document.createElement('option');
                     opt.value = d.name; // Use Name!
                     opt.textContent = d.name;
@@ -103,7 +108,11 @@ async function loadReport() {
         let transactions = result.data || [];
 
         if (selectedCounterName) {
-            transactions = transactions.filter(t => t.cashCounter === selectedCounterName);
+            // Check Department Name match
+            transactions = transactions.filter(t => {
+                const dName = t.department ? (t.department.name || t.department) : '';
+                return dName === selectedCounterName;
+            });
         }
 
         if (transactions.length === 0) {
@@ -111,7 +120,7 @@ async function loadReport() {
             return;
         }
 
-        renderReport(transactions);
+        renderReport(transactions, selectedCounterName);
 
     } catch (error) {
         console.error(error);
@@ -119,7 +128,7 @@ async function loadReport() {
     }
 }
 
-function renderReport(transactions) {
+function renderReport(transactions, selectedCounterName) {
     const container = document.getElementById('reportContainer');
     container.innerHTML = '';
 
@@ -127,7 +136,17 @@ function renderReport(transactions) {
     const groups = {};
 
     transactions.forEach(t => {
-        const counter = t.cashCounter || 'Unknown';
+        // Use Department Name instead of Cash Counter
+        let deptName = 'Unknown';
+        if (t.department) {
+            deptName = t.department.name || t.department; // Handle object or string/ID if not populated (though usually populated)
+            if (typeof deptName === 'object') deptName = 'Unknown'; // Fallback if still object
+        }
+
+        const counter = deptName;
+
+        if (selectedCounterName && counter !== selectedCounterName) return; // Filter here if not filtered earlier (though safe to filter explicitly)
+
         if (!groups[counter]) groups[counter] = {};
 
         // Date key (YYYY-MM-DD) for sorting
@@ -158,7 +177,7 @@ function renderReport(transactions) {
         let tableHtml = `
         <table class="table table-bordered border-dark table-sm mb-0" style="width: 100%; border-color: black !important;">
             <thead>
-                <tr style="border: 1px solid black;">
+                <tr style="border: 1px solid black; background-color: #f2f2f2 !important;">
                     <th colspan="4" class="text-center fw-bold" style="font-size: 1.1em; padding: 8px;">${counter}</th>
                 </tr>
                 <tr style="border: 1px solid black;">
@@ -196,7 +215,7 @@ function renderReport(transactions) {
         // Subtotal Row
         const counterTotal = counterCash + counterBank;
         tableHtml += `
-            <tr style="border: 1px solid black; font-weight: bold;">
+            <tr style="border: 1px solid black; font-weight: bold; background-color: #f2f2f2 !important;">
                 <td style="border: 1px solid black; padding: 5px 8px;"></td>
                 <td class="text-end" style="border: 1px solid black; padding: 5px 8px;">${formatCurrency(counterCash)}</td>
                 <td class="text-end" style="border: 1px solid black; padding: 5px 8px;">${counterBank > 0 ? formatCurrency(counterBank) : ''}</td>
@@ -229,7 +248,7 @@ function renderReport(transactions) {
         <div class="mt-4">
             <table class="table table-bordered border-dark table-sm mb-0" style="width: 100%; border-color: black !important;">
              <tfoot>
-                <tr style="border: 1px solid black; font-weight: bold; background: #f8f9fa;">
+                <tr style="border: 1px solid black; font-weight: bold; background: #e3f2fd !important;">
                     <td style="width: 30%; border: 1px solid black; padding: 8px;">Report Grand Total</td>
                     <td style="width: 25%; border: 1px solid black; padding: 8px;" class="text-end">${formatCurrency(globalCash)}</td>
                     <td style="width: 25%; border: 1px solid black; padding: 8px;" class="text-end">${formatCurrency(globalBank)}</td>
