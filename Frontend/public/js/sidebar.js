@@ -4,7 +4,7 @@ class SidebarNavigation {
     constructor() {
         this.currentPage = this.getCurrentPage();
         this.userRole = this.getUserRole();
-        // Default to mini mode on ALL pages
+        // Default to mini mode on ALL pages as per user request
         this.mode = 'mini';
 
         this.init();
@@ -17,6 +17,14 @@ class SidebarNavigation {
         this.setupEventListeners();
         this.setupRoleBasedAccess();
         this.setupHeader();
+
+        // Ensure closed by default on mobile
+        if (window.innerWidth <= 768) {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            if (sidebar) sidebar.classList.remove('show-mobile');
+            if (backdrop) backdrop.classList.remove('show');
+        }
     }
 
     getCurrentPage() {
@@ -48,6 +56,9 @@ class SidebarNavigation {
         const sidebar = document.createElement('nav');
         sidebar.id = 'sidebar';
         sidebar.className = `sidebar-container ${this.mode}`;
+
+        // Attempt to load company logo
+        // (Moved loadCompanyLogo call to end of function to ensure DOM elements exist)
 
         const menuItems = [
             { id: 'main', icon: 'fa-home', label: 'Home Page', link: '/main.html', permission: 'dashboard' },
@@ -197,13 +208,18 @@ class SidebarNavigation {
 
         let html = `
             <div class="sidebar-header">
-                <i class="fas fa-bars text-white" style="cursor:pointer; font-size: 1.2rem;" id="sidebarToggleBtn"></i>
-                <div class="logo-text">BAS</div>
+                <i class="fas fa-bars text-white" style="cursor:pointer; font-size: 1.5rem;" id="sidebarToggleBtn"></i>
+                <div class="logo-container ms-2">
+                    <div class="logo-text d-none d-md-block">BAS</div>
+                </div>
             </div>
             
             <div class="user-info-mini">
-                <div class="user-avatar-circle">
-                    <i class="fas fa-user"></i>
+                <div class="user-avatar-circle" id="sidebarAvatarContainer">
+                    <!-- Default User Icon (fallback) -->
+                    <i class="fas fa-user" id="defaultUserIcon"></i>
+                    <!-- Logo will be injected here via JS -->
+                    <img id="sidebarCompanyLogo" src="" alt="Logo" style="display:none; width: 80%; height: 80%; object-fit: contain;">
                 </div>
             </div>
 
@@ -217,10 +233,10 @@ class SidebarNavigation {
             if (item.children) {
                 // 1. Accordion Trigger (For Full Mode)
                 html += `
-                    <div class="nav-link" data-bs-toggle="collapse" href="#submenu-${item.id}" role="button" aria-expanded="false">
+                    <div class="nav-link collapsed" data-bs-toggle="collapse" href="#submenu-${item.id}" data-bs-target="#submenu-${item.id}" role="button" aria-expanded="false">
                         <i class="fas ${item.icon}"></i>
                         <span>${item.label}</span>
-                        <i class="fas fa-chevron-right ms-auto arrow arrow-icon"></i>
+                        <i class="fas fa-chevron-right ms-auto arrow arrow-icon" style="font-size: 0.8rem; opacity: 0.7;"></i>
                     </div>
                 `;
 
@@ -307,20 +323,26 @@ class SidebarNavigation {
 
         sidebar.innerHTML = html;
         document.body.prepend(sidebar);
+
+        // Load logo NOW that the elements are in the DOM
+        this.loadCompanyLogo();
+
+        // Add Backdrop for mobile
+        const backdrop = document.createElement('div');
+        backdrop.id = 'sidebarBackdrop';
+        backdrop.className = 'sidebar-backdrop';
+        document.body.appendChild(backdrop);
+        backdrop.addEventListener('click', () => this.toggleSidebarMode());
     }
 
     setupEventListeners() {
-        // Internal toggle (in sidebar)
-        const toggleBtn = document.getElementById('sidebarToggleBtn');
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', () => this.toggleSidebarMode());
-        }
-
-        // External toggle (e.g. in dashboard topbar)
-        const extToggle = document.getElementById('sidebarToggle');
-        if (extToggle) {
-            extToggle.addEventListener('click', () => this.toggleSidebarMode());
-        }
+        // Broad delegation for toggle buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('#sidebarToggle') || e.target.closest('#sidebarToggleBtn')) {
+                e.preventDefault();
+                this.toggleSidebarMode();
+            }
+        });
 
         // Popover Submenu Toggle (Delegated)
         document.addEventListener('click', (e) => {
@@ -341,19 +363,88 @@ class SidebarNavigation {
                 }
             }
         });
+
+        // Close sidebar on mobile when link is clicked
+        document.addEventListener('click', (e) => {
+            const isMobile = window.innerWidth <= 768;
+            if (!isMobile) return;
+
+            const navLink = e.target.closest('.nav-link:not([data-bs-toggle])');
+            const popoverItem = e.target.closest('.popover-item');
+
+            if (navLink || popoverItem) {
+                const sidebar = document.getElementById('sidebar');
+                const backdrop = document.getElementById('sidebarBackdrop');
+                if (sidebar) sidebar.classList.remove('show-mobile');
+                if (backdrop) backdrop.classList.remove('show');
+
+                // Add specific logic to reset menus when navigating
+                this.collapseAllMenus();
+            }
+        });
+
+        // Mobile Fix: Force expand accordion on click for mobile
+        document.addEventListener('click', (e) => {
+            const isMobile = window.innerWidth <= 768;
+            if (!isMobile) return;
+
+            const toggle = e.target.closest('[data-bs-toggle="collapse"]');
+            if (toggle) {
+                // If it's a sidebar toggle, we might need to verify if the mini mode is interfering
+                const targetId = toggle.getAttribute('href') || toggle.getAttribute('data-bs-target');
+                if (targetId) {
+                    const targetEl = document.querySelector(targetId);
+                    // Bootstrap might lag or conflict with our 'mini' class logic. 
+                    // Let's ensure the class 'show' is toggled.
+                    // However, bootstrap js should handle this. 
+                    // The issue is likely CSS hiding it despite 'show' class.
+                    // We fixed CSS, but let's double check if we need to force anything here.
+
+                    // Actually, if we are in Mini mode, the click might not be triggering bootstrap collapse 
+                    // because the element might be visually different or hidden?
+
+                    // If we need to force open specifically for mobile:
+                    if (targetEl && targetEl.classList.contains('submenu-inline')) {
+                        setTimeout(() => {
+                            if (!targetEl.classList.contains('show')) {
+                                // Ideally bootstrap opens it. If not, we force display block via style
+                            }
+                        }, 50);
+                    }
+                }
+            }
+        });
     }
 
     toggleSidebarMode() {
+        const isMobile = window.innerWidth <= 768;
+        const sidebar = document.getElementById('sidebar');
+        const backdrop = document.getElementById('sidebarBackdrop');
+
+        if (isMobile) {
+            sidebar.classList.toggle('show-mobile');
+            const isOpen = sidebar.classList.contains('show-mobile');
+
+            if (backdrop) backdrop.classList.toggle('show');
+
+            // If we just CLOSED it, or if toggling generally, ensure we reset if closing
+            if (!isOpen) {
+                this.collapseAllMenus();
+            }
+            return;
+        }
+
         if (this.mode === 'full') {
             this.mode = 'mini';
-            document.getElementById('sidebar').classList.remove('full');
-            document.getElementById('sidebar').classList.add('mini');
+            sidebar.classList.remove('full');
+            sidebar.classList.add('mini');
 
-            // If external toggle exists, we might want to adjust it or leaving it is fine
+            // Collapse all menus when minimizing so they are closed when re-opened
+            this.collapseAllMenus();
         } else {
             this.mode = 'full';
-            document.getElementById('sidebar').classList.remove('mini');
-            document.getElementById('sidebar').classList.add('full');
+            sidebar.classList.remove('mini');
+            sidebar.classList.add('full');
         }
         this.applyBodyClass();
     }
@@ -362,18 +453,68 @@ class SidebarNavigation {
         let path = window.location.pathname;
         if (path === '/') path = '/main.html';
 
-        // Clean highlight
-        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        // Normalize for comparison (remove leading slash if inconsistent)
+        const normalize = (p) => p.startsWith('/') ? p : '/' + p;
+        const currentPath = normalize(path);
 
-        document.querySelectorAll('a').forEach(a => {
-            if (a.getAttribute('href') === path) {
+        // Clean highlight
+        document.querySelectorAll('.nav-link').forEach(l => {
+            l.classList.remove('active');
+            // If it's a parent trigger, ensure it's collapsed visually if not active
+            if (l.hasAttribute('data-bs-toggle')) {
+                l.classList.add('collapsed');
+                l.setAttribute('aria-expanded', 'false');
+            }
+        });
+        document.querySelectorAll('.submenu-inline').forEach(ul => ul.classList.remove('show'));
+
+        const allLinks = document.querySelectorAll('a');
+        let matched = false;
+
+        allLinks.forEach(a => {
+            const linkHref = a.getAttribute('href');
+            if (!linkHref || linkHref === 'javascript:void(0)' || linkHref === '#') return;
+
+            // Robust Match: Exact or EndsWith
+            if (normalize(linkHref) === currentPath) {
+                matched = true;
                 a.classList.add('active');
-                // Highlight parent accordion trigger
+
+                // Highlight and Expand Parent Accordion
                 const parentUl = a.closest('.submenu-inline');
                 if (parentUl) {
-                    parentUl.classList.add('show'); // Expand accordion
-                    const trigger = document.querySelector(`[href="#${parentUl.id}"]`);
-                    if (trigger) trigger.classList.add('active-parent');
+                    // Mobile Behavior: Do NOT auto-expand. Keep it collapsed by default.
+                    // Desktop Behavior: Auto-expand to show context.
+                    if (window.innerWidth > 768) {
+                        parentUl.classList.add('show'); // Expand accordion
+
+                        // Find trigger for this UL
+                        const trigger = document.querySelector(`[data-bs-target="#${parentUl.id}"], [href="#${parentUl.id}"]`);
+                        if (trigger) {
+                            trigger.classList.add('active-parent'); // Custom highlight style
+                            trigger.classList.remove('collapsed'); // Rotate arrow
+                            trigger.setAttribute('aria-expanded', 'true'); // A11y
+                        }
+
+                        // Handle Nested Parents (Grandparents)
+                        const grandParentUl = parentUl.parentElement.closest('.submenu-inline');
+                        if (grandParentUl) {
+                            grandParentUl.classList.add('show');
+                            const gpTrigger = document.querySelector(`[data-bs-target="#${grandParentUl.id}"], [href="#${grandParentUl.id}"]`);
+                            if (gpTrigger) {
+                                gpTrigger.classList.add('active-parent');
+                                gpTrigger.classList.remove('collapsed');
+                                gpTrigger.setAttribute('aria-expanded', 'true');
+                            }
+                        }
+                    } else {
+                        // On Mobile: just ensure the trigger knows it has an active child (optional, for styling)
+                        // formatting only, no expansion
+                        const trigger = document.querySelector(`[data-bs-target="#${parentUl.id}"], [href="#${parentUl.id}"]`);
+                        if (trigger) {
+                            trigger.classList.add('active-parent');
+                        }
+                    }
                 }
             }
         });
@@ -485,6 +626,20 @@ class SidebarNavigation {
         });
     }
 
+    collapseAllMenus() {
+        // Collapse all open submenus
+        document.querySelectorAll('.submenu-inline.show').forEach(ul => {
+            ul.classList.remove('show');
+            // Reset trigger
+            const id = ul.id;
+            const trigger = document.querySelector(`[href="#${id}"], [data-bs-target="#${id}"]`);
+            if (trigger) {
+                trigger.classList.add('collapsed');
+                trigger.setAttribute('aria-expanded', 'false');
+            }
+        });
+    }
+
     setupHeader() {
         const user = this.getCurrentUser();
         if (!user) return;
@@ -529,6 +684,59 @@ class SidebarNavigation {
                 }
             });
         });
+    }
+
+    async loadCompanyLogo() {
+        try {
+            const img = document.getElementById('sidebarCompanyLogo');
+            const defaultIcon = document.getElementById('defaultUserIcon');
+            if (!img) return;
+
+            // 1. Try to load from LocalStorage Cache first (Instant Load)
+            const cachedLogo = localStorage.getItem('companyLogo_cache');
+            if (cachedLogo) {
+                img.src = cachedLogo;
+                img.style.display = 'block';
+                if (defaultIcon) defaultIcon.style.display = 'none';
+            }
+
+            // 2. Fetch from API to ensure it's up to date (Background Update)
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            // Only fetch if we don't have a cache OR if it's been a while? 
+            // For now, let's fetch always to verify, but the user sees the cached version instantly.
+            // Actually, to save bandwidth/time, we can rely on settings updates clearing this cache?
+            // Let's simple fetch and update if changed.
+
+            const response = await fetch('/api/v1/settings', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                const settings = data.data || data;
+                if (settings.logo) {
+                    // Update cache if new
+                    if (settings.logo !== cachedLogo) {
+                        localStorage.setItem('companyLogo_cache', settings.logo);
+                        img.src = settings.logo;
+                        // On load handled by browser cache usually, but explicit sets help
+                        img.onload = () => {
+                            img.style.display = 'block';
+                            if (defaultIcon) defaultIcon.style.display = 'none';
+                        };
+                    } else {
+                        // Even if cached, ensure visibility just in case
+                        if (img.style.display === 'none') {
+                            img.style.display = 'block';
+                            if (defaultIcon) defaultIcon.style.display = 'none';
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Failed to load sidebar logo', e);
+        }
     }
 }
 

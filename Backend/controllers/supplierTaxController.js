@@ -94,3 +94,35 @@ exports.deleteSupplierTax = asyncHandler(async (req, res, next) => {
     await tax.deleteOne();
     res.status(200).json({ success: true, data: {} });
 });
+// @desc    Delete single entry from supplier tax record
+// @route   DELETE /api/v1/supplier-taxes/:id/entries/:entryId
+// @access  Private
+exports.deleteSupplierTaxEntry = asyncHandler(async (req, res, next) => {
+    let tax = await SupplierTax.findById(req.params.id);
+    if (!tax) {
+        return next(new ErrorResponse(`No record found with id of ${req.params.id}`, 404));
+    }
+
+    // Filter out the entry
+    const entryCountBefore = tax.entries.length;
+    tax.entries = tax.entries.filter(entry => entry._id.toString() !== req.params.entryId);
+
+    if (tax.entries.length === entryCountBefore) {
+        return next(new ErrorResponse(`No entry found with id of ${req.params.entryId}`, 404));
+    }
+
+    // Recalculate totals
+    tax.totalAmount = tax.entries.reduce((acc, r) => acc + (r.invoiceAmount || 0), 0);
+    tax.totalTaxDeducted = tax.entries.reduce((acc, r) => acc + (r.taxDeducted || 0), 0);
+    tax.totalAiTaxAmount = tax.entries.reduce((acc, r) => acc + (r.aiTaxAmount || 0), 0);
+
+    // If no entries left, delete the entire sheet?
+    if (tax.entries.length === 0) {
+        await tax.deleteOne();
+        return res.status(200).json({ success: true, data: {}, message: 'Sheet deleted as it became empty' });
+    }
+
+    await tax.save();
+
+    res.status(200).json({ success: true, data: tax });
+});

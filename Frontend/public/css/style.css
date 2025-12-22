@@ -32,15 +32,7 @@ body {
 }
 
 /* Sidebar */
-.sidebar {
-    width: var(--sidebar-width);
-    background: #fff;
-    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-    position: fixed;
-    height: 100vh;
-    overflow-y: auto;
-    z-index: 100;
-}
+/* Old sidebar styles removed to favor sidebar.css */
 
 .logo {
     padding: 20px;
@@ -341,15 +333,6 @@ body {
 
 /* Responsive Design */
 @media (max-width: 992px) {
-    .sidebar {
-        transform: translateX(-100%);
-        transition: transform 0.3s ease;
-    }
-
-    .sidebar.active {
-        transform: translateX(0);
-    }
-
     .main-content {
         margin-left: 0;
     }

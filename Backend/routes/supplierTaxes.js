@@ -4,7 +4,8 @@ const {
     getSupplierTaxes,
     createSupplierTax,
     updateSupplierTax,
-    deleteSupplierTax
+    deleteSupplierTax,
+    deleteSupplierTaxEntry
 } = require('../controllers/supplierTaxController');
 
 const { protect } = require('../middleware/auth');
@@ -20,5 +21,7 @@ router
     .route('/:id')
     .put(updateSupplierTax)
     .delete(deleteSupplierTax);
+
+router.delete('/:id/entries/:entryId', deleteSupplierTaxEntry);
 
 module.exports = router;
