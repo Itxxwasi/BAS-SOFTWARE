@@ -65,6 +65,7 @@ const employeeCommissionRoutes = require('./routes/employeeCommissions');
 const employeePenaltyRoutes = require('./routes/employeePenalties');
 const holyDayRoutes = require('./routes/holyDays');
 const supplierTaxCPRRoutes = require('./routes/supplierTaxCPRs');
+const groupRoutes = require('./routes/groups');
 
 
 // Error handler
@@ -277,6 +278,7 @@ app.use('/api/v1/employee-commissions', employeeCommissionRoutes);
 app.use('/api/v1/employee-penalties', employeePenaltyRoutes);
 app.use('/api/v1/holy-days', holyDayRoutes);
 app.use('/api/v1/supplier-tax-cprs', supplierTaxCPRRoutes);
+app.use('/api/v1/groups', groupRoutes);
 
 
 // Serve login page at root
@@ -401,6 +403,10 @@ app.get('/voucher-list.html', (req, res) => {
 
 app.get('/users.html', (req, res) => {
   res.sendFile(path.join(__dirname, '../Frontend/views', 'users.html'));
+});
+
+app.get('/groups.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../Frontend/views', 'groups.html'));
 });
 
 app.get('/backup.html', (req, res) => {

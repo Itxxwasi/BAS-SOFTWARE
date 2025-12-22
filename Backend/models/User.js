@@ -10,12 +10,8 @@ const userSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: [true, 'Please provide an email'],
-    unique: true,
-    match: [
-      /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/,
-      'Please provide a valid email'
-    ]
+    required: [true, 'Please provide a login id'],
+    unique: true
   },
   password: {
     type: String,
@@ -31,6 +27,30 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  groupId: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'Group'
+  },
+  branch: {
+    type: [String],
+    default: []
+  },
+  department: {
+    type: String,
+    default: ''
+  },
+  zakat: {
+    type: String,
+    default: ''
+  },
+  userType: {
+    type: String,
+    default: ''
+  },
+  saleDeleteLimit: {
+    type: String,
+    default: ''
   },
   permissions: {
     type: [String],

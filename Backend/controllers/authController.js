@@ -109,7 +109,24 @@ exports.login = async (req, res) => {
       }
     };
 
-    console.log('Signing JWT with secret:', process.env.JWT_SECRET ? 'Present' : 'MISSING');
+    // Find user with group rights
+    // Find user with group rights
+    const fullUser = await User.findById(user._id).populate('groupId');
+
+    // Safe conversion of rights
+    let finalizedRights = {};
+    if (fullUser.groupId && fullUser.groupId.rights) {
+      if (typeof fullUser.groupId.rights.forEach === 'function') {
+        fullUser.groupId.rights.forEach((value, key) => {
+          finalizedRights[key] = value;
+        });
+      } else {
+        finalizedRights = fullUser.groupId.rights;
+      }
+    }
+
+    console.log('Finalized Rights Payload:', JSON.stringify(finalizedRights, null, 2));
+
     jwt.sign(
       payload,
       process.env.JWT_SECRET,
@@ -123,11 +140,14 @@ exports.login = async (req, res) => {
         res.json({
           token,
           user: {
-            id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            permissions: user.permissions || []
+            id: fullUser._id,
+            name: fullUser.name,
+            email: fullUser.email,
+            role: fullUser.role,
+            branch: fullUser.branch,
+            department: fullUser.department,
+            group: fullUser.groupId,
+            rights: finalizedRights
           }
         });
       }
@@ -157,7 +177,7 @@ exports.logout = async (req, res) => {
 // @access  Private
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    const user = await User.findById(req.user.id).select('-password').populate('groupId');
     res.json(user);
   } catch (err) {
     console.error(err.message);

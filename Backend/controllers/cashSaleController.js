@@ -29,9 +29,10 @@ exports.getCashSales = async (req, res) => {
         }
 
         const sales = await CashSale.find(query)
-            .populate('department', 'name')
+            .populate('department', '_id name')
             .populate('bank') // Populate full bank object to ensure bankName is available
             .sort({ date: -1, createdAt: -1 });
+
 
         res.status(200).json({ success: true, count: sales.length, data: sales });
     } catch (err) {

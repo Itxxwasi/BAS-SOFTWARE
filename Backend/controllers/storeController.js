@@ -4,7 +4,14 @@ const Store = require('../models/Store');
 // @route   GET /api/v1/stores
 exports.getStores = async (req, res) => {
     try {
-        const stores = await Store.find().sort({ name: 1 });
+        let query = {};
+
+        // If user is not admin and has specific allowed branches
+        if (req.user && req.user.role !== 'admin' && req.user.branch && req.user.branch.length > 0) {
+            query.name = { $in: req.user.branch };
+        }
+
+        const stores = await Store.find(query).sort({ name: 1 });
         res.status(200).json({ success: true, data: stores });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

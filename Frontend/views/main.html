@@ -17,24 +17,29 @@
     <div class="main-content">
         <!-- Top Header for Main Page -->
         <!-- Top Header for Main Page -->
-        <nav class="top-nav">
-            <div class="d-flex align-items-center">
-                <button id="sidebarToggle" class="btn btn-link text-dark me-3">
-                    <i class="fas fa-bars"></i>
-                </button>
+        <!-- Standardized Page Header -->
+        <div class="page-header px-3">
+            <div style="flex: 1; display: flex; align-items: center;">
+                <i class="fas fa-bars me-3" id="sidebarToggle" style="cursor:pointer; font-size: 1rem;"></i>
                 <h4 class="mb-0">Main Menu</h4>
             </div>
-
-            <div class="user-info dropdown">
-                <div class="d-flex align-items-center" onclick="logout()" style="cursor: pointer;">
-                    <div class="user-avatar text-white bg-danger rounded-circle d-flex align-items-center justify-content-center"
-                        style="width: 35px; height: 35px;">
-                        <i class="fas fa-sign-out-alt"></i>
+            <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center;">
+                <div class="dropdown">
+                    <div class="d-flex align-items-center text-dark" data-bs-toggle="dropdown" style="cursor: pointer;">
+                        <div class="user-avatar text-white bg-primary rounded-circle d-flex align-items-center justify-content-center me-2"
+                            style="width: 35px; height: 35px;">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <span id="userName" class="me-2 d-none d-md-block">User</span>
+                        <i class="fas fa-chevron-down ms-2" style="font-size: 0.7rem;"></i>
                     </div>
-                    <span class="ms-2 d-none d-md-block text-muted">Logout</span>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                        <li><a class="dropdown-item logout-btn" href="#"><i
+                                    class="fas fa-sign-out-alt me-2 text-danger"></i>Sign Out</a></li>
+                    </ul>
                 </div>
             </div>
-        </nav>
+        </div>
 
         <!-- Empty Content Area as requested -->
         <div class="container-fluid p-4">

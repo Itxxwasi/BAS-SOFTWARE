@@ -93,6 +93,10 @@ const purchaseSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
+  },
+  branch: {
+    type: String,
+    default: ''
   }
 }, {
   timestamps: true

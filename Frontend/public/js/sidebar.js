@@ -16,6 +16,7 @@ class SidebarNavigation {
         this.highlightCurrentPage();
         this.setupEventListeners();
         this.setupRoleBasedAccess();
+        this.setupHeader();
     }
 
     getCurrentPage() {
@@ -53,50 +54,53 @@ class SidebarNavigation {
             {
                 id: 'admin', icon: 'fa-cogs', label: 'Administration', permission: 'administration',
                 children: [
-                    { label: 'Stores', link: '/stores.html' }
+                    { label: 'User Management', link: '/users.html', permission: 'users' },
+                    { label: 'Group Rights', link: '/groups.html', permission: 'groups' },
+                    { label: 'Stores', link: '/stores.html', permission: 'stores' }
                 ]
             },
             {
                 id: 'overview', icon: 'fa-tachometer-alt', label: 'Overview', permission: 'dashboard',
                 children: [
-                    { label: 'Dashboard', link: '/dashboard.html' }
+                    { label: 'Dashboard', link: '/dashboard.html', permission: 'dashboard' }
                 ]
             },
             {
                 id: 'reports', icon: 'fa-chart-bar', label: 'Reports', permission: 'reports',
                 children: [
                     {
-                        id: 'sales-reports', label: 'Sales Reports', icon: 'fa-shopping-cart',
+                        id: 'sales-reports', label: 'Sales Reports', icon: 'fa-shopping-cart', permission: 'sales_reports',
                         submenu: [
-                            { label: 'Sales Report', link: '/sales-report.html' },
-                            { label: 'Dept Wise Sale', link: '/department-sales-report.html' },
-                            { label: 'Customer Receipts', link: '/customer-receipts-report.html' },
-                            { label: 'Party Statement', link: '/party-statement-report.html' }
+                            { label: 'Sales Report', link: '/sales-report.html', permission: 'sales_report_link' },
+                            { label: 'Dept Wise Sale', link: '/department-sales-report.html', permission: 'dept_sale_link' },
+                            { label: 'Customer Receipts', link: '/customer-receipts-report.html', permission: 'receipts_link' },
+                            { label: 'Party Statement', link: '/party-statement-report.html', permission: 'party_stmt_link' }
                         ]
                     },
                     {
-                        id: 'purchase-reports', label: 'Purchase Reports', icon: 'fa-truck',
+                        id: 'purchase-reports', label: 'Purchase Reports', icon: 'fa-truck', permission: 'purchase_reports',
                         submenu: [
-                            { label: 'Purchase Report', link: '/purchase-report.html' },
-                            { label: 'Supplier Payments', link: '/supplier-payments-report.html' }
+                            { label: 'Purchase Report', link: '/purchase-report.html', permission: 'purchase_rpt_link' },
+                            { label: 'Supplier Payments', link: '/supplier-payments-report.html', permission: 'supp_pay_link' },
+                            { label: 'Supplier WHT Certificate', link: '/supplier-tax-certificate.html', permission: 'supplier_tax_cert_link' }
                         ]
                     },
                     {
-                        id: 'stock-reports', label: 'Stock Reports', icon: 'fa-warehouse',
+                        id: 'stock-reports', label: 'Stock Reports', icon: 'fa-warehouse', permission: 'stock_reports',
                         submenu: [
-                            { label: 'Stock Report', link: '/stock-report.html' },
-                            { label: 'Stock Adjustments', link: '/stock-adjustments-report.html' },
-                            { label: 'Stock Audit', link: '/stock-audit-report.html' }
+                            { label: 'Stock Report', link: '/stock-report.html', permission: 'stock_rpt_link' },
+                            { label: 'Stock Adjustments', link: '/stock-adjustments-report.html', permission: 'stock_adj_rpt_link' },
+                            { label: 'Stock Audit', link: '/stock-audit-report.html', permission: 'stock_audit_rpt_link' }
                         ]
                     },
                     {
-                        id: 'financial-reports', label: 'Financial Reports', icon: 'fa-file-invoice-dollar',
+                        id: 'financial-reports', label: 'Financial Reports', icon: 'fa-file-invoice-dollar', permission: 'financial_reports',
                         submenu: [
-                            { label: 'Profit & Loss', link: '/profit-loss-report.html' },
-                            { label: 'Ledger', link: '/ledger-report.html' },
-                            { label: 'Bank Ledger', link: '/bank-ledger.html' },
-                            { label: 'Expense Report', link: '/expense-report.html' },
-                            { label: 'Vouchers', link: '/vouchers-report.html' }
+                            { label: 'Profit & Loss', link: '/profit-loss-report.html', permission: 'pl_link' },
+                            { label: 'Ledger', link: '/ledger-report.html', permission: 'ledger_link' },
+                            { label: 'Bank Ledger', link: '/bank-ledger.html', permission: 'bank_ledger_link' },
+                            { label: 'Expense Report', link: '/expense-report.html', permission: 'expense_rpt_link' },
+                            { label: 'Vouchers', link: '/vouchers-report.html', permission: 'vouchers_rpt_link' }
                         ]
                     },
                     {
@@ -110,72 +114,71 @@ class SidebarNavigation {
             {
                 id: 'accounts', icon: 'fa-calculator', label: 'Accounts', permission: 'accounts',
                 children: [
-                    { label: 'Payment Vouchers', link: '/payment-vouchers.html' },
-                    { label: 'Vouchers', link: '/voucher.html' },
-                    { label: 'Expenses', link: '/expenses.html' },
-                    { label: 'Account Register', link: '/accounts.html' },
-                    { label: 'Account Groups', link: '/account-groups.html' },
-                    { label: 'Account Categories', link: '/account-categories.html' }
+                    { label: 'Payment Vouchers', link: '/payment-vouchers.html', permission: 'payment_vouchers' },
+                    { label: 'Vouchers', link: '/voucher.html', permission: 'vouchers' },
+                    { label: 'Expenses', link: '/expenses.html', permission: 'expenses' },
+                    { label: 'Account Register', link: '/accounts.html', permission: 'account_register' },
+                    { label: 'Account Groups', link: '/account-groups.html', permission: 'account_groups' },
+                    { label: 'Account Categories', link: '/account-categories.html', permission: 'account_categories' }
                 ]
             },
             {
-                id: 'bank-mgmt', icon: 'fa-university', label: 'Bank Management', permission: 'accounts',
+                id: 'bank-mgmt', icon: 'fa-university', label: 'Bank Management', permission: 'bank_mgmt',
                 children: [
-                    { label: 'Banks', link: '/banks.html' },
-                    { label: 'Bank Management', link: '/bank-management.html' }
+                    { label: 'Banks', link: '/banks.html', permission: 'banks' },
+                    { label: 'Bank Management', link: '/bank-management.html', permission: 'bank_management' }
                 ]
             },
             {
                 id: 'closing', icon: 'fa-file-invoice-dollar', label: 'Closing', permission: 'closing',
                 children: [
-                    { label: 'Branch Departments', link: '/branch-departments.html' },
-                    { label: 'Daily Cash', link: '/daily-cash.html' },
-                    { label: 'Cash Counter', link: '/cash-counter.html' },
-                    { label: 'Closing Sheet', link: '/closing-sheet.html' }
+                    { label: 'Branch Departments', link: '/branch-departments.html', permission: 'branch_departments' },
+                    { label: 'Daily Cash', link: '/daily-cash.html', permission: 'daily_cash' },
+                    { label: 'Cash Counter', link: '/cash-counter.html', permission: 'cash_counter' },
+                    { label: 'Closing Sheet', link: '/closing-sheet.html', permission: 'closing_sheet' }
                 ]
             },
             {
                 id: 'payroll', icon: 'fa-users', label: 'Payroll', permission: 'payroll',
                 children: [
-                    { label: 'Employee Registration', link: '/employee-registration.html' },
-                    { label: 'Attendance', link: '/attendance-list.html' },
-                    { label: 'Employee Advance', link: '/employee-advance.html' },
-                    { label: 'Monthly Payroll', link: '/payroll.html' },
-                    { label: 'Holy Days', link: '/holy-days.html' },
-                    { label: 'Employee Penalty', link: '/employee-penalty.html' },
-                    { label: 'Emp. Commission', link: '/employee-commission.html' },
-                    { label: 'Emp. Clearance', link: '/employee-clearance.html' },
-                    { label: 'Emp. Adjustment', link: '/employee-adjustment.html' }
+                    { label: 'Employee Registration', link: '/employee-registration.html', permission: 'employee_registration' },
+                    { label: 'Attendance', link: '/attendance-list.html', permission: 'attendance' },
+                    { label: 'Employee Advance', link: '/employee-advance.html', permission: 'employee_advance' },
+                    { label: 'Monthly Payroll', link: '/payroll.html', permission: 'monthly_payroll' },
+                    { label: 'Holy Days', link: '/holy-days.html', permission: 'holy_days' },
+                    { label: 'Employee Penalty', link: '/employee-penalty.html', permission: 'employee_penalty' },
+                    { label: 'Emp. Commission', link: '/employee-commission.html', permission: 'emp_commission' },
+                    { label: 'Emp. Clearance', link: '/employee-clearance.html', permission: 'emp_clearance' },
+                    { label: 'Emp. Adjustment', link: '/employee-adjustment.html', permission: 'emp_adjustment' }
                 ]
             },
             {
                 id: 'sales', icon: 'fa-shopping-cart', label: 'Sales', permission: 'sales',
                 children: [
-                    { label: 'Customer Demand', link: '/customer-demand.html' },
-                    { label: 'New Sale', link: '/sales.html' },
-                    { label: 'Sales Return', link: '/sale-returns.html' },
-                    { label: 'Customer Receipt', link: '/customer-payments.html' }
+                    { label: 'Customer Demand', link: '/customer-demand.html', permission: 'customer_demand' },
+                    { label: 'New Sale', link: '/sales.html', permission: 'new_sale' },
+                    { label: 'Sales Return', link: '/sale-returns.html', permission: 'sale_returns' },
+                    { label: 'Customer Receipt', link: '/customer-payments.html', permission: 'customer_receipt' }
                 ]
             },
             {
-                id: 'purchases', icon: 'fa-shopping-bag', label: 'Purchase', permission: 'purchases',
+                id: 'purchases', icon: 'fa-shopping-bag', label: 'Purchase', permission: 'purchase',
                 children: [
-                    { label: 'Items', link: '/items.html' },
-                    { label: 'Parties', link: '/parties.html' },
-                    { label: 'New Purchase', link: '/purchases.html' },
-                    { label: 'Purchase Return', link: '/purchase-returns.html' },
-                    { label: 'Supplier Payment', link: '/supplier-payments.html' },
-                    { label: 'Supplier WH Tax', link: '/supplier-wh-tax.html' },
-                    { label: 'WHT Supplier', link: '/wht-supplier.html' },
-                    { label: 'Supplier Tax Report', link: '/supplier-tax-report.html' },
-                    { label: 'Supplier Tax Certificate', link: '/supplier-tax-certificate.html' },
+                    { label: 'Items', link: '/items.html', permission: 'items' },
+                    { label: 'Parties', link: '/parties.html', permission: 'parties' },
+                    { label: 'New Purchase', link: '/purchases.html', permission: 'new_purchase' },
+                    { label: 'Purchase Return', link: '/purchase-returns.html', permission: 'purchase_returns' },
+                    { label: 'Supplier Payment', link: '/supplier-payments.html', permission: 'supplier_payment' },
+                    { label: 'Supplier WH Tax', link: '/supplier-wh-tax.html', permission: 'supplier_wh_tax_link' },
+                    { label: 'WHT Supplier', link: '/wht-supplier.html', permission: 'wht_supplier_link' },
+                    { label: 'Supplier Tax Report', link: '/supplier-tax-report.html', permission: 'supplier_tax_report_link' }
                 ]
             },
             {
                 id: 'stock', icon: 'fa-warehouse', label: 'Stock', permission: 'stock',
                 children: [
-                    { label: 'Stock Audit', link: '/stock-audit.html' },
-                    { label: 'Stock Adjustments', link: '/stock-adjustments.html' }
+                    { label: 'Stock Audit', link: '/stock-audit.html', permission: 'stock_audit' },
+                    { label: 'Stock Adjustments', link: '/stock-adjustments.html', permission: 'stock_adjustments' }
                 ]
             },
             { id: 'settings', icon: 'fa-cog', label: 'Settings', link: '/settings.html', permission: 'settings' }
@@ -218,20 +221,21 @@ class SidebarNavigation {
                     if (child.submenu) {
                         // Nested Submenu Logic - with chevron arrows centered
                         html += `
-                            <li><a href="javascript:void(0)" class="nav-link small-link" onclick="document.getElementById('submenu-${child.id}').classList.toggle('show')" style="font-weight: normal !important; display: flex !important; align-items: center !important; justify-content: space-between !important; padding-left: 25px !important; padding-right: 15px !important;">
+                            <li><a href="javascript:void(0)" class="nav-link small-link" data-permission="${child.permission}" onclick="document.getElementById('submenu-${child.id}').classList.toggle('show')" style="font-weight: normal !important; display: flex !important; align-items: center !important; justify-content: space-between !important; padding-left: 25px !important; padding-right: 15px !important;">
                                 <span><i class="fas fa-circle bullet text-danger" style="font-size:0.5rem; margin-right:8px;"></i>${child.label}</span>
                                 <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i>
                             </a></li>
                             <ul class="collapse list-unstyled submenu-inline" id="submenu-${child.id}" style="margin-left: 25px !important; padding-left: 0 !important;">
                         `;
                         child.submenu.forEach(subItem => {
-                            html += `<li><a href="${subItem.link}" class="nav-link small-link" style="padding-right: 15px;"><i class="fas fa-circle bullet text-danger" style="font-size:0.5rem; margin-right:8px;"></i>${subItem.label}</a></li>`;
+                            const permAttr = subItem.permission ? `data-permission="${subItem.permission}"` : '';
+                            html += `<li><a href="${subItem.link}" class="nav-link small-link" ${permAttr} style="padding-right: 15px;"><i class="fas fa-circle bullet text-danger" style="font-size:0.5rem; margin-right:8px;"></i>${subItem.label}</a></li>`;
                         });
                         html += `</ul>`;
                     } else if (child.header) {
                         html += `<li class="sidebar-sub-header text-white text-uppercase fw-bold" style="font-size:0.7rem; padding: 5px 15px; margin-top:5px; opacity: 0.7;">${child.label}</li>`;
                     } else {
-                        html += `<li><a href="${child.link}" class="nav-link small-link"><i class="fas fa-circle bullet text-danger" style="font-size:0.5rem; margin-right:8px;"></i>${child.label}</a></li>`;
+                        html += `<li><a href="${child.link}" class="nav-link small-link" data-permission="${child.permission}"><i class="fas fa-circle bullet text-danger" style="font-size:0.5rem; margin-right:8px;"></i>${child.label}</a></li>`;
                     }
                 });
                 html += `</ul>`;
@@ -247,7 +251,7 @@ class SidebarNavigation {
                     if (child.submenu) {
                         // Collapsible Submenu for Popover - styled like regular items
                         html += `
-                            <div class="popover-submenu-toggle" data-target="popover-sub-${child.id}" style="cursor:pointer; padding: 8px 20px; color:#b8c7ce; display:flex; align-items:center; transition: color 0.2s;">
+                            <div class="popover-submenu-toggle" data-permission="${child.permission}" data-target="popover-sub-${child.id}" style="cursor:pointer; padding: 8px 20px; color:#b8c7ce; display:flex; align-items:center; transition: color 0.2s;">
                                 <i class="fas fa-circle bullet" style="font-size:0.5rem; margin-right:10px; color:#e74c3c;"></i>
                                 <span style="font-size:0.9rem;">${child.label}</span>
                                 <i class="fas fa-chevron-right arrow" style="font-size:0.7rem; margin-left: auto; transition: transform 0.2s;"></i>
@@ -255,8 +259,9 @@ class SidebarNavigation {
                             <div id="popover-sub-${child.id}" class="popover-submenu-content" style="display:none; background:rgba(0,0,0,0.2);">
                         `;
                         child.submenu.forEach(subItem => {
+                            const permAttr = subItem.permission ? `data-permission="${subItem.permission}"` : '';
                             html += `
-                                <a href="${subItem.link}" class="popover-item" style="padding-left: 30px;">
+                                <a href="${subItem.link}" class="popover-item" ${permAttr} style="padding-left: 30px;">
                                     <i class="fas fa-circle bullet" style="font-size:0.4rem; margin-right:10px; color:#e74c3c;"></i> ${subItem.label}
                                 </a>
                             `;
@@ -266,7 +271,7 @@ class SidebarNavigation {
                         html += `<div class="popover-sub-header text-white text-uppercase fw-bold" style="font-size:0.7rem; padding: 5px 15px; margin-top:5px; border-bottom: 1px solid rgba(255,255,255,0.1); opacity: 0.7;">${child.label}</div>`;
                     } else {
                         html += `
-                            <a href="${child.link}" class="popover-item">
+                            <a href="${child.link}" class="popover-item" data-permission="${child.permission}">
                                 <i class="fas fa-circle bullet" style="font-size:0.5rem; margin-right:10px; color:#e74c3c;"></i> ${child.label}
                             </a>
                         `;
@@ -276,7 +281,7 @@ class SidebarNavigation {
 
             } else {
                 html += `
-                    <a href="${item.link}" class="nav-link" data-page="${item.id}">
+                    <a href="${item.link}" class="nav-link" data-page="${item.id}" data-permission="${item.permission}">
                         <i class="fas ${item.icon}"></i>
                         <span>${item.label}</span>
                     </a>
@@ -365,16 +370,138 @@ class SidebarNavigation {
 
     setupRoleBasedAccess() {
         const user = this.getCurrentUser();
-        const userRole = user ? user.role : 'guest';
-        const userPermissions = user ? (user.permissions || []) : [];
+        if (!user) return;
 
-        if (userRole === 'admin') return;
+        // Admin has full access
+        if (user.role === 'admin' || (user.group && user.group.isAdmin) || (user.groupId && user.groupId.isAdmin)) return;
 
-        document.querySelectorAll('.nav-item').forEach(item => {
-            const requiredOr = item.getAttribute('data-permission');
-            if (requiredOr && !userPermissions.includes(requiredOr)) {
-                item.style.display = 'none';
+        // Rights can be in multiple places depending on how it was loaded
+        let rights = user.rights || {};
+
+        // If rights is empty and we have group rights, use those
+        if (Object.keys(rights).length === 0) {
+            if (user.group && user.group.rights) {
+                rights = user.group.rights;
+            } else if (user.groupId && user.groupId.rights) {
+                rights = user.groupId.rights;
             }
+        }
+
+        // 1. Hide Unauthorized LEAF nodes (Links)
+        const allPermElements = document.querySelectorAll('[data-permission]');
+        allPermElements.forEach(el => {
+            const perm = el.getAttribute('data-permission');
+            if (perm && !rights[perm]) {
+                const isNavOne = el.classList.contains('nav-item'); // Top container
+                const isSubToggle = el.getAttribute('data-bs-toggle') === 'collapse' || el.classList.contains('popover-submenu-toggle'); // Sub container
+
+                if (!isNavOne && !isSubToggle) {
+                    // It is a leaf link
+                    el.classList.add('auth-hidden');
+                    el.style.display = 'none';
+                    if (el.tagName === 'A' && el.parentElement.tagName === 'LI') {
+                        el.parentElement.style.display = 'none'; // Hide wrapping LI
+                    }
+                    if (el.classList.contains('report-card')) {
+                        const col = el.closest('.col-md-4');
+                        if (col) col.style.display = 'none';
+                    }
+                }
+            }
+        });
+
+        // 2. Check Sub-Menus (Nested Groups)
+        // Find all submenus (ULs and Popover Divs)
+        const subContainers = document.querySelectorAll('ul.submenu-inline, div.popover-submenu-content');
+        subContainers.forEach(container => {
+            // count visible children
+            const visibleChildren = Array.from(container.querySelectorAll('a, .popover-item')).filter(child => {
+                return child.style.display !== 'none' && !child.classList.contains('auth-hidden');
+            });
+
+            // If no visible children, hide this container AND its trigger
+            if (visibleChildren.length === 0) {
+                container.classList.add('auth-hidden');
+                container.style.display = 'none';
+
+                // Hide Trigger
+                const id = container.id;
+                if (id) {
+                    const trigger = document.querySelector(`[href="#${id}"], [data-target="${id}"]`);
+                    if (trigger) {
+                        trigger.style.display = 'none';
+                        if (trigger.closest('li')) trigger.closest('li').style.display = 'none';
+                    }
+                }
+            } else {
+                // Ensure Trigger is VISIBLE even if its permission is false
+                const id = container.id;
+                if (id) {
+                    const trigger = document.querySelector(`[href="#${id}"], [data-target="${id}"]`);
+                    if (trigger) {
+                        trigger.style.display = '';
+                        if (trigger.closest('li')) trigger.closest('li').style.display = '';
+                    }
+                }
+            }
+        });
+
+        // 3. Check Top-Level Nav Items
+        document.querySelectorAll('.nav-item').forEach(navItem => {
+            // Check if it has a submenu (Full Mode) OR Popover (Mini Mode)
+            const submenu = navItem.querySelector('ul.submenu-inline');
+            const popover = navItem.querySelector('div.popover-menu');
+
+            const hasChildren = submenu || popover;
+
+            if (hasChildren) {
+                // Check if any visible links exist inside
+                const visibleLinks = navItem.querySelectorAll('a:not(.auth-hidden)');
+                const visible = Array.from(visibleLinks).some(link => link.style.display !== 'none');
+
+                if (!visible) {
+                    navItem.style.display = 'none';
+                } else {
+                    navItem.style.display = ''; // Ensure visible
+                }
+            } else {
+                // Direct Link (e.g. Dashboard)
+                const perm = navItem.getAttribute('data-permission');
+                if (perm && !rights[perm]) {
+                    navItem.style.display = 'none';
+                }
+            }
+        });
+    }
+
+    setupHeader() {
+        const user = this.getCurrentUser();
+        if (!user) return;
+
+        // Common IDs for user name display
+        const nameElements = ['userName', 'userNameHeader', 'headerUserName'];
+        nameElements.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = user.name;
+        });
+
+        // Update avatars if any
+        document.querySelectorAll('.user-avatar-img, .header-avatar').forEach(img => {
+            img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`;
+        });
+
+        // Setup Logout buttons
+        document.querySelectorAll('.logout-btn, #logoutBtn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (window.pageAccess && window.pageAccess.logout) {
+                    window.pageAccess.logout();
+                } else {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    window.location.href = '/login.html';
+                }
+            });
         });
     }
 }
