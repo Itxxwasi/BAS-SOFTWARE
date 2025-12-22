@@ -1,24 +1,26 @@
 /* Sidebar Styles - Refined for "MTS" Look */
 :root {
     --sidebar-bg: #1e4c8c;
-    --sidebar-width-full: 250px;
+    --sidebar-width-full: 280px;
     --sidebar-width-mini: 60px;
     --popover-bg: #263238;
     --popover-text: #fff;
     --active-item-bg: #153866;
+    --item-hover-bg: rgba(255, 255, 255, 0.1);
 }
 
 /* Sidebar Container */
 .sidebar-container {
     height: 100vh;
-    background-color: var(--sidebar-bg);
+    background-color: #1e4c8c;
     color: white;
     position: fixed;
     top: 0;
     left: 0;
-    z-index: 1040;
+    z-index: 1050;
+    /* Above everything else on mobile */
     /* Increased to stay above sticky-top elements (1020) */
-    transition: width 0.3s;
+    transition: left 0.3s, width 0.3s;
     display: flex;
     flex-direction: column;
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
@@ -37,7 +39,7 @@
     height: 50px;
     display: flex;
     align-items: center;
-    padding: 0 10px;
+    padding: 10px;
     background-color: #153866;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -47,33 +49,42 @@
     font-size: 1.2rem;
     white-space: nowrap;
     overflow: hidden;
+    margin-left: 10px;
 }
 
-.mini .logo-text {
+.mini .logo-text,
+.show-mobile .logo-text {
     display: none;
 }
 
-.mini .sidebar-header {
+.mini .sidebar-header,
+.show-mobile .sidebar-header {
     justify-content: center;
 }
 
-/* User Info Section */
+.sidebar-header i {
+    font-size: 1.25rem;
+}
+
 .user-info-mini {
-    padding: 15px 0;
+    padding: 20px 0;
     text-align: center;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: var(--sidebar-bg);
 }
 
 .user-avatar-circle {
-    width: 35px;
-    height: 35px;
-    background: #e0e0e0;
+    width: 60px;
+    height: 60px;
+    background: #fff;
     border-radius: 50%;
     margin: 0 auto;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #333;
+    font-size: 1.8rem;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 /* Navigation Items */
@@ -111,11 +122,14 @@
 }
 
 .nav-link span {
-    margin-left: 10px;
+    margin-left: 15px;
+    flex-grow: 1;
 }
 
 .nav-link .arrow {
     transition: transform 0.3s;
+    font-size: 0.8rem;
+    opacity: 0.7;
 }
 
 /* Rotate arrow when collapsed open */
@@ -141,15 +155,22 @@
 }
 
 /* MINI MODE: Hide Accordion, Show Popover on Hover */
-.sidebar-container.mini .nav-link {
-    justify-content: center;
-    padding: 15px 0;
+.sidebar-container.mini .nav-link,
+.sidebar-container.show-mobile .nav-link {
+    justify-content: flex-start;
+    padding: 15px 20px;
 }
 
 .sidebar-container.mini .nav-link span,
 .sidebar-container.mini .nav-link .arrow,
 .sidebar-container.mini .submenu-inline {
     display: none !important;
+}
+
+/* On mobile, even if mini class is present, we show spans if show-mobile is present */
+.sidebar-container.show-mobile.mini .nav-link span,
+.sidebar-container.show-mobile.mini .nav-link .arrow {
+    display: block !important;
 }
 
 /* Popover Submenu Styling */
@@ -226,6 +247,60 @@ body.sidebar-mini {
 .sidebar-container.mini .sidebar-menu {
     overflow: visible;
     /* Allow popovers to break out */
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 768px) {
+    .sidebar-container {
+        left: -280px !important;
+        /* Force hide on mobile by default */
+        width: 280px !important;
+        transition: left 0.3s ease;
+    }
+
+    .sidebar-container.show-mobile {
+        left: 0 !important;
+        /* Show when toggled */
+    }
+
+    /* Override mini/full widths on mobile */
+    .sidebar-container.mini,
+    .sidebar-container.full {
+        width: var(--sidebar-width-full) !important;
+    }
+
+    /* On mobile, popovers are not great, but if they hover we should probably hide them or make them work differently. 
+       Actually, since we force full width on mobile when visible, the accordion will work. */
+    .sidebar-container.mini .nav-link span,
+    .sidebar-container.mini .nav-link .arrow {
+        display: block !important;
+    }
+
+    .sidebar-container.mini .popover-menu {
+        display: none !important;
+    }
+
+    /* Body padding on mobile should be 0 always */
+    body.sidebar-full,
+    body.sidebar-mini {
+        padding-left: 0 !important;
+    }
+
+    /* Backdrop overlay when sidebar is open on mobile */
+    .sidebar-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1030;
+        display: none;
+    }
+
+    .sidebar-backdrop.show {
+        display: block;
+    }
 }
 
 @media print {

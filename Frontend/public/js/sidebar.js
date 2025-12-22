@@ -17,6 +17,14 @@ class SidebarNavigation {
         this.setupEventListeners();
         this.setupRoleBasedAccess();
         this.setupHeader();
+
+        // Ensure closed by default on mobile
+        if (window.innerWidth <= 768) {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            if (sidebar) sidebar.classList.remove('show-mobile');
+            if (backdrop) backdrop.classList.remove('show');
+        }
     }
 
     getCurrentPage() {
@@ -197,8 +205,8 @@ class SidebarNavigation {
 
         let html = `
             <div class="sidebar-header">
-                <i class="fas fa-bars text-white" style="cursor:pointer; font-size: 1.2rem;" id="sidebarToggleBtn"></i>
-                <div class="logo-text">BAS</div>
+                <i class="fas fa-bars text-white" style="cursor:pointer; font-size: 1.5rem;" id="sidebarToggleBtn"></i>
+                <div class="logo-text d-none d-md-block">BAS</div>
             </div>
             
             <div class="user-info-mini">
@@ -220,7 +228,7 @@ class SidebarNavigation {
                     <div class="nav-link" data-bs-toggle="collapse" href="#submenu-${item.id}" role="button" aria-expanded="false">
                         <i class="fas ${item.icon}"></i>
                         <span>${item.label}</span>
-                        <i class="fas fa-chevron-right ms-auto arrow arrow-icon"></i>
+                        <i class="fas fa-chevron-right ms-auto arrow arrow-icon" style="font-size: 0.8rem; opacity: 0.7;"></i>
                     </div>
                 `;
 
@@ -307,20 +315,23 @@ class SidebarNavigation {
 
         sidebar.innerHTML = html;
         document.body.prepend(sidebar);
+
+        // Add Backdrop for mobile
+        const backdrop = document.createElement('div');
+        backdrop.id = 'sidebarBackdrop';
+        backdrop.className = 'sidebar-backdrop';
+        document.body.appendChild(backdrop);
+        backdrop.addEventListener('click', () => this.toggleSidebarMode());
     }
 
     setupEventListeners() {
-        // Internal toggle (in sidebar)
-        const toggleBtn = document.getElementById('sidebarToggleBtn');
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', () => this.toggleSidebarMode());
-        }
-
-        // External toggle (e.g. in dashboard topbar)
-        const extToggle = document.getElementById('sidebarToggle');
-        if (extToggle) {
-            extToggle.addEventListener('click', () => this.toggleSidebarMode());
-        }
+        // Broad delegation for toggle buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('#sidebarToggle') || e.target.closest('#sidebarToggleBtn')) {
+                e.preventDefault();
+                this.toggleSidebarMode();
+            }
+        });
 
         // Popover Submenu Toggle (Delegated)
         document.addEventListener('click', (e) => {
@@ -341,19 +352,43 @@ class SidebarNavigation {
                 }
             }
         });
+
+        // Close sidebar on mobile when link is clicked
+        document.addEventListener('click', (e) => {
+            const isMobile = window.innerWidth <= 768;
+            if (!isMobile) return;
+
+            const navLink = e.target.closest('.nav-link:not([data-bs-toggle])');
+            const popoverItem = e.target.closest('.popover-item');
+
+            if (navLink || popoverItem) {
+                const sidebar = document.getElementById('sidebar');
+                const backdrop = document.getElementById('sidebarBackdrop');
+                if (sidebar) sidebar.classList.remove('show-mobile');
+                if (backdrop) backdrop.classList.remove('show');
+            }
+        });
     }
 
     toggleSidebarMode() {
+        const isMobile = window.innerWidth <= 768;
+        const sidebar = document.getElementById('sidebar');
+        const backdrop = document.getElementById('sidebarBackdrop');
+
+        if (isMobile) {
+            sidebar.classList.toggle('show-mobile');
+            if (backdrop) backdrop.classList.toggle('show');
+            return;
+        }
+
         if (this.mode === 'full') {
             this.mode = 'mini';
-            document.getElementById('sidebar').classList.remove('full');
-            document.getElementById('sidebar').classList.add('mini');
-
-            // If external toggle exists, we might want to adjust it or leaving it is fine
+            sidebar.classList.remove('full');
+            sidebar.classList.add('mini');
         } else {
             this.mode = 'full';
-            document.getElementById('sidebar').classList.remove('mini');
-            document.getElementById('sidebar').classList.add('full');
+            sidebar.classList.remove('mini');
+            sidebar.classList.add('full');
         }
         this.applyBodyClass();
     }
