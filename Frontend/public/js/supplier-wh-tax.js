@@ -312,6 +312,8 @@ function setupCalculations() {
 }
 
 let addedRows = [];
+let editingTopRowId = null;
+
 function setupAddButton() {
     document.getElementById('addItemBtn').addEventListener('click', () => {
         const supplierId = document.getElementById('entrySupplier').value;
@@ -337,7 +339,19 @@ function setupAddButton() {
             supplierId, supplierName, category, subCat, ntn, date, invNum, invAmt, taxPct, taxDed, aiPct, aiAmt
         };
 
-        addedRows.push(rowData);
+        if (editingTopRowId) {
+            const idx = addedRows.findIndex(r => String(r.id) === String(editingTopRowId));
+            if (idx !== -1) {
+                addedRows[idx] = { ...rowData, id: editingTopRowId };
+            }
+            editingTopRowId = null;
+            document.getElementById('addItemBtn').innerHTML = '<i class="fas fa-plus"></i> Add';
+            document.getElementById('addItemBtn').classList.remove('btn-warning');
+            document.getElementById('addItemBtn').classList.add('btn-primary');
+        } else {
+            addedRows.push(rowData);
+        }
+
         renderTableRows();
         clearEntryInputs();
     });
@@ -393,7 +407,10 @@ function renderTableRows() {
             <td>${row.aiPct}%</td>
             <td class="text-end">${row.aiAmt.toFixed(2)}</td>
             <td>
-                <button class="btn btn-sm btn-danger px-2 py-0" onclick="removeRow(${row.id})"><i class="fas fa-times"></i></button>
+                <div class="d-flex gap-1 justify-content-center">
+                    <button class="btn btn-sm btn-outline-primary px-2 py-0" title="Edit row" onclick="editTopRow('${row.id}')"><i class="fas fa-edit"></i></button>
+                    <button class="btn btn-sm btn-outline-danger px-2 py-0" title="Remove row" onclick="removeRow('${row.id}')"><i class="fas fa-times"></i></button>
+                </div>
             </td>
         `;
         tbody.appendChild(tr);
@@ -409,8 +426,43 @@ function renderTableRows() {
 }
 
 window.removeRow = function (id) {
-    addedRows = addedRows.filter(r => r.id !== id);
+    addedRows = addedRows.filter(r => String(r.id) !== String(id));
+    if (String(editingTopRowId) === String(id)) {
+        editingTopRowId = null;
+        document.getElementById('addItemBtn').innerHTML = '<i class="fas fa-plus"></i> Add';
+        document.getElementById('addItemBtn').classList.remove('btn-warning');
+        document.getElementById('addItemBtn').classList.add('btn-primary');
+        clearEntryInputs();
+    }
     renderTableRows();
+}
+
+window.editTopRow = function (id) {
+    const row = addedRows.find(r => String(r.id) === String(id));
+    if (!row) return;
+    editingTopRowId = id;
+
+    // Populate fields
+    document.getElementById('entrySupplierSearch').value = row.supplierName;
+    document.getElementById('entrySupplier').value = row.supplierId;
+    document.getElementById('entryNTN').value = row.ntn;
+    document.getElementById('entryCategory').value = row.category || '';
+    document.getElementById('entrySubCat').value = row.subCat;
+    document.getElementById('entryDate').value = row.date;
+    document.getElementById('entryInvNum').value = row.invNum;
+    document.getElementById('entryInvAmt').value = row.invAmt;
+    document.getElementById('entryTaxPct').value = row.taxPct;
+    document.getElementById('entryTaxDed').value = row.taxDed;
+    document.getElementById('entryAiTaxPct').value = row.aiPct;
+    document.getElementById('entryAiTaxAmt').value = row.aiAmt;
+
+    // Change Add button to Update
+    const btn = document.getElementById('addItemBtn');
+    btn.innerHTML = '<i class="fas fa-check"></i> Update Row';
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-warning');
+
+    document.getElementById('entryInvAmt').focus();
 }
 
 // --- Save & List Logic ---
@@ -425,7 +477,7 @@ document.getElementById('listBtn').addEventListener('click', () => {
 
 document.getElementById('searchFilterBtn').addEventListener('click', loadSavedData);
 document.getElementById('filterDate').addEventListener('change', loadSavedData);
-// document.getElementById('filterDateFrom').addEventListener('change', loadSavedData);
+document.getElementById('categorySelect').addEventListener('change', loadSavedData);
 document.getElementById('branchSelect').addEventListener('change', loadSavedData);
 
 document.getElementById('listSearch').addEventListener('input', function (e) {
@@ -522,14 +574,26 @@ async function loadSavedData() {
         if (data.success) {
             loadedRecords = data.data;
             renderSavedTable(data.data);
-            // renderGrandSummary(data.data);
+            const sumCont = document.getElementById('summaryContainer');
+            if (sumCont) sumCont.style.display = 'none';
         }
     } catch (err) { console.error(err); }
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '-';
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = d.toLocaleString('en-GB', { month: 'short' });
+    const year = String(d.getFullYear()).slice(-2);
+    return `${day}-${month}-${year}`;
 }
 
 function renderSavedTable(records) {
     const tbody = document.getElementById('savedRecordsBody');
     if (!tbody) return;
+    const filterCatId = document.getElementById('categorySelect').value;
     tbody.innerHTML = '';
     if (!records || records.length === 0) {
         tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted">No records found</td></tr>';
@@ -537,17 +601,28 @@ function renderSavedTable(records) {
     }
     let flatRows = [];
     records.forEach(rec => {
-        const sheetDate = new Date(rec.date).toLocaleDateString();
+        const sheetDate = formatDate(rec.date);
         const branchName = rec.branch ? (rec.branch.name || 'Unknown') : 'Unknown';
         if (rec.entries && rec.entries.length > 0) {
             rec.entries.forEach(entry => {
                 let catName = '-';
-                // Try obtain category name from populated supplier
+                let entryCatId = null;
+
+                // Obtain category and cat ID
                 if (entry.supplier) {
                     let c = entry.supplier.category;
-                    if (c && typeof c === 'object' && c.name) catName = c.name;
-                    else if (c && categoriesMap[c]) catName = categoriesMap[c];
-                    else if (c && typeof c === 'object' && c._id && categoriesMap[c._id]) catName = categoriesMap[c._id] || '-';
+                    if (c && typeof c === 'object') {
+                        catName = c.name || '-';
+                        entryCatId = c._id;
+                    } else if (c) {
+                        catName = categoriesMap[c] || '-';
+                        entryCatId = c;
+                    }
+                }
+
+                // Filter by category if selected
+                if (filterCatId && String(entryCatId) !== String(filterCatId)) {
+                    return;
                 }
 
                 flatRows.push({
@@ -562,15 +637,15 @@ function renderSavedTable(records) {
     });
 
     flatRows.forEach(row => {
-        const invDate = row.invoiceDate ? new Date(row.invoiceDate).toLocaleDateString() : '-';
+        const invDate = formatDate(row.invoiceDate);
         const tr = document.createElement('tr');
         tr.className = 'align-middle';
         tr.innerHTML = `
             <td>${row.sheetDate}</td>
             <td>${row.branchName}</td>
-            <td class="fw-bold">${row.supplierName || '-'} <span class="text-muted fw-normal small">(${row.subCategory || '-'})</span></td>
-            <td>${row.categoryName || '-'}</td>
+            <td class="fw-bold">${row.supplierName || '-'}</td>
             <td>${row.subCategory || '-'}</td>
+            <td>${row.categoryName || '-'}</td>
             <td>${row.ntn || '-'}</td>
             <td>${row.invoiceNumber || '-'}</td>
             <td>${invDate}</td>
@@ -581,8 +656,8 @@ function renderSavedTable(records) {
             <td class="text-end fw-bold text-success">${(row.aiTaxAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
             <td>
                 <div class="d-flex justify-content-center gap-1">
-                    <button class="btn btn-sm btn-outline-primary px-2" title="Edit Sheet" onclick="editRecord('${row.parentId}')"><i class="fas fa-edit"></i></button>
-                    <button class="btn btn-sm btn-outline-danger px-2" title="Delete Sheet" onclick="deleteRecord('${row.parentId}')"><i class="fas fa-trash"></i></button>
+                    <button class="btn btn-sm btn-outline-primary px-2" title="Edit Sheet" onclick="editRecord('${row.parentId}')"><i class="fas fa-pen-to-square"></i></button>
+                    <button class="btn btn-sm btn-outline-danger px-2" title="Delete Row" onclick="deleteEntry('${row.parentId}', '${row._id}')"><i class="fas fa-trash-can"></i></button>
                 </div>
             </td>
         `;
@@ -594,6 +669,7 @@ function renderGrandSummary(records) {
     const summaryBody = document.getElementById('summaryBody');
     const summaryFoot = document.getElementById('summaryFoot');
     const container = document.getElementById('summaryContainer');
+    const filterCatId = document.getElementById('categorySelect').value;
 
     if (!records || records.length === 0) {
         container.style.display = 'none';
@@ -609,20 +685,22 @@ function renderGrandSummary(records) {
     records.forEach(rec => {
         if (rec.entries && rec.entries.length > 0) {
             rec.entries.forEach(entry => {
-                // Determine Category Name
                 let catName = 'Uncategorized';
+                let entryCatId = null;
+
                 if (entry.supplier) {
-                    // Check if supplier object has category populated
-                    let catId = entry.supplier.category;
-                    // If entry.supplier is populated object
-                    if (typeof entry.supplier === 'object' && entry.supplier.category) {
-                        catId = entry.supplier.category;
-                        // if category is object, get _id
-                        if (typeof catId === 'object') catId = catId._id;
+                    let c = entry.supplier.category;
+                    if (c && typeof c === 'object') {
+                        catName = c.name || 'Uncategorized';
+                        entryCatId = c._id;
+                    } else if (c) {
+                        catName = categoriesMap[c] || 'Uncategorized';
+                        entryCatId = c;
                     }
-                    if (catId && categoriesMap[catId]) {
-                        catName = categoriesMap[catId];
-                    }
+                }
+
+                if (filterCatId && String(entryCatId) !== String(filterCatId)) {
+                    return;
                 }
 
                 if (!summary[catName]) {
@@ -721,14 +799,38 @@ window.editRecord = function (id) {
 }
 
 window.deleteRecord = async function (id) {
-    if (!confirm('Are you sure you want to delete this SHEET? (All entries on this sheet will be deleted)')) return;
+    if (!confirm('CAUTION: Are you sure you want to delete this ENTIRE SHEET? (All entries on this sheet will be deleted)')) return;
     try {
         const token = localStorage.getItem('token');
-        await fetch(`/api/v1/supplier-taxes/${id}`, {
+        const res = await fetch(`/api/v1/supplier-taxes/${id}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        loadSavedData();
+        const data = await res.json();
+        if (data.success) {
+            alert('Entire sheet deleted successfully');
+            loadSavedData();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    } catch (e) { alert(e); }
+}
+
+window.deleteEntry = async function (parentId, entryId) {
+    if (!confirm('Are you sure you want to delete only this single entry/row?')) return;
+    try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`/api/v1/supplier-taxes/${parentId}/entries/${entryId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert('Entry deleted successfully');
+            loadSavedData();
+        } else {
+            alert('Error: ' + data.message);
+        }
     } catch (e) { alert(e); }
 }
 
