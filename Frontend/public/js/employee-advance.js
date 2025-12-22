@@ -4,6 +4,7 @@ let employees = [];
 document.addEventListener('DOMContentLoaded', () => {
     setDefaultDate();
     loadEmployees();
+    loadBranches();
     loadAdvances();
 
     // Search functionality
@@ -203,7 +204,7 @@ async function editAdvance(id) {
             document.getElementById('advanceId').value = adv._id;
             document.getElementById('employee').value = adv.employee?._id || '';
             document.getElementById('date').value = adv.date ? adv.date.split('T')[0] : '';
-            document.getElementById('branch').value = adv.branch || 'F-6';
+            document.getElementById('branch').value = adv.branch || '';
             document.getElementById('code').value = adv.code || '';
             document.getElementById('preMonthBal').value = adv.preMonthBal || 0;
             document.getElementById('currentMonthBal').value = adv.currentMonthBal || 0;
@@ -248,7 +249,7 @@ function clearForm() {
     document.getElementById('advanceId').value = '';
     document.getElementById('employee').value = '';
     setDefaultDate();
-    document.getElementById('branch').value = 'F-6';
+    document.getElementById('branch').value = '';
     document.getElementById('code').value = '';
     document.getElementById('preMonthBal').value = '0';
     document.getElementById('currentMonthBal').value = '0';
@@ -258,4 +259,29 @@ function clearForm() {
     document.getElementById('balance').value = '0';
     document.getElementById('docMode').value = 'Cash';
     document.getElementById('remarks').value = '';
+}
+
+async function loadBranches() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/v1/stores', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        if (data.success) {
+            const select = document.getElementById('branch');
+            select.innerHTML = '<option value="">Select Branch</option>';
+            data.data.forEach(store => {
+                const option = document.createElement('option');
+                option.value = store.name;
+                option.textContent = store.name;
+                select.appendChild(option);
+            });
+            if (data.data.length === 1) {
+                select.value = data.data[0].name;
+            }
+        }
+    } catch (e) {
+        console.error('Error loading branches:', e);
+    }
 }

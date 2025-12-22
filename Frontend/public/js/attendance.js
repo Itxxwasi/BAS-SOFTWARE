@@ -4,6 +4,7 @@ let employees = [];
 document.addEventListener('DOMContentLoaded', () => {
     setDefaultDates();
     loadEmployees();
+    loadBranches();
     loadAttendanceList();
 
     // Calculate worked hours when check in/out changes
@@ -189,7 +190,7 @@ async function editAttendance(id) {
             document.getElementById('attendanceId').value = att._id;
             document.getElementById('employee').value = att.employee?._id || '';
             document.getElementById('attendanceDate').value = att.date ? att.date.split('T')[0] : '';
-            document.getElementById('attendanceBranch').value = att.branch || 'F-6';
+            document.getElementById('attendanceBranch').value = att.branch || '';
             document.getElementById('checkIn').value = att.checkIn || '';
             document.getElementById('checkOut').value = att.checkOut || '';
             document.getElementById('workedHrs').value = att.workedHrs || '';
@@ -235,11 +236,58 @@ function clearAttendanceForm() {
     document.getElementById('attendanceId').value = '';
     document.getElementById('employee').value = '';
     setDefaultDates();
-    document.getElementById('attendanceBranch').value = 'F-6';
+    document.getElementById('attendanceBranch').value = '';
     document.getElementById('checkIn').value = '';
     document.getElementById('checkOut').value = '';
     document.getElementById('workedHrs').value = '';
     document.getElementById('breakHrs').value = '0';
     document.getElementById('displayStatus').value = 'Present';
     document.getElementById('remarks').value = '';
+}
+
+async function loadBranches() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/v1/stores', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        if (data.success) {
+            const filterSelect = document.getElementById('filterBranch');
+            const formSelect = document.getElementById('attendanceBranch');
+
+            // Populate filter select
+            if (filterSelect) {
+                const currentFilter = filterSelect.value;
+                filterSelect.innerHTML = '<option value="">All</option>';
+                data.data.forEach(store => {
+                    const option = document.createElement('option');
+                    option.value = store.name;
+                    option.textContent = store.name;
+                    filterSelect.appendChild(option);
+                });
+                if (currentFilter) filterSelect.value = currentFilter;
+            }
+
+            // Populate form select
+            if (formSelect) {
+                const currentForm = formSelect.value;
+                formSelect.innerHTML = '<option value="">Select Branch</option>';
+                data.data.forEach(store => {
+                    const option = document.createElement('option');
+                    option.value = store.name;
+                    option.textContent = store.name;
+                    formSelect.appendChild(option);
+                });
+                // Preserve selection if valid, or default if single branch
+                if (currentForm && Array.from(formSelect.options).some(o => o.value === currentForm)) {
+                    formSelect.value = currentForm;
+                } else if (data.data.length === 1) {
+                    formSelect.value = data.data[0].name;
+                }
+            }
+        }
+    } catch (e) {
+        console.error('Error loading branches:', e);
+    }
 }
