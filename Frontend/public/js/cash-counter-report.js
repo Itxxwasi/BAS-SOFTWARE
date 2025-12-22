@@ -177,8 +177,8 @@ function renderReport(transactions, selectedCounterName) {
         let tableHtml = `
         <table class="table table-bordered border-dark table-sm mb-0" style="width: 100%; border-color: black !important;">
             <thead>
-                <tr style="border: 1px solid black; background-color: #f2f2f2 !important;">
-                    <th colspan="4" class="text-center fw-bold" style="font-size: 1.1em; padding: 8px;">${counter}</th>
+                <tr style="border: 1px solid black;">
+                    <th colspan="4" class="text-center fw-bold" style="font-size: 1.1em; padding: 8px; background-color: #f2f2f2 !important;">${counter}</th>
                 </tr>
                 <tr style="border: 1px solid black;">
                     <th style="width: 30%; font-weight: bold; border: 1px solid black;">Dated</th>
@@ -215,11 +215,11 @@ function renderReport(transactions, selectedCounterName) {
         // Subtotal Row
         const counterTotal = counterCash + counterBank;
         tableHtml += `
-            <tr style="border: 1px solid black; font-weight: bold; background-color: #f2f2f2 !important;">
-                <td style="border: 1px solid black; padding: 5px 8px;"></td>
-                <td class="text-end" style="border: 1px solid black; padding: 5px 8px;">${formatCurrency(counterCash)}</td>
-                <td class="text-end" style="border: 1px solid black; padding: 5px 8px;">${counterBank > 0 ? formatCurrency(counterBank) : ''}</td>
-                <td class="text-end" style="border: 1px solid black; padding: 5px 8px;">${formatCurrency(counterTotal)}</td>
+            <tr style="border: 1px solid black; font-weight: bold;">
+                <td style="border: 1px solid black; padding: 5px 8px; background-color: #f2f2f2 !important;"></td>
+                <td class="text-end" style="border: 1px solid black; padding: 5px 8px; background-color: #f2f2f2 !important;">${formatCurrency(counterCash)}</td>
+                <td class="text-end" style="border: 1px solid black; padding: 5px 8px; background-color: #f2f2f2 !important;">${counterBank > 0 ? formatCurrency(counterBank) : ''}</td>
+                <td class="text-end" style="border: 1px solid black; padding: 5px 8px; background-color: #f2f2f2 !important;">${formatCurrency(counterTotal)}</td>
             </tr>
         </tbody></table>`;
 
@@ -248,11 +248,11 @@ function renderReport(transactions, selectedCounterName) {
         <div class="mt-4">
             <table class="table table-bordered border-dark table-sm mb-0" style="width: 100%; border-color: black !important;">
              <tfoot>
-                <tr style="border: 1px solid black; font-weight: bold; background: #e3f2fd !important;">
-                    <td style="width: 30%; border: 1px solid black; padding: 8px;">Report Grand Total</td>
-                    <td style="width: 25%; border: 1px solid black; padding: 8px;" class="text-end">${formatCurrency(globalCash)}</td>
-                    <td style="width: 25%; border: 1px solid black; padding: 8px;" class="text-end">${formatCurrency(globalBank)}</td>
-                    <td style="width: 20%; border: 1px solid black; padding: 8px;" class="text-end">${formatCurrency(globalCash + globalBank)}</td>
+                <tr style="border: 1px solid black; font-weight: bold;">
+                    <td style="width: 30%; border: 1px solid black; padding: 8px; background-color: #e3f2fd !important;">Report Grand Total</td>
+                    <td style="width: 25%; border: 1px solid black; padding: 8px; background-color: #e3f2fd !important;" class="text-end">${formatCurrency(globalCash)}</td>
+                    <td style="width: 25%; border: 1px solid black; padding: 8px; background-color: #e3f2fd !important;" class="text-end">${formatCurrency(globalBank)}</td>
+                    <td style="width: 20%; border: 1px solid black; padding: 8px; background-color: #e3f2fd !important;" class="text-end">${formatCurrency(globalCash + globalBank)}</td>
                 </tr>
              </tfoot>
             </table>
