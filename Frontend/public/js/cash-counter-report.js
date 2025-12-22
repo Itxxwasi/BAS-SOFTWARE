@@ -1,335 +1,251 @@
-// Cash Counter Report JavaScript
-const API_URL = 'http://localhost:5000/api/v1';
+// Cash Counter Report JavaScript (Daily Summary - Cash/Bank)
 
+let departmentsMap = {};
 
-// Set default dates on page load
-document.addEventListener('DOMContentLoaded', function () {
-    setDefaultDates();
-    loadBranches();
-    displayUserName();
-});
+document.addEventListener('DOMContentLoaded', async function () {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = 'login.html';
+        return;
+    }
 
-function setDefaultDates() {
+    // Set default dates (current month)
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    document.getElementById('filterFromDate').value = firstDay.toISOString().split('T')[0];
+    document.getElementById('filterToDate').value = today.toISOString().split('T')[0];
 
-    document.getElementById('fromDate').valueAsDate = firstDay;
-    document.getElementById('toDate').valueAsDate = today;
-}
-
-function displayUserName() {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    if (user.name) {
-        document.getElementById('userName').textContent = user.name;
-    }
-}
+    // Initial Load
+    await Promise.all([
+        loadBranches(),
+        loadDepartments()
+    ]);
+});
 
 async function loadBranches() {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_URL}/stores`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
+        const response = await fetch('/api/v1/stores', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+            const data = await response.json();
+            const select = document.getElementById('filterBranch');
+            select.innerHTML = '<option value="">All Branches</option>';
+
+            const stores = data.data || [];
+            if (stores.length > 0) {
+                stores.forEach(store => {
+                    const opt = document.createElement('option');
+                    opt.value = store.name;
+                    opt.textContent = store.name;
+                    select.appendChild(opt);
+                });
+                if (stores.length >= 1) select.value = stores[0].name;
             }
-        });
-
-        if (!response.ok) throw new Error('Failed to fetch branches');
-
-        const result = await response.json();
-        const stores = result.data || result; // Handle both {data: []} and [] formats
-        const branchFilter = document.getElementById('branchFilter');
-
-        // Clear existing options except "All Branches"
-        branchFilter.innerHTML = '<option value="">All Branches</option>';
-
-        // Get unique branches
-        if (!Array.isArray(stores)) {
-            throw new Error('Invalid stores data format');
         }
-        const branches = [...new Set(stores.map(s => s.name))];
-        branches.forEach(branch => {
-            const option = document.createElement('option');
-            option.value = branch;
-            option.textContent = branch;
-            branchFilter.appendChild(option);
+    } catch (e) { console.error(e); }
+}
+
+async function loadDepartments() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/v1/departments', {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
-    } catch (error) {
-        console.error('Error loading branches:', error);
-        showError('Failed to load branches');
-    }
+        if (response.ok) {
+            const data = await response.json();
+            const counterSelect = document.getElementById('filterCounter');
+            counterSelect.innerHTML = '<option value="">All Cash Counters</option>';
+
+            (data.data || []).forEach(d => {
+                if (d.isCashCounter) {
+                    const opt = document.createElement('option');
+                    opt.value = d.name; // Use Name!
+                    opt.textContent = d.name;
+                    counterSelect.appendChild(opt);
+                }
+            });
+        }
+    } catch (e) { console.error(e); }
 }
 
 async function loadReport() {
-    const fromDate = document.getElementById('fromDate').value;
-    const toDate = document.getElementById('toDate').value;
-    const branchFilter = document.getElementById('branchFilter').value;
+    const token = localStorage.getItem('token');
+    const container = document.getElementById('reportContainer');
+    const startDate = document.getElementById('filterFromDate').value;
+    const endDate = document.getElementById('filterToDate').value;
+    const branch = document.getElementById('filterBranch').value;
+    const selectedCounterName = document.getElementById('filterCounter').value;
 
-    if (!fromDate || !toDate) {
-        showError('Please select both from and to dates');
-        return;
-    }
+    // Update print header
+    const titleEl = document.querySelector('.print-header h4');
+    if (titleEl) titleEl.textContent = 'Counter Cash / Bank Sale';
+
+    document.getElementById('printBranchName').textContent = branch ? `(${branch})` : '(All Branches)';
+
+    // Format Date Range like image: "14-Dec-2025"
+    // Image shows: From : 14-Dec-2025  To : 18-Dec-2025
+    const fmt = (d) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).replace(/ /g, '-');
+    document.getElementById('printDateRange').textContent = `From :  ${fmt(startDate)}      To :  ${fmt(endDate)}`;
+
+    container.innerHTML = `<div class="p-5 text-center"><div class="spinner-border text-primary"></div><div class="mt-2 text-muted">Loading Data...</div></div>`;
+    document.getElementById('topSummary').style.display = 'none';
 
     try {
-        showLoading();
+        let url = `/api/v1/cash-sales?startDate=${startDate}&endDate=${endDate}`;
+        if (branch) url += `&branch=${branch}`;
 
-        // Fetch departments (cash counters)
-        const departments = await fetchDepartments();
+        const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!response.ok) throw new Error('Failed to fetch report data');
 
-        // Fetch cash sales data
-        const salesData = await fetchCashSales(fromDate, toDate, branchFilter);
+        const result = await response.json();
+        let transactions = result.data || [];
 
-        // Filter only cash counters
-        const cashCounters = departments.filter(dept => dept.isCashCounter);
-
-        // Group by branch
-        const branchData = groupByBranch(cashCounters, salesData, branchFilter);
-
-        // Display report
-        displayReport(branchData, salesData);
-
-    } catch (error) {
-        console.error('Error loading report:', error);
-        showError('Failed to load report data');
-    }
-}
-
-async function fetchDepartments() {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_URL}/departments`, {
-        headers: {
-            'Authorization': `Bearer ${token}`
+        if (selectedCounterName) {
+            transactions = transactions.filter(t => t.cashCounter === selectedCounterName);
         }
-    });
 
-    if (!response.ok) throw new Error('Failed to fetch departments');
-    const result = await response.json();
-    return result.data || result; // Handle both {data: []} and [] formats
-}
-
-async function fetchCashSales(fromDate, toDate, branch) {
-    const token = localStorage.getItem('token');
-    let url = `${API_URL}/cash-sales?startDate=${fromDate}&endDate=${toDate}`;
-
-    if (branch) {
-        url += `&branch=${encodeURIComponent(branch)}`;
-    }
-
-    const response = await fetch(url, {
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
-    });
-
-    if (!response.ok) throw new Error('Failed to fetch cash sales');
-    const result = await response.json();
-    return result.data || result; // Handle both {data: []} and [] formats
-}
-
-function groupByBranch(cashCounters, salesData, branchFilter) {
-    const grouped = {};
-
-    console.log('Cash Counters:', cashCounters.length);
-    console.log('Sales Data:', salesData.length);
-    if (salesData.length > 0) {
-        console.log('Sample sale:', salesData[0]);
-    }
-    if (cashCounters.length > 0) {
-        console.log('Sample counter:', cashCounters[0]);
-    }
-
-    cashCounters.forEach(counter => {
-        // Skip if branch filter is applied and doesn't match
-        if (branchFilter && counter.branch !== branchFilter) {
+        if (transactions.length === 0) {
+            container.innerHTML = `<div class="no-data"><i class="fas fa-search fa-3x mb-3"></i><p>No transactions found.</p></div>`;
             return;
         }
 
-        if (!grouped[counter.branch]) {
-            grouped[counter.branch] = {
-                branchName: counter.branch,
-                departments: {} // Changed from counters to departments
-            };
-        }
+        renderReport(transactions);
 
-        // Calculate sales for this counter
-        const counterSales = salesData.filter(sale => {
-            if (!sale.department) return false;
-            const deptId = typeof sale.department === 'object' ? sale.department._id : sale.department;
-            const match = deptId.toString() === counter._id.toString();
-            if (match) {
-                console.log('Match found!', counter.name, sale.totalAmount);
-            }
-            return match;
-        });
-
-        console.log(`Counter: ${counter.name}, Sales: ${counterSales.length}`);
-
-        const totalSales = counterSales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
-        const cashSales = counterSales.filter(s => s.mode === 'Cash').reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
-        const bankSales = counterSales.filter(s => s.mode === 'Bank').reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
-
-        // Determine the department key (parent department or counter itself)
-        const deptKey = counter.parentDepartment ?
-            (typeof counter.parentDepartment === 'object' ? counter.parentDepartment._id : counter.parentDepartment).toString() :
-            counter._id.toString();
-
-        const deptName = counter.parentDepartment ?
-            (typeof counter.parentDepartment === 'object' ? counter.parentDepartment.name : counter.name) :
-            counter.name;
-
-        // Initialize department if not exists
-        if (!grouped[counter.branch].departments[deptKey]) {
-            grouped[counter.branch].departments[deptKey] = {
-                id: deptKey,
-                name: deptName,
-                totalSales: 0,
-                cashSales: 0,
-                bankSales: 0,
-                transactionCount: 0,
-                counters: []
-            };
-        }
-
-        // Add counter data to department
-        grouped[counter.branch].departments[deptKey].totalSales += totalSales;
-        grouped[counter.branch].departments[deptKey].cashSales += cashSales;
-        grouped[counter.branch].departments[deptKey].bankSales += bankSales;
-        grouped[counter.branch].departments[deptKey].transactionCount += counterSales.length;
-        grouped[counter.branch].departments[deptKey].counters.push({
-            id: counter._id,
-            name: counter.name,
-            code: counter.code,
-            totalSales: totalSales,
-            cashSales: cashSales,
-            bankSales: bankSales,
-            transactionCount: counterSales.length
-        });
-    });
-
-    // Convert departments object to array
-    Object.keys(grouped).forEach(branch => {
-        grouped[branch].departments = Object.values(grouped[branch].departments);
-    });
-
-    return grouped;
+    } catch (error) {
+        console.error(error);
+        container.innerHTML = `<div class="no-data text-danger"><i class="fas fa-exclamation-triangle fa-3x mb-3"></i><p>Error: ${error.message}</p></div>`;
+    }
 }
 
-function displayReport(branchData, salesData) {
-    const reportContent = document.getElementById('reportContent');
-    const summarySection = document.getElementById('summarySection');
+function renderReport(transactions) {
+    const container = document.getElementById('reportContainer');
+    container.innerHTML = '';
 
-    // Calculate summary
-    const branches = Object.keys(branchData);
-    const totalDepartments = branches.reduce((sum, branch) => sum + branchData[branch].departments.length, 0);
-    const totalSales = salesData.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+    // 1. Group Data: Counter -> Date -> Values
+    const groups = {};
 
-    // Update summary cards
-    document.getElementById('totalBranches').textContent = branches.length;
-    document.getElementById('totalCounters').textContent = totalDepartments; // Now showing departments count
-    const totalSalesElement = document.getElementById('totalSales');
-    if (totalSalesElement) {
-        totalSalesElement.textContent = formatCurrency(totalSales);
-    }
-    summarySection.style.display = branches.length > 0 ? 'grid' : 'none';
+    transactions.forEach(t => {
+        const counter = t.cashCounter || 'Unknown';
+        if (!groups[counter]) groups[counter] = {};
 
-    // Display branch cards
-    if (branches.length === 0) {
-        reportContent.innerHTML = `
-            <div class="no-data">
-                <i class="fas fa-inbox fa-3x mb-3"></i>
-                <p>No cash counters found for the selected criteria</p>
-            </div>
-        `;
-        return;
-    }
-
-    let html = '';
-    branches.forEach(branchName => {
-        const branch = branchData[branchName];
-        const branchTotal = branch.departments.reduce((sum, dept) => sum + dept.totalSales, 0);
-
-        html += `
-            <div class="branch-card">
-                <div class="branch-header">
-                    <div class="branch-name">
-                        <i class="fas fa-building me-2"></i>${branchName}
-                    </div>
-                    <div class="branch-total">
-                        <small>Total Sales</small><br>
-                        <strong style="font-size: 1.3rem;">${formatCurrency(branchTotal)}</strong>
-                    </div>
-                </div>
-                <div class="counter-grid">
-        `;
-
-        if (branch.departments.length === 0) {
-            html += `
-                <div class="counter-card">
-                    <div class="text-muted">No departments in this branch</div>
-                </div>
-            `;
-        } else {
-            branch.departments.forEach(dept => {
-                html += `
-                    <div class="counter-card">
-                        <div class="counter-name">
-                            <i class="fas fa-layer-group me-2"></i>${dept.name}
-                        </div>
-                        <div class="counter-stats">
-                            <div class="stat-item">
-                                <div class="stat-label">Cash</div>
-                                <div class="stat-value text-success">${formatCurrency(dept.cashSales)}</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-label">Bank</div>
-                                <div class="stat-value text-primary">${formatCurrency(dept.bankSales)}</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-label">Total</div>
-                                <div class="stat-value">${formatCurrency(dept.totalSales)}</div>
-                            </div>
-                        </div>
-                        <div class="text-center mt-2 small text-muted">
-                            ${dept.transactionCount} transaction${dept.transactionCount !== 1 ? 's' : ''}
-                        </div>
-                    </div>
-                `;
-            });
+        // Date key (YYYY-MM-DD) for sorting
+        const dateKey = t.date.split('T')[0];
+        if (!groups[counter][dateKey]) {
+            groups[counter][dateKey] = { cash: 0, bank: 0 };
         }
 
-        html += `
-                </div>
-            </div>
-        `;
+        const sale = parseFloat(t.sales || 0);
+        if (t.mode === 'Cash') groups[counter][dateKey].cash += sale;
+        else if (t.mode === 'Bank') groups[counter][dateKey].bank += sale;
     });
 
-    reportContent.innerHTML = html;
+    const sortedCounters = Object.keys(groups).sort();
+    let globalCash = 0;
+    let globalBank = 0;
+
+    // Render Tables
+    sortedCounters.forEach(counter => {
+        const datesObj = groups[counter];
+        const dateKeys = Object.keys(datesObj).sort();
+
+        // Section Setup
+        const section = document.createElement('div');
+        section.className = 'mb-5 report-section'; // mb-5 provides space in print potentially
+
+        // Table similar to screenshot
+        let tableHtml = `
+        <table class="table table-bordered border-dark table-sm mb-0" style="width: 100%; border-color: black !important;">
+            <thead>
+                <tr style="border: 1px solid black;">
+                    <th colspan="4" class="text-center fw-bold" style="font-size: 1.1em; padding: 8px;">${counter}</th>
+                </tr>
+                <tr style="border: 1px solid black;">
+                    <th style="width: 30%; font-weight: bold; border: 1px solid black;">Dated</th>
+                    <th style="width: 25%; font-weight: bold; border: 1px solid black;" class="text-end">Cash_Sale</th>
+                    <th style="width: 25%; font-weight: bold; border: 1px solid black;" class="text-end">Bank_Sale</th>
+                    <th style="width: 20%; font-weight: bold; border: 1px solid black;" class="text-end">Total</th>
+                </tr>
+            </thead>
+            <tbody>`;
+
+        let counterCash = 0;
+        let counterBank = 0;
+
+        dateKeys.forEach(dateKey => {
+            const dData = datesObj[dateKey];
+            const total = dData.cash + dData.bank;
+            counterCash += dData.cash;
+            counterBank += dData.bank;
+
+            // Format Date: "14-December-2025"
+            // Using hyphen separator as per screenshot
+            const d = new Date(dateKey);
+            const dStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }).replace(/ /g, '-');
+
+            tableHtml += `
+            <tr style="border: 1px solid black;">
+                <td style="border: 1px solid black; padding: 5px 8px;">${dStr}</td>
+                <td class="text-end" style="border: 1px solid black; padding: 5px 8px;">${formatCurrency(dData.cash)}</td>
+                <td class="text-end" style="border: 1px solid black; padding: 5px 8px;">${dData.bank > 0 ? formatCurrency(dData.bank) : ''}</td>
+                <td class="text-end" style="border: 1px solid black; padding: 5px 8px;">${formatCurrency(total)}</td>
+            </tr>`;
+        });
+
+        // Subtotal Row
+        const counterTotal = counterCash + counterBank;
+        tableHtml += `
+            <tr style="border: 1px solid black; font-weight: bold;">
+                <td style="border: 1px solid black; padding: 5px 8px;"></td>
+                <td class="text-end" style="border: 1px solid black; padding: 5px 8px;">${formatCurrency(counterCash)}</td>
+                <td class="text-end" style="border: 1px solid black; padding: 5px 8px;">${counterBank > 0 ? formatCurrency(counterBank) : ''}</td>
+                <td class="text-end" style="border: 1px solid black; padding: 5px 8px;">${formatCurrency(counterTotal)}</td>
+            </tr>
+        </tbody></table>`;
+
+        section.innerHTML = tableHtml;
+        container.appendChild(section);
+
+        globalCash += counterCash;
+        globalBank += counterBank;
+    });
+
+    // Grand Total (Only if multiple counters to verify totals, or always as per image?)
+    // Image shows "Total" row. It seems to be the Counter total.
+    // If there is another row at bottom...
+    // The image has TWO bold rows at bottom.
+    // One seems to be the sum, and another repeated? Or maybe one is Total and one is Grand Total?
+    // The image shows:
+    // ...
+    // | | 337,200.00 | | 337,200.00 | (Row 1)
+    // | | 337,200.00 | | 337,200.00 | (Row 2 ??)
+    // It's possible "Row 1" is the sum of the column, and "Row 2" is the footer of the section.
+    // I will add a Grand Total section at the end if we have multiple counters.
+    // If only one, the bottom row is it.
+
+    if (sortedCounters.length > 1) {
+        const grandTotalHtml = `
+        <div class="mt-4">
+            <table class="table table-bordered border-dark table-sm mb-0" style="width: 100%; border-color: black !important;">
+             <tfoot>
+                <tr style="border: 1px solid black; font-weight: bold; background: #f8f9fa;">
+                    <td style="width: 30%; border: 1px solid black; padding: 8px;">Report Grand Total</td>
+                    <td style="width: 25%; border: 1px solid black; padding: 8px;" class="text-end">${formatCurrency(globalCash)}</td>
+                    <td style="width: 25%; border: 1px solid black; padding: 8px;" class="text-end">${formatCurrency(globalBank)}</td>
+                    <td style="width: 20%; border: 1px solid black; padding: 8px;" class="text-end">${formatCurrency(globalCash + globalBank)}</td>
+                </tr>
+             </tfoot>
+            </table>
+        </div>`;
+        container.insertAdjacentHTML('beforeend', grandTotalHtml);
+    }
 }
 
 function formatCurrency(amount) {
+    if (!amount) return '0.00';
     return new Intl.NumberFormat('en-PK', {
-        style: 'currency',
-        currency: 'PKR',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    }).format(amount || 0);
-}
-
-function showLoading() {
-    document.getElementById('reportContent').innerHTML = `
-        <div class="no-data">
-            <div class="spinner-border text-primary mb-3" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-            <p>Loading report data...</p>
-        </div>
-    `;
-}
-
-function showError(message) {
-    document.getElementById('reportContent').innerHTML = `
-        <div class="no-data text-danger">
-            <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
-            <p>${message}</p>
-        </div>
-    `;
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(amount);
 }

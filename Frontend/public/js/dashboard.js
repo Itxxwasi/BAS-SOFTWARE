@@ -259,8 +259,11 @@ async function loadDashboardData() {
     finalBranchData.sort((a, b) => b.netSale - a.netSale);
 
     renderBranchCards(finalBranchData);
-    renderSalesChart(finalBranchData);
+    // renderSalesChart(finalBranchData);
     renderBranchTable(finalBranchData);
+
+    // --- Process Branch Dept Breakdown (New Section) ---
+    processAndRenderBranchDeptBreakdown(sheets, branchNameMap, departmentsMap);
 
     // --- Process Category Breakdown (Warehouse Sale) ---
     // Ensure the container exists in HTML or cleared properly
@@ -320,44 +323,84 @@ function processPaymentSection(sheets, expenses, categoriesMap, branchNameMap) {
         }
     });
 
-    // Fill Payments from Expenses - Match expense head to warehouse category name
-    console.log('=== Processing Expenses for Payments ===');
-    console.log('Total expenses:', expenses.length);
-    console.log('Available categories:', Object.values(categoriesMap));
+    // Fetch Category Vouchers for Payments (ONLY Category Vouchers, not Supplier or Expenses)
+    fetchCategoryVoucherPayments(stats, categoriesMap, branchNameMap, allowedBranchList);
+}
 
-    expenses.forEach(exp => {
-        const rawName = exp.branch || 'Unknown';
-        const targetBranchName = branchNameMap.get(normalize(rawName));
-        if (!targetBranchName) return;
+// Fetch Category Voucher payments from API and update stats
+async function fetchCategoryVoucherPayments(stats, categoriesMap, branchNameMap, allowedBranchList) {
+    const token = localStorage.getItem('token');
+    const normalize = (name) => (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-        // Match expense head to customer category name
-        const expenseHead = exp.head;
-        if (!expenseHead) return;
+    try {
+        // Fetch vouchers for the current date range
+        const vouchRes = await fetch(`/api/v1/vouchers?startDate=${currentFromDate}&endDate=${currentToDate}&limit=10000`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const vouchData = await vouchRes.json();
+        const vouchers = vouchData.data || [];
 
-        console.log(`Trying to match expense: "${expenseHead}" (${exp.amount}) from branch ${targetBranchName}`);
+        console.log('=== Processing Category Voucher Payments ===');
+        console.log('Total vouchers fetched:', vouchers.length);
 
-        // Find matching category (exact match or contains)
-        const matchingCategory = Object.values(categoriesMap).find(catName => {
-            return normalize(catName) === normalize(expenseHead) ||
-                normalize(expenseHead).includes(normalize(catName)) ||
-                normalize(catName).includes(normalize(expenseHead));
+        // Filter to only Category Vouchers (entry with detail 'Category Wise Payment')
+        vouchers.forEach(v => {
+            const rawBranch = v.branch || 'Unknown';
+            const targetBranchName = branchNameMap.get(normalize(rawBranch));
+            if (!targetBranchName) return;
+
+            // Find the main entry that is a Category Wise Payment
+            const categoryEntry = v.entries.find(e => e.detail === 'Category Wise Payment');
+            if (!categoryEntry) {
+                // Not a category voucher, skip
+                return;
+            }
+
+            const categoryName = categoryEntry.account; // The account is the category name
+            const amount = parseFloat(categoryEntry.debit || 0);
+
+            console.log(`Category Voucher: ${v.voucherNo} - Category: ${categoryName}, Amount: ${amount}, Branch: ${targetBranchName}`);
+
+            // Find matching category in our stats
+            const matchingCategory = Object.keys(stats).find(catName => {
+                return normalize(catName) === normalize(categoryName) ||
+                    normalize(categoryName).includes(normalize(catName)) ||
+                    normalize(catName).includes(normalize(categoryName));
+            });
+
+            if (matchingCategory && stats[matchingCategory] && stats[matchingCategory][targetBranchName]) {
+                console.log(`✓ Matched to category: "${matchingCategory}"`);
+                stats[matchingCategory][targetBranchName].payment += amount;
+            } else {
+                // If no exact match, try to add it under the exact category name
+                if (!stats[categoryName]) {
+                    stats[categoryName] = {};
+                    allowedBranchList.forEach(b => {
+                        stats[categoryName][b] = { branch: b, sale: 0, cost: 0, payment: 0 };
+                    });
+                }
+                if (!stats[categoryName][targetBranchName]) {
+                    stats[categoryName][targetBranchName] = { branch: targetBranchName, sale: 0, cost: 0, payment: 0 };
+                }
+                stats[categoryName][targetBranchName].payment += amount;
+                console.log(`✓ Added new category: "${categoryName}"`);
+            }
         });
 
-        if (matchingCategory && stats[matchingCategory] && stats[matchingCategory][targetBranchName]) {
-            console.log(`✓ Matched to category: "${matchingCategory}"`);
-            stats[matchingCategory][targetBranchName].payment += (exp.amount || 0);
-        } else {
-            console.log(`✗ No match found for "${expenseHead}"`);
-        }
-    });
+        console.log('=== Payment Stats After Processing Category Vouchers ===', stats);
 
-    console.log('=== Payment Stats After Processing ===', stats);
+        paymentDataCache = stats;
 
-    paymentDataCache = stats;
+        // Populate Dropdowns and render UI
+        populatePaymentFilters(stats, allowedBranchList);
+        renderPaymentUI();
 
-    // Populate Dropdowns
-    populatePaymentFilters(stats, allowedBranchList);
-    renderPaymentUI();
+    } catch (err) {
+        console.error('Error fetching category vouchers:', err);
+        paymentDataCache = stats;
+        populatePaymentFilters(stats, allowedBranchList);
+        renderPaymentUI();
+    }
 }
 
 function populatePaymentFilters(stats, branches) {
@@ -658,11 +701,11 @@ function renderCategoryBreakdown(categories) {
         let tableRows = '';
         let tSale = 0, tCost = 0, tProfit = 0;
 
-        branchList.forEach((b, idx) => {
-            const margin = b.netSale > 0 ? ((b.netSale - b.cost) / b.netSale) * 100 : 0; // Cost is 0 so margin 100%?
-            // If cost is 0, Profit = Sale. Margin = 100%. 
-            // Display Cost/Profit only if meaningful? The Image shows them.
-            // I'll display 0 for cost and Sale for profit if cost missing, but maybe "-" is better.
+        let rank = 1;
+        branchList.forEach((b) => {
+            if (b.netSale === 0 && b.cost === 0) return; // Skip empty rows
+
+            const margin = b.netSale > 0 ? ((b.netSale - b.cost) / b.netSale) * 100 : 0;
 
             tSale += b.netSale;
             tCost += b.cost;
@@ -670,7 +713,7 @@ function renderCategoryBreakdown(categories) {
 
             tableRows += `
                 <tr>
-                    <td class="text-center fw-bold">${idx + 1}</td>
+                    <td class="text-center fw-bold">${rank++}</td>
                     <td>${b.branch}</td>
                     <td class="text-end">${formatCurrency(b.netSale)}</td>
                     <td class="text-end">${b.cost > 0 ? formatCurrency(b.cost) : '-'}</td>
@@ -852,5 +895,119 @@ function formatCurrency(amount) {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0
     }).format(amount || 0);
+}
+
+function processAndRenderBranchDeptBreakdown(sheets, branchNameMap, departmentsMap) {
+    const container = document.getElementById('branchDeptBreakdownContainer');
+    if (!container) return;
+
+    const normalize = (name) => (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const stats = {};
+
+    sheets.forEach(sheet => {
+        const rawName = sheet.branch || 'Unknown';
+        const targetBranchName = branchNameMap.get(normalize(rawName));
+        if (!targetBranchName) return;
+
+        if (!stats[targetBranchName]) {
+            stats[targetBranchName] = { name: targetBranchName, totalNet: 0, depts: {} };
+        }
+
+        const bStat = stats[targetBranchName];
+        const dData = sheet.closing02 && (sheet.closing02.data || sheet.closing02);
+
+        if (dData && typeof dData === 'object') {
+            Object.entries(dData).forEach(([key, val]) => {
+                if (!val || typeof val !== 'object') return;
+                const dName = departmentsMap[key] || val.name || val.deptName || 'Unknown Dept';
+
+                if (!bStat.depts[dName]) {
+                    bStat.depts[dName] = { name: dName, gross: 0, disc: 0, ret: 0, gst: 0, net: 0, days: new Set() };
+                }
+                const dStat = bStat.depts[dName];
+
+                const gross = parseFloat(val.grossSale || val.totalSaleComputer || 0);
+                const disc = parseFloat(val.discountValue || 0);
+                const ret = parseFloat(val.returnAmount || val.returnVal || 0);
+                const gst = parseFloat(val.gst || val.gstValue || 0);
+                const net = parseFloat(val.netSale || 0);
+
+                dStat.gross += gross;
+                dStat.disc += disc;
+                dStat.ret += ret;
+                dStat.gst += gst;
+                dStat.net += net;
+                dStat.days.add(sheet.date.split('T')[0]);
+                bStat.totalNet += net;
+            });
+        }
+    });
+
+    const sortedBranches = Object.values(stats).sort((a, b) => b.totalNet - a.totalNet);
+    let html = '';
+
+    if (sortedBranches.length === 0) {
+        html = '<div class="text-center py-3 text-muted">No branch sales data available.</div>';
+    } else {
+        sortedBranches.forEach(b => {
+            html += `<div class="mb-5 bg-white shadow-sm" style="border-radius: 8px; overflow: hidden; border: 1px solid #dee2e6;">
+                <div class="p-2 text-white text-center fw-bold text-uppercase d-flex align-items-center justify-content-center" style="background-color: #2c5364; font-size: 1.1rem; letter-spacing: 0.5px;">${b.name}</div>
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 text-nowrap" style="font-size: 0.85rem;">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-3">Department</th>
+                                <th class="text-end">Gross Sale</th>
+                                <th class="text-end">Discount Value</th>
+                                <th class="text-end">Discount %</th>
+                                <th class="text-end">Return</th>
+                                <th class="text-end">Sale Value</th>
+                                <th class="text-end">GST</th>
+                                <th class="text-end fw-bold">Net Sale</th>
+                                <th class="text-end pe-3">Daily Sale Average</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+            const deptList = Object.values(b.depts);
+            deptList.sort((d1, d2) => d2.net - d1.net);
+
+            let tGross = 0, tDisc = 0, tRet = 0, tSaleVal = 0, tGst = 0, tNet = 0, tAvgSum = 0;
+
+            deptList.forEach(d => {
+                const discPct = d.gross > 0 ? (d.disc / d.gross) * 100 : 0;
+                const saleVal = d.gross - d.disc - d.ret;
+                const avg = d.net / (d.days.size || 1);
+                tGross += d.gross; tDisc += d.disc; tRet += d.ret; tSaleVal += saleVal; tGst += d.gst; tNet += d.net; tAvgSum += avg;
+
+                html += `<tr>
+                    <td class="ps-3 fw-bold text-secondary">${d.name}</td>
+                    <td class="text-end">${formatCurrency(d.gross)}</td>
+                    <td class="text-end">${formatCurrency(d.disc)}</td>
+                    <td class="text-end">${discPct.toFixed(2)}%</td>
+                    <td class="text-end">${formatCurrency(d.ret)}</td>
+                    <td class="text-end">${formatCurrency(saleVal)}</td>
+                    <td class="text-end">${formatCurrency(d.gst)}</td>
+                    <td class="text-end fw-bold text-dark">${formatCurrency(d.net)}</td>
+                    <td class="text-end pe-3 text-muted">${formatCurrency(avg)}</td>
+                </tr>`;
+            });
+
+            const tDiscPct = tGross > 0 ? (tDisc / tGross) * 100 : 0;
+            html += `<tr class="fw-bold text-white shadow-sm" style="background-color: #2c5364;">
+                <td class="ps-3">${b.name} - Grand Total</td>
+                <td class="text-end">${formatCurrency(tGross)}</td>
+                <td class="text-end">${formatCurrency(tDisc)}</td>
+                <td class="text-end">${tDiscPct.toFixed(2)}%</td>
+                <td class="text-end">${formatCurrency(tRet)}</td>
+                <td class="text-end">${formatCurrency(tSaleVal)}</td>
+                <td class="text-end">${formatCurrency(tGst)}</td>
+                <td class="text-end">${formatCurrency(tNet)}</td>
+                <td class="text-end pe-3">${formatCurrency(tAvgSum)}</td>
+            </tr>`;
+            html += `</tbody></table></div></div>`;
+        });
+    }
+    container.innerHTML = html;
 }
 

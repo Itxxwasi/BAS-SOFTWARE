@@ -85,19 +85,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadInitialData();
 
     // Navigation and tab handling - Use Bootstrap Tab API for reliability
+    // Check if we are on the list page first
+    const isListPage = window.location.pathname.includes('payment-vouchers-list');
+
     if (tabParam === 'category') {
-        const catTabEl = document.getElementById('category-tab') || document.getElementById('list-category-tab');
+        // For list page, prefer list-category-tab; for entry page, prefer category-tab
+        const catTabEl = isListPage
+            ? document.getElementById('list-category-tab')
+            : (document.getElementById('category-tab') || document.getElementById('list-category-tab'));
         if (catTabEl) {
             const tab = new bootstrap.Tab(catTabEl);
             tab.show();
         }
     } else if (tabParam === 'supplier') {
-        const supTabEl = document.getElementById('supplier-tab') || document.getElementById('list-supplier-tab');
+        const supTabEl = isListPage
+            ? document.getElementById('list-supplier-tab')
+            : (document.getElementById('supplier-tab') || document.getElementById('list-supplier-tab'));
         if (supTabEl) {
             const tab = new bootstrap.Tab(supTabEl);
             tab.show();
         }
     }
+
+    // Update filter visibility based on active tab (for list page)
+    updateFilterVisibility();
 
     await fetchVoucherList();
     await generateNextVoucherNo();
@@ -198,12 +209,17 @@ async function loadInitialData() {
         const catData = await catRes.json();
         if (catData.success) {
             categories = catData.data;
-            const select = document.getElementById('catCustomerCategory');
-            categories.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c.name;
-                opt.textContent = c.name;
-                select.appendChild(opt);
+            // Populate both entry dropdown and list filter dropdown
+            const catSelects = ['catCustomerCategory', 'listCategoryFilter'];
+            catSelects.forEach(id => {
+                const select = document.getElementById(id);
+                if (!select) return;
+                categories.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.name;
+                    opt.textContent = c.name;
+                    select.appendChild(opt);
+                });
             });
         }
 
@@ -397,7 +413,25 @@ function renderVoucherTable() {
 if (document.getElementById('listTabs')) {
     document.getElementById('listTabs').addEventListener('shown.bs.tab', () => {
         renderVoucherTable();
+        updateFilterVisibility();
     });
+}
+
+// Update filter section visibility based on active tab
+function updateFilterVisibility() {
+    const activeTabId = document.querySelector('#listTabs .nav-link.active')?.id;
+    const supplierFilterDiv = document.getElementById('listSupplierFilter')?.closest('.col-md-2');
+    const categoryFilterDiv = document.getElementById('listCategoryFilter')?.closest('.col-md-2');
+
+    if (activeTabId === 'list-category-tab') {
+        // On Category tab - hide supplier filter, show category filter
+        if (supplierFilterDiv) supplierFilterDiv.style.display = 'none';
+        if (categoryFilterDiv) categoryFilterDiv.style.display = '';
+    } else {
+        // On Supplier tab - show supplier filter, hide category filter
+        if (supplierFilterDiv) supplierFilterDiv.style.display = '';
+        if (categoryFilterDiv) categoryFilterDiv.style.display = 'none';
+    }
 }
 
 window.resetForm = function (id) {

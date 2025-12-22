@@ -73,6 +73,7 @@ class SidebarNavigation {
                         submenu: [
                             { label: 'Sales Report', link: '/sales-report.html', permission: 'sales_report_link' },
                             { label: 'Dept Wise Sale', link: '/department-sales-report.html', permission: 'dept_sale_link' },
+                            { label: 'Cash Counter Report', link: '/cash-counter-report.html', permission: 'cash_counter_rpt_link' },
                             { label: 'Customer Receipts', link: '/customer-receipts-report.html', permission: 'receipts_link' },
                             { label: 'Party Statement', link: '/party-statement-report.html', permission: 'party_stmt_link' }
                         ]
@@ -109,12 +110,6 @@ class SidebarNavigation {
                                     { label: 'Category Vouchers', link: '/vouchers-report.html?context=category', permission: 'pv_category' },
                                 ]
                             }
-                        ]
-                    },
-                    {
-                        id: 'cash-counter-reports', label: 'Cash Counter Reports', icon: 'fa-cash-register',
-                        submenu: [
-                            { label: 'Cash Counter Report', link: '/cash-counter-report.html' }
                         ]
                     }
                 ]
