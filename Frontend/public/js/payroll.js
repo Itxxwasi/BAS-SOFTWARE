@@ -92,13 +92,14 @@ function loadBranches() {
     const branchSelect = document.getElementById('branch');
     // Hardcoded for now as per other files
     const branches = ['F-6', 'G-10', 'I-8'];
+    branchSelect.innerHTML = '<option value="">Select Branch</option>';
     branches.forEach(b => {
         const opt = document.createElement('option');
         opt.value = b;
         opt.textContent = b;
         branchSelect.appendChild(opt);
     });
-    branchSelect.value = 'F-6'; // Default
+    // branchSelect.value = 'F-6'; // Removed default
 }
 
 async function loadEmployees() {

@@ -100,7 +100,15 @@ class SidebarNavigation {
                             { label: 'Ledger', link: '/ledger-report.html', permission: 'ledger_link' },
                             { label: 'Bank Ledger', link: '/bank-ledger.html', permission: 'bank_ledger_link' },
                             { label: 'Expense Report', link: '/expense-report.html', permission: 'expense_rpt_link' },
-                            { label: 'Vouchers', link: '/vouchers-report.html', permission: 'vouchers_rpt_link' }
+                            {
+                                id: 'pv-reports-group',
+                                label: 'Vouchers',
+                                permission: 'vouchers_rpt_link',
+                                submenu: [
+                                    { label: 'Supplier Vouchers', link: '/vouchers-report.html?context=supplier', permission: 'pv_supplier' },
+                                    { label: 'Category Vouchers', link: '/vouchers-report.html?context=category', permission: 'pv_category' },
+                                ]
+                            }
                         ]
                     },
                     {
@@ -114,7 +122,15 @@ class SidebarNavigation {
             {
                 id: 'accounts', icon: 'fa-calculator', label: 'Accounts', permission: 'accounts',
                 children: [
-                    { label: 'Payment Vouchers', link: '/payment-vouchers.html', permission: 'payment_vouchers' },
+                    {
+                        id: 'payment-vouchers-sub',
+                        label: 'Payment Vouchers',
+                        permission: 'payment_vouchers',
+                        submenu: [
+                            { label: 'Supplier Voucher', link: '/payment-vouchers.html?tab=supplier', permission: 'pv_supplier' },
+                            { label: 'Category Voucher', link: '/payment-vouchers.html?tab=category', permission: 'pv_category' },
+                        ]
+                    },
                     { label: 'Vouchers', link: '/voucher.html', permission: 'vouchers' },
                     { label: 'Expenses', link: '/expenses.html', permission: 'expenses' },
                     { label: 'Account Register', link: '/accounts.html', permission: 'account_register' },

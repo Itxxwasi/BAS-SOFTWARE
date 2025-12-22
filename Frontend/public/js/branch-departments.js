@@ -19,8 +19,7 @@ async function loadBranches() {
         if (data.success) {
             const select = document.getElementById('branch');
             const currentVal = select.value;
-            select.innerHTML = '';
-
+            select.innerHTML = '<option value="">Select Branch</option>';
             data.data.forEach(store => {
                 const option = document.createElement('option');
                 option.value = store.name;
@@ -28,9 +27,12 @@ async function loadBranches() {
                 select.appendChild(option);
             });
 
-            // Preserve selection if possible, otherwise default to first
+            // Preserve selection if valid
             if (currentVal && Array.from(select.options).some(o => o.value === currentVal)) {
                 select.value = currentVal;
+            } else if (data.data.length === 1) {
+                // Default to first ONLY if single branch
+                select.value = data.data[0].name;
             }
         }
     } catch (e) {

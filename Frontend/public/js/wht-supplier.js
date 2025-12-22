@@ -34,12 +34,16 @@ async function loadBranches() {
         const data = await res.json();
         if (data.success) {
             const select = document.getElementById('branch');
+            select.innerHTML = '<option value="">Select Branch</option>';
             data.data.forEach(store => {
-                const opt = document.createElement('option');
-                opt.value = store._id;
-                opt.textContent = store.name;
-                select.appendChild(opt);
+                const option = document.createElement('option');
+                option.value = store._id;
+                option.textContent = store.name;
+                select.appendChild(option);
             });
+            if (data.data.length === 1) {
+                select.value = data.data[0]._id;
+            }
         }
     } catch (err) {
         console.error('Error loading branches:', err);

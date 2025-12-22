@@ -52,8 +52,7 @@ async function loadBranches() {
         }
     });
 
-    // Default 'mainBranch' if stored or first
-    document.getElementById('mainBranch').value = branches[0];
+    // Default 'mainBranch' removed
 }
 
 async function loadMasterData() {

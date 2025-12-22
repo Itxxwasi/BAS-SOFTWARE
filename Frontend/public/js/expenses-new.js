@@ -278,14 +278,17 @@ async function loadBranches() {
         if (response.ok) {
             const data = await response.json();
             if (data.data && data.data.length > 0) {
-                branchEl.innerHTML = '';
+                branchEl.innerHTML = '<option value="">Select Branch</option>';
                 data.data.forEach(store => {
                     const option = document.createElement('option');
                     option.value = store.name;
                     option.textContent = store.name;
                     branchEl.appendChild(option);
                 });
-                // Default to first or specific if needed
+                // Default to first if only one
+                if (data.data.length === 1) {
+                    branchEl.value = data.data[0].name;
+                }
             }
         }
     } catch (error) {
