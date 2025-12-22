@@ -225,7 +225,7 @@ class SidebarNavigation {
             if (item.children) {
                 // 1. Accordion Trigger (For Full Mode)
                 html += `
-                    <div class="nav-link collapsed" data-bs-toggle="collapse" href="#submenu-${item.id}" role="button" aria-expanded="false">
+                    <div class="nav-link collapsed" data-bs-toggle="collapse" href="#submenu-${item.id}" data-bs-target="#submenu-${item.id}" role="button" aria-expanded="false">
                         <i class="fas ${item.icon}"></i>
                         <span>${item.label}</span>
                         <i class="fas fa-chevron-right ms-auto arrow arrow-icon" style="font-size: 0.8rem; opacity: 0.7;"></i>
@@ -429,20 +429,67 @@ class SidebarNavigation {
         let path = window.location.pathname;
         if (path === '/') path = '/main.html';
 
-        // Clean highlight
-        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        // Normalize for comparison (remove leading slash if inconsistent)
+        const normalize = (p) => p.startsWith('/') ? p : '/' + p;
+        const currentPath = normalize(path);
 
-        document.querySelectorAll('a').forEach(a => {
-            if (a.getAttribute('href') === path) {
+        // Clean highlight
+        document.querySelectorAll('.nav-link').forEach(l => {
+            l.classList.remove('active');
+            // If it's a parent trigger, ensure it's collapsed visually if not active
+            if (l.hasAttribute('data-bs-toggle')) {
+                l.classList.add('collapsed');
+                l.setAttribute('aria-expanded', 'false');
+            }
+        });
+        document.querySelectorAll('.submenu-inline').forEach(ul => ul.classList.remove('show'));
+
+        const allLinks = document.querySelectorAll('a');
+        let matched = false;
+
+        allLinks.forEach(a => {
+            const linkHref = a.getAttribute('href');
+            if (!linkHref || linkHref === 'javascript:void(0)' || linkHref === '#') return;
+
+            // Robust Match: Exact or EndsWith
+            if (normalize(linkHref) === currentPath) {
+                matched = true;
                 a.classList.add('active');
-                // Highlight parent accordion trigger
+
+                // Highlight and Expand Parent Accordion
                 const parentUl = a.closest('.submenu-inline');
                 if (parentUl) {
-                    parentUl.classList.add('show'); // Expand accordion
-                    const trigger = document.querySelector(`[href="#${parentUl.id}"]`);
-                    if (trigger) {
-                        trigger.classList.add('active-parent');
-                        trigger.setAttribute('aria-expanded', 'true');
+                    // Mobile Behavior: Do NOT auto-expand. Keep it collapsed by default.
+                    // Desktop Behavior: Auto-expand to show context.
+                    if (window.innerWidth > 768) {
+                        parentUl.classList.add('show'); // Expand accordion
+
+                        // Find trigger for this UL
+                        const trigger = document.querySelector(`[data-bs-target="#${parentUl.id}"], [href="#${parentUl.id}"]`);
+                        if (trigger) {
+                            trigger.classList.add('active-parent'); // Custom highlight style
+                            trigger.classList.remove('collapsed'); // Rotate arrow
+                            trigger.setAttribute('aria-expanded', 'true'); // A11y
+                        }
+
+                        // Handle Nested Parents (Grandparents)
+                        const grandParentUl = parentUl.parentElement.closest('.submenu-inline');
+                        if (grandParentUl) {
+                            grandParentUl.classList.add('show');
+                            const gpTrigger = document.querySelector(`[data-bs-target="#${grandParentUl.id}"], [href="#${grandParentUl.id}"]`);
+                            if (gpTrigger) {
+                                gpTrigger.classList.add('active-parent');
+                                gpTrigger.classList.remove('collapsed');
+                                gpTrigger.setAttribute('aria-expanded', 'true');
+                            }
+                        }
+                    } else {
+                        // On Mobile: just ensure the trigger knows it has an active child (optional, for styling)
+                        // formatting only, no expansion
+                        const trigger = document.querySelector(`[data-bs-target="#${parentUl.id}"], [href="#${parentUl.id}"]`);
+                        if (trigger) {
+                            trigger.classList.add('active-parent');
+                        }
                     }
                 }
             }
