@@ -280,6 +280,19 @@ body.sidebar-mini {
         display: none !important;
     }
 
+    /* Force accordion behavior on mobile even if class is mini */
+    .mini .collapse.show {
+        display: block !important;
+    }
+
+    .sidebar-container.mini .submenu-inline {
+        display: none !important;
+    }
+
+    .sidebar-container.mini .submenu-inline.show {
+        display: block !important;
+    }
+
     /* Body padding on mobile should be 0 always */
     body.sidebar-full,
     body.sidebar-mini {

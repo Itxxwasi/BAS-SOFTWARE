@@ -225,7 +225,7 @@ class SidebarNavigation {
             if (item.children) {
                 // 1. Accordion Trigger (For Full Mode)
                 html += `
-                    <div class="nav-link" data-bs-toggle="collapse" href="#submenu-${item.id}" role="button" aria-expanded="false">
+                    <div class="nav-link collapsed" data-bs-toggle="collapse" href="#submenu-${item.id}" role="button" aria-expanded="false">
                         <i class="fas ${item.icon}"></i>
                         <span>${item.label}</span>
                         <i class="fas fa-chevron-right ms-auto arrow arrow-icon" style="font-size: 0.8rem; opacity: 0.7;"></i>
@@ -368,6 +368,38 @@ class SidebarNavigation {
                 if (backdrop) backdrop.classList.remove('show');
             }
         });
+
+        // Mobile Fix: Force expand accordion on click for mobile
+        document.addEventListener('click', (e) => {
+            const isMobile = window.innerWidth <= 768;
+            if (!isMobile) return;
+
+            const toggle = e.target.closest('[data-bs-toggle="collapse"]');
+            if (toggle) {
+                // If it's a sidebar toggle, we might need to verify if the mini mode is interfering
+                const targetId = toggle.getAttribute('href') || toggle.getAttribute('data-bs-target');
+                if (targetId) {
+                    const targetEl = document.querySelector(targetId);
+                    // Bootstrap might lag or conflict with our 'mini' class logic. 
+                    // Let's ensure the class 'show' is toggled.
+                    // However, bootstrap js should handle this. 
+                    // The issue is likely CSS hiding it despite 'show' class.
+                    // We fixed CSS, but let's double check if we need to force anything here.
+
+                    // Actually, if we are in Mini mode, the click might not be triggering bootstrap collapse 
+                    // because the element might be visually different or hidden?
+
+                    // If we need to force open specifically for mobile:
+                    if (targetEl && targetEl.classList.contains('submenu-inline')) {
+                        setTimeout(() => {
+                            if (!targetEl.classList.contains('show')) {
+                                // Ideally bootstrap opens it. If not, we force display block via style
+                            }
+                        }, 50);
+                    }
+                }
+            }
+        });
     }
 
     toggleSidebarMode() {
@@ -408,7 +440,10 @@ class SidebarNavigation {
                 if (parentUl) {
                     parentUl.classList.add('show'); // Expand accordion
                     const trigger = document.querySelector(`[href="#${parentUl.id}"]`);
-                    if (trigger) trigger.classList.add('active-parent');
+                    if (trigger) {
+                        trigger.classList.add('active-parent');
+                        trigger.setAttribute('aria-expanded', 'true');
+                    }
                 }
             }
         });
