@@ -1,12 +1,38 @@
+// Global variable to store all banks for filtering
+let allBanksData = [];
+
 document.addEventListener('DOMContentLoaded', async () => {
     await loadBranches();
 
     document.getElementById('bankType').addEventListener('change', toggleDeptFields);
-    document.getElementById('branch').addEventListener('change', loadDepartments);
+    document.getElementById('branch').addEventListener('change', onBranchChange);
     document.getElementById('searchInput').addEventListener('input', filterBanks);
 
     loadBanks();
 });
+
+// Handle branch change - filter bank list and load departments
+function onBranchChange() {
+    loadDepartments();
+    filterBanksByBranch();
+}
+
+// Filter banks by selected branch
+function filterBanksByBranch() {
+    const selectedBranch = document.getElementById('branch').value;
+
+    let visibleBanks;
+
+    // If a branch is selected, show ALL banks for that branch (including Branch Bank type)
+    if (selectedBranch) {
+        visibleBanks = allBanksData.filter(b => b.branch === selectedBranch);
+    } else {
+        // When no branch selected, hide 'Branch Bank' type from general list
+        visibleBanks = allBanksData.filter(b => b.bankType !== 'Branch Bank');
+    }
+
+    renderTable(visibleBanks);
+}
 
 function toggleDeptFields() {
     const type = document.getElementById('bankType').value;
@@ -108,9 +134,11 @@ async function loadBanks() {
         const data = await response.json();
 
         if (data.success) {
-            // Filter: Hide 'Branch Bank' type from general list
-            const visibleBanks = data.data.filter(b => b.bankType !== 'Branch Bank');
-            renderTable(visibleBanks);
+            // Store all banks globally for filtering
+            allBanksData = data.data;
+
+            // Apply branch filter
+            filterBanksByBranch();
         }
     } catch (error) {
         console.error('Error loading banks:', error);

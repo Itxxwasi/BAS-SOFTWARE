@@ -379,19 +379,14 @@ async function loadSheet() {
 
             // 5. Render to List if Negative (Shortfall)
             if (showInList) {
-                const displayValue = Math.abs(netValue);
-                let finalAmount = displayValue;
-
-                // Prioritize calculated value as per request (Formula Driven)
-                // Removed logic that overwrote with saved value because this field is readonly and should update dynamically.
-                /* 
-                if (sheet.closing01 && sheet.closing01.departments) {
-                    const saved = sheet.closing01.departments.find(item =>
-                        (item.department && item.department._id === d._id) || (item.department === d._id)
-                    );
-                    if (saved && saved.amount !== 0) finalAmount = saved.amount;
+                // For MEDICINE: Show the actual negative value, not absolute
+                // For other departments: Use absolute value (shortfall)
+                let finalAmount;
+                if (d.name === 'MEDICINE') {
+                    finalAmount = netValue; // Keep the actual negative value
+                } else {
+                    finalAmount = Math.abs(netValue);
                 }
-                */
 
                 closing01DeptTotal += finalAmount;
 
@@ -1516,6 +1511,32 @@ async function generateReport(reportType) {
 
         // Filter valid departments (e.g. Active)
         departments = departments.filter(d => d.isActive).sort((a, b) => (parseInt(a.code) || 99).toString().localeCompare((parseInt(b.code) || 99).toString())); // Simple sort
+
+        // Deduplicate Departments by Name
+        // Priority: Keep the one that has data in the current sheet (Opening Balance)
+        const uniqueDeptsMap = new Map();
+
+        departments.forEach(d => {
+            const name = d.name.trim();
+
+            // Check if this dept has data in the sheet
+            let hasData = false;
+            if (sheet.departmentOpening) {
+                hasData = sheet.departmentOpening.some(x => (x.department === d._id || (x.department && x.department._id === d._id)));
+            }
+
+            if (!uniqueDeptsMap.has(name)) {
+                uniqueDeptsMap.set(name, { dept: d, hasData: hasData });
+            } else {
+                const existing = uniqueDeptsMap.get(name);
+                // If existing has no data but new one does, swap
+                if (!existing.hasData && hasData) {
+                    uniqueDeptsMap.set(name, { dept: d, hasData: hasData });
+                }
+            }
+        });
+
+        departments = Array.from(uniqueDeptsMap.values()).map(x => x.dept);
 
         let reportHTML = '';
 
