@@ -372,6 +372,12 @@ class SidebarNavigation {
             const navLink = e.target.closest('.nav-link:not([data-bs-toggle])');
             const popoverItem = e.target.closest('.popover-item');
 
+            // Prevent closing if it's a submenu toggle (href="javascript:void(0)" or "#")
+            if (navLink) {
+                const href = navLink.getAttribute('href');
+                if (href === 'javascript:void(0)' || href === '#') return;
+            }
+
             if (navLink || popoverItem) {
                 const sidebar = document.getElementById('sidebar');
                 const backdrop = document.getElementById('sidebarBackdrop');
