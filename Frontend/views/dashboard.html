@@ -33,116 +33,132 @@
                 overflow-x: hidden;
             }
 
-            /* Top Nav adjustments */
-            .top-nav {
-                padding: 0 10px;
-            }
-
-            .dashboard-section-title {
-                font-size: 1.2rem;
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 5px;
-            }
-
-            /* Stack the Header Section (Title + Date Filter) */
-            .container-fluid>.d-flex.justify-content-between {
-                flex-direction: column;
-                align-items: stretch !important;
-                gap: 15px;
-            }
-
-            /* Date Filter Card */
-            .bg-white.p-2.rounded.shadow-sm {
-                flex-direction: column;
-                width: 100%;
-            }
-
-            .date-filter-pills {
-                display: flex;
-                flex-wrap: wrap;
-                justify-content: space-between;
-                gap: 5px;
-                width: 100%;
-                margin-bottom: 10px;
-            }
-
-            .date-filter-pills .nav-link {
-                padding: 6px 4px;
+            /* Zooming/Compact Effect for Mobile */
+            body {
                 font-size: 11px;
-                flex: 1 1 20%;
-                /* Grow to fill row */
+                /* Global font reduction */
+            }
+
+            .page-header {
+                padding: 10px !important;
+                /* Ensure it stays compact but visible */
+            }
+
+            .container-fluid {
+                padding: 5px !important;
+            }
+
+            /* Compact Section Containers */
+            .section-banner {
+                padding: 10px !important;
+                font-size: 1rem !important;
+                /* Slightly larger than body */
+            }
+
+            .section-content {
+                padding: 10px !important;
+            }
+
+            /* Header Section Stack */
+            .d-flex.justify-content-between {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 10px;
+            }
+
+            /* Date Filters Compact */
+            .date-filter-pills .nav-link {
+                padding: 4px 8px;
+                font-size: 10px;
+                flex: 1;
+                /* evenly distribute */
                 text-align: center;
-                min-width: 60px;
+            }
+
+            .bg-white.p-2.rounded.shadow-sm {
+                padding: 10px !important;
             }
 
             #customDateRange {
-                display: flex;
-                /* Override d-none if active logic isn't strictly hidden */
                 flex-direction: column;
-                width: 100%;
+                gap: 5px;
                 margin-left: 0 !important;
+                width: 100%;
             }
 
-            /* Inputs in custom range */
-            #customDateRange input {
-                width: 100% !important;
-                margin-bottom: 8px;
-                display: block;
-            }
-
-            #customDateRange span {
-                display: none;
-                /* Hide dash separator */
-            }
-
+            #customDateRange input,
             #customDateRange button {
                 width: 100%;
-                margin-left: 0 !important;
+                margin: 0 !important;
+                font-size: 11px;
             }
 
-            /* Refresh Button */
-            .btn-outline-secondary {
+            .btn-refresh {
                 width: 100%;
                 margin-top: 5px;
                 margin-left: 0 !important;
+                font-size: 11px;
             }
 
-            /* Cards & Text */
+            /* Branch Cards Compact */
             .branch-card {
-                margin-bottom: 15px;
+                margin-bottom: 10px;
+            }
+
+            .branch-card-header {
+                padding: 6px 10px;
+                font-size: 0.9rem;
+            }
+
+            .branch-card-body {
+                padding: 8px;
             }
 
             .stat-box {
-                font-size: 0.85rem;
-                padding: 8px 10px;
+                padding: 5px 8px;
+                font-size: 10px;
+                /* Highly compact */
+                margin-bottom: 4px;
             }
 
-            /* Reduce font size in tables */
-            .custom-table th,
-            .custom-table td {
+            .stat-value {
                 font-size: 11px;
-                padding: 6px 8px !important;
-                white-space: nowrap;
             }
 
-            /* Ensure horizontal scroll on tables */
+            /* Table Optimizations - Zoom Out Effect */
             .table-responsive {
-                overflow-x: auto !important;
-                display: block;
-                width: 100%;
+                overflow-x: auto;
                 -webkit-overflow-scrolling: touch;
             }
 
-            /* Chart Height */
-            .chart-container-box div {
-                height: 250px !important;
+            .custom-table th,
+            .custom-table td,
+            .table th,
+            .table td {
+                padding: 4px 4px !important;
+                /* Minimal padding */
+                font-size: 10px !important;
+                /* Tiny text to fit columns */
+                white-space: nowrap;
+                /* Prevent wrapping but might force scroll if too many cols */
             }
 
-            /* Category Header */
-            .category-header {
-                font-size: 1rem;
-                padding: 8px 12px;
+            /* Attempt to wrap text instead of scroll for some columns if preferred? 
+               User asked 'without scrolling'. Wrapping is better than scrolling. */
+            .custom-table th,
+            .custom-table td {
+                white-space: normal !important;
+                /* Allow wrap to avoid width overflow */
+                word-break: break-word;
+            }
+
+            .card-body {
+                padding: 10px;
+            }
+
+            /* Hide less important elements if needed or make them stack nicely */
+            .dropdown-menu {
+                font-size: 12px;
             }
         }
     </style>
@@ -159,7 +175,8 @@
             </div>
             <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center;">
                 <div class="dropdown">
-                    <div class="d-flex align-items-center text-white" data-bs-toggle="dropdown" style="cursor: pointer;">
+                    <div class="d-flex align-items-center text-white" data-bs-toggle="dropdown"
+                        style="cursor: pointer;">
                         <div class="user-avatar text-white bg-primary rounded-circle d-flex align-items-center justify-content-center me-2"
                             style="width: 35px; height: 35px;">
                             <i class="fas fa-user"></i>
