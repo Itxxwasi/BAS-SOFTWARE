@@ -3,7 +3,6 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 :root {
@@ -23,6 +22,14 @@ body {
     background-color: #f0f2f5;
     color: var(--text-color);
     line-height: 1.6;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+input,
+button,
+select,
+textarea {
+    font-family: inherit;
 }
 
 /* Layout */
