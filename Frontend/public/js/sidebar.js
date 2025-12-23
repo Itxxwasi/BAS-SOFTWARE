@@ -80,9 +80,17 @@ class SidebarNavigation {
                 id: 'reports', icon: 'fa-chart-bar', label: 'Reports', permission: 'reports',
                 children: [
                     {
-                        id: 'sales-reports', label: 'Sales Reports', icon: 'fa-shopping-cart', permission: 'sales_reports',
+                        id: 'warehouse-reports', label: 'Warehouse Reports', icon: 'fa-warehouse', permission: 'warehouse_reports',
                         submenu: [
                             { label: 'Sales Report', link: '/sales-report.html', permission: 'sales_report_link' },
+                            { label: 'Sales Comparison', link: '/sales-comparison-report.html', permission: 'sales_comparison_link' },
+                            { label: 'Date-Wise Sales', link: '/date-wise-sales-report.html', permission: 'date_wise_sales_link' },
+                            { label: 'Payment Reports', link: '/payment-reports.html', permission: 'payment_reports_link' }
+                        ]
+                    },
+                    {
+                        id: 'sales-reports', label: 'Sales Reports', icon: 'fa-shopping-cart', permission: 'sales_reports',
+                        submenu: [
                             { label: 'Dept Wise Sale', link: '/department-sales-report.html', permission: 'dept_sale_link' },
                             { label: 'Cash Counter Report', link: '/cash-counter-report.html', permission: 'cash_counter_rpt_link' },
                             { label: 'Customer Receipts', link: '/customer-receipts-report.html', permission: 'receipts_link' },

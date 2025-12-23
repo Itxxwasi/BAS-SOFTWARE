@@ -18,4 +18,9 @@ const CashSaleSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 });
 
+// Indexes for faster dashboard and report queries
+CashSaleSchema.index({ date: 1 });
+CashSaleSchema.index({ branch: 1 });
+CashSaleSchema.index({ date: 1, branch: 1 });
+
 module.exports = mongoose.model('CashSale', CashSaleSchema);

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sales Report - Bilal Accounting System</title>
+    <title>Sales Comparison Report - Bilal Accounting System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="/css/desktop-style.css" rel="stylesheet">
@@ -182,9 +182,6 @@
         .data-table {
             width: 100%;
             margin-top: 20px;
-        }
-
-        .data-table {
             border-collapse: separate;
             border-spacing: 0;
         }
@@ -204,6 +201,10 @@
             text-align: left;
         }
 
+        .data-table thead th:nth-child(2) {
+            text-align: left;
+        }
+
         .data-table tbody td {
             padding: 12px 15px;
             border: 1px solid #dee2e6;
@@ -215,35 +216,46 @@
             background: #f8f9fa;
         }
 
-        .branch-header {
+        .category-section {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .category-section .data-table {
+            margin-top: 0;
+        }
+
+        .category-header {
             background: linear-gradient(135deg, #17a2b8, #138496) !important;
             color: white !important;
             font-weight: 600 !important;
             font-size: 0.9rem !important;
         }
 
-        .branch-header td {
+        .category-header td {
             padding: 10px 15px !important;
             color: white !important;
             border: none !important;
         }
 
-        .category-row {
-            background: white;
-        }
-
-        .category-row:nth-child(even) {
-            background: #f8f9fa;
-        }
-
-        .branch-total-row {
+        .category-total-row {
             background: #e9ecef !important;
             font-weight: 600;
         }
 
-        .branch-total-row td {
+        .category-total-row td {
             border-top: 2px solid #dee2e6 !important;
             border-bottom: 2px solid #dee2e6 !important;
+            padding: 12px 15px !important;
+        }
+
+        .rank-cell {
+            font-weight: 700;
+            color: #333;
+            text-align: center;
+            border-left: 3px solid #17a2b8;
         }
 
         .margin-badge {
@@ -254,6 +266,10 @@
             font-size: 0.75rem;
             font-weight: 600;
             display: inline-block;
+        }
+
+        .data-row td {
+            vertical-align: middle;
         }
 
         .total-row td {
@@ -276,7 +292,6 @@
             }
         }
 
-
         @media print {
             * {
                 -webkit-print-color-adjust: exact;
@@ -294,7 +309,8 @@
             .btn-print,
             .card-header-custom,
             .page-title,
-            .page-subtitle {
+            .page-subtitle,
+            .mb-3 {
                 display: none !important;
             }
 
@@ -383,13 +399,6 @@
                 font-size: 20px;
             }
 
-            /* Report Detail Header */
-            .report-detail-header h6 {
-                font-size: 14px;
-                color: #17a2b8;
-                margin-bottom: 10px;
-            }
-
             /* Table Styles */
             .data-table thead th {
                 background: #000 !important;
@@ -402,34 +411,22 @@
                 padding: 8px 12px;
             }
 
-            .branch-header {
+            .category-header {
                 background: linear-gradient(135deg, #17a2b8, #138496) !important;
                 page-break-after: avoid;
             }
 
-            .branch-header td {
+            .category-header td {
                 color: white !important;
                 background: transparent !important;
             }
 
-            .category-row:nth-child(even) {
-                background: #f8f9fa !important;
-            }
-
-            .branch-total-row {
+            .category-total-row {
                 background: #e9ecef !important;
             }
 
             .margin-badge {
                 background: #28a745 !important;
-                color: white !important;
-            }
-
-            .total-row {
-                background: #343a40 !important;
-            }
-
-            .total-row td {
                 color: white !important;
             }
         }
@@ -441,7 +438,7 @@
     <div class="page-header px-3">
         <div style="flex: 1; display: flex; align-items: center;">
             <i class="fas fa-bars me-3" id="sidebarToggle" style="cursor:pointer; font-size: 1rem;"></i>
-            <i class="fas fa-chart-line me-2"></i> Sales Reports
+            <i class="fas fa-chart-bar me-2"></i> Sales Reports
         </div>
         <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center;">
             <div class="dropdown">
@@ -470,7 +467,7 @@
             <div class="text-end">
                 <div class="report-title"
                     style="font-size: 1.5rem; color: #17a2b8; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;">
-                    SALES REPORT</div>
+                    SALES COMPARISON REPORT</div>
             </div>
         </div>
         <div class="text-center" style="font-size: 0.85rem; color: #666;">
@@ -485,10 +482,10 @@
         <h1 class="page-title">Sales Reports</h1>
         <p class="page-subtitle">Generate and view sales reports</p>
 
-        <!-- Sales Report Tab -->
+        <!-- Sales Comparison Tab -->
         <div class="mb-3">
             <button class="btn btn-info text-white">
-                <i class="fas fa-file-invoice me-2"></i>Sales Report
+                <i class="fas fa-chart-line me-2"></i>Sales Comparison
             </button>
         </div>
 
@@ -497,7 +494,7 @@
             <!-- Filters Section -->
             <div class="card-header-custom">
                 <i class="fas fa-filter"></i>
-                Sales Report Filters
+                Comparison Report Filters
             </div>
             <div class="filters-section">
                 <div class="row g-3">
@@ -509,7 +506,7 @@
                         </select>
                     </div>
 
-                    <!-- Category (from Customer Categories) -->
+                    <!-- Category -->
                     <div class="col-md-3">
                         <label>Category</label>
                         <select id="filterCategory" class="form-select">
@@ -558,20 +555,20 @@
                 </div>
             </div>
 
-            <!-- Sales Detail Report -->
+            <!-- Sales Comparison Report -->
             <div class="report-detail-section">
                 <div class="report-detail-header">
-                    <h6 class="mb-0">Sales Detail Report</h6>
+                    <h6 class="mb-0">Sales Comparison Report</h6>
                     <button class="btn btn-print" onclick="printReport()">
                         <i class="fas fa-print me-1"></i> Print Report
                     </button>
                 </div>
 
-                <!-- Empty State / Table -->
+                <!-- Report Content -->
                 <div id="reportContent">
                     <div class="empty-state">
                         <i class="fas fa-info-circle"></i>
-                        <p>Click "Generate Report" to view sales data</p>
+                        <p>Click "Generate Report" to view sales comparison data</p>
                     </div>
                 </div>
             </div>
@@ -671,7 +668,6 @@
                     const data = await response.json();
                     const company = data.data || {};
 
-                    // Update print header with company info
                     if (company.companyName) {
                         document.getElementById('companyName').textContent = company.companyName;
                     }
@@ -729,20 +725,20 @@
                 const result = await response.json();
                 const sheets = result.data || [];
 
-                // Process data by branch and category
-                const reportData = processReportData(sheets, branch, category);
+                // Process data for comparison
+                const comparisonData = processComparisonData(sheets, branch, category);
 
                 // Update summary cards
-                updateSummaryCards(reportData);
+                updateSummaryCards(comparisonData);
 
                 // Update print header
                 updatePrintHeader(branch, category, fromDate, toDate);
 
-                // Render table
-                renderReportTable(reportData);
+                // Render comparison table
+                renderComparisonTable(comparisonData);
 
                 // Scroll to results if data found
-                if (Object.keys(reportData.branchData).length > 0) {
+                if (comparisonData.size > 0) {
                     reportContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
 
@@ -761,6 +757,81 @@
                 generateBtn.disabled = false;
                 generateBtn.innerHTML = originalBtnContent;
             }
+        }
+
+        // Update Summary Cards
+        function updateSummaryCards(categoryMap) {
+            let totalSales = 0;
+            let totalCost = 0;
+
+            categoryMap.forEach((branches) => {
+                branches.forEach(branch => {
+                    totalSales += branch.sales;
+                    totalCost += branch.cost;
+                });
+            });
+
+            const totalProfit = totalSales - totalCost;
+            const profitMargin = totalSales > 0 ? (totalProfit / totalSales * 100) : 0;
+
+            document.getElementById('totalSales').textContent = formatCurrency(totalSales);
+            document.getElementById('totalCost').textContent = formatCurrency(totalCost);
+            document.getElementById('totalProfit').textContent = formatCurrency(totalProfit);
+            document.getElementById('profitMargin').textContent = profitMargin.toFixed(1) + '%';
+        }
+
+        // Process Comparison Data - Group by Category, Rank Branches
+        function processComparisonData(sheets, branchFilter, categoryFilter) {
+            const categoryMap = new Map(); // category -> [{branch, sales, cost, profit, margin}]
+
+            sheets.forEach(sheet => {
+                const branchName = sheet.branch || 'Unknown';
+
+                // Check warehouse sale data
+                if (sheet.closing02 && sheet.closing02.data && sheet.closing02.data.warehouseSale) {
+                    sheet.closing02.data.warehouseSale.forEach(item => {
+                        const categoryId = item.category;
+                        const categoryName = getCategoryName(categoryId);
+                        const sale = parseFloat(item.sale || 0);
+                        const cost = parseFloat(item.cost || 0);
+
+                        // Apply category filter
+                        if (categoryFilter && categoryId !== categoryFilter) return;
+
+                        // Initialize category array if not exists
+                        if (!categoryMap.has(categoryName)) {
+                            categoryMap.set(categoryName, []);
+                        }
+
+                        // Find or create branch entry for this category
+                        const branches = categoryMap.get(categoryName);
+                        let branchEntry = branches.find(b => b.branch === branchName);
+
+                        if (!branchEntry) {
+                            branchEntry = { branch: branchName, category: categoryName, sales: 0, cost: 0, profit: 0, margin: 0 };
+                            branches.push(branchEntry);
+                        }
+
+                        branchEntry.sales += sale;
+                        branchEntry.cost += cost;
+                        branchEntry.profit = branchEntry.sales - branchEntry.cost;
+                        branchEntry.margin = branchEntry.sales > 0 ? (branchEntry.profit / branchEntry.sales * 100) : 0;
+                    });
+                }
+            });
+
+            // Sort branches within each category by sales (descending)
+            categoryMap.forEach((branches, categoryName) => {
+                branches.sort((a, b) => b.sales - a.sales);
+            });
+
+            return categoryMap;
+        }
+
+        // Get category name by ID
+        function getCategoryName(categoryId) {
+            const cat = categoriesData.find(c => c._id === categoryId);
+            return cat ? cat.name : 'Unknown';
         }
 
         // Update Print Header
@@ -786,75 +857,11 @@
             }
         }
 
-        // Process Report Data
-        function processReportData(sheets, branchFilter, categoryFilter) {
-            let totalSales = 0;
-            let totalCost = 0;
-            const branchData = {};
-
-            sheets.forEach(sheet => {
-                const branchName = sheet.branch || 'Unknown';
-
-                // Initialize branch if not exists
-                if (!branchData[branchName]) {
-                    branchData[branchName] = { categories: {}, totalSale: 0, totalCost: 0 };
-                }
-
-                // Check if sheet has warehouse sale data (closing02.data.warehouseSale)
-                if (sheet.closing02 && sheet.closing02.data && sheet.closing02.data.warehouseSale) {
-                    sheet.closing02.data.warehouseSale.forEach(item => {
-                        const categoryId = item.category;
-                        const categoryName = getCategoryName(categoryId);
-                        const sale = parseFloat(item.sale || 0);
-                        const cost = parseFloat(item.cost || 0);
-
-                        // Apply category filter
-                        if (categoryFilter && categoryId !== categoryFilter) return;
-
-                        // Initialize category if not exists
-                        if (!branchData[branchName].categories[categoryName]) {
-                            branchData[branchName].categories[categoryName] = { sale: 0, cost: 0 };
-                        }
-
-                        branchData[branchName].categories[categoryName].sale += sale;
-                        branchData[branchName].categories[categoryName].cost += cost;
-                        branchData[branchName].totalSale += sale;
-                        branchData[branchName].totalCost += cost;
-
-                        totalSales += sale;
-                        totalCost += cost;
-                    });
-                }
-            });
-
-            return {
-                branchData,
-                totalSales,
-                totalCost,
-                totalProfit: totalSales - totalCost,
-                profitMargin: totalSales > 0 ? ((totalSales - totalCost) / totalSales * 100) : 0
-            };
-        }
-
-        // Get category name by ID
-        function getCategoryName(categoryId) {
-            const cat = categoriesData.find(c => c._id === categoryId);
-            return cat ? cat.name : 'Unknown';
-        }
-
-        // Update Summary Cards
-        function updateSummaryCards(data) {
-            document.getElementById('totalSales').textContent = formatCurrency(data.totalSales);
-            document.getElementById('totalCost').textContent = formatCurrency(data.totalCost);
-            document.getElementById('totalProfit').textContent = formatCurrency(data.totalProfit);
-            document.getElementById('profitMargin').textContent = data.profitMargin.toFixed(1) + '%';
-        }
-
-        // Render Report Table
-        function renderReportTable(data) {
+        // Render Comparison Table
+        function renderComparisonTable(categoryMap) {
             const reportContent = document.getElementById('reportContent');
 
-            if (Object.keys(data.branchData).length === 0) {
+            if (categoryMap.size === 0) {
                 reportContent.innerHTML = `
                     <div class="empty-state">
                         <i class="fas fa-inbox"></i>
@@ -864,96 +871,149 @@
                 return;
             }
 
-            let html = `
-                <table class="table data-table">
-                    <thead>
-                        <tr>
-                            <th style="text-align: left;">CATEGORY</th>
-                            <th style="text-align: center;">TOTAL SALES</th>
-                            <th style="text-align: center;">TOTAL COST</th>
-                            <th style="text-align: center;">TOTAL PROFIT</th>
-                            <th style="text-align: center;">PROFIT MARGIN</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
+            let html = '';
 
-            // Sort branches by total sales (descending - highest first)
-            // Filter out branches with no sales or no categories
-            const sortedBranches = Object.keys(data.branchData)
-                .filter(branchName => {
-                    const branch = data.branchData[branchName];
-                    return branch.totalSale > 0 && Object.keys(branch.categories).length > 0;
-                })
-                .sort((a, b) => {
-                    return data.branchData[b].totalSale - data.branchData[a].totalSale;
+            // Sort categories alphabetically
+            const sortedCategories = Array.from(categoryMap.keys()).sort();
+
+            sortedCategories.forEach(categoryName => {
+                const branches = categoryMap.get(categoryName);
+
+                // Calculate category totals
+                let categoryTotalSales = 0;
+                let categoryTotalCost = 0;
+                let categoryTotalProfit = 0;
+
+                branches.forEach(branch => {
+                    categoryTotalSales += branch.sales;
+                    categoryTotalCost += branch.cost;
+                    categoryTotalProfit += branch.profit;
                 });
 
-            sortedBranches.forEach(branchName => {
-                const branch = data.branchData[branchName];
-                const categories = branch.categories;
+                const categoryMargin = categoryTotalSales > 0 ? (categoryTotalProfit / categoryTotalSales * 100) : 0;
 
-                // Branch header
-                console.log('Rendering branch:', branchName); // Debug
+                // Start category section with its own table
                 html += `
-                    <tr class="branch-header" style="background: linear-gradient(135deg, #17a2b8, #138496) !important;">
-                        <td colspan="5" style="text-align: left; color: white !important; padding: 10px 15px; font-weight: 600; background: transparent;">
-                            <i class="fas fa-building me-2"></i>(${branchName})
-                        </td>
-                    </tr>
+                    <div class="category-section">
+                        <table class="table data-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 80px; text-align: center;">RANK</th>
+                                    <th>BRANCH</th>
+                                    <th style="text-align: center;">TOTAL SALES</th>
+                                    <th style="text-align: center;">TOTAL COST</th>
+                                    <th style="text-align: center;">TOTAL PROFIT</th>
+                                    <th style="text-align: center; width: 150px;">PROFIT MARGIN</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="category-header">
+                                    <td colspan="6">
+                                        <i class="fas fa-folder me-2"></i>(${categoryName})
+                                    </td>
+                                </tr>
                 `;
 
-                // Categories
-                let rowIndex = 0;
-                Object.keys(categories).sort().forEach(catName => {
-                    const cat = categories[catName];
-                    const profit = cat.sale - cat.cost;
-                    const margin = cat.sale > 0 ? (profit / cat.sale * 100) : 0;
-                    const rowClass = rowIndex % 2 === 0 ? '' : 'category-row';
-                    rowIndex++;
-
+                // Branch rows (already sorted by sales)
+                branches.forEach((branch, index) => {
+                    const rank = index + 1;
                     html += `
-                        <tr class="${rowClass}">
-                            <td style="text-align: left;">${catName}</td>
-                            <td style="text-align: center;">${formatCurrency(cat.sale)}</td>
-                            <td style="text-align: center;">${formatCurrency(cat.cost)}</td>
-                            <td style="text-align: center;">${formatCurrency(profit)}</td>
-                            <td style="text-align: center;"><span class="margin-badge">${margin.toFixed(1)}%</span></td>
+                        <tr class="data-row">
+                            <td class="rank-cell">${rank}</td>
+                            <td>${branch.branch}</td>
+                            <td style="text-align: center;">${formatCurrency(branch.sales)}</td>
+                            <td style="text-align: center;">${formatCurrency(branch.cost)}</td>
+                            <td style="text-align: center;">${formatCurrency(branch.profit)}</td>
+                            <td style="text-align: center;"><span class="margin-badge">${branch.margin.toFixed(1)}%</span></td>
                         </tr>
                     `;
                 });
 
-                // Branch total
-                const branchProfit = branch.totalSale - branch.totalCost;
-                const branchMargin = branch.totalSale > 0 ? (branchProfit / branch.totalSale * 100) : 0;
+                // Category Total Row
                 html += `
-                    <tr class="branch-total-row">
-                        <td style="text-align: left;"><i class="fas fa-calculator me-2"></i><strong>Branch Total:</strong></td>
-                        <td style="text-align: center;"><strong>${formatCurrency(branch.totalSale)}</strong></td>
-                        <td style="text-align: center;"><strong>${formatCurrency(branch.totalCost)}</strong></td>
-                        <td style="text-align: center;"><strong>${formatCurrency(branchProfit)}</strong></td>
-                        <td style="text-align: center;"><span class="margin-badge">${branchMargin.toFixed(1)}%</span></td>
+                            <tr class="category-total-row">
+                                <td colspan="2" style="text-align: left;"><i class="fas fa-calculator me-2"></i><strong>Category Total:</strong></td>
+                                <td style="text-align: center;"><strong>${formatCurrency(categoryTotalSales)}</strong></td>
+                                <td style="text-align: center;"><strong>${formatCurrency(categoryTotalCost)}</strong></td>
+                                <td style="text-align: center;"><strong>${formatCurrency(categoryTotalProfit)}</strong></td>
+                                <td style="text-align: center;"><span class="margin-badge">${categoryMargin.toFixed(1)}%</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                `;
+            });
+
+            // ADD BRANCH-WISE SUMMARY AT THE BOTTOM
+            const branchMap = new Map(); // branchName -> {sales, cost, profit}
+            categoryMap.forEach((branches) => {
+                branches.forEach(b => {
+                    if (!branchMap.has(b.branch)) {
+                        branchMap.set(b.branch, { sales: 0, cost: 0, profit: 0 });
+                    }
+                    const data = branchMap.get(b.branch);
+                    data.sales += b.sales;
+                    data.cost += b.cost;
+                    data.profit += b.profit;
+                });
+            });
+
+            let summaryHtml = `
+                <div class="category-section mt-5">
+                    <div class="card-header-custom" style="border-radius: 0;">
+                        <i class="fas fa-chart-bar me-2"></i>BRANCH-WISE SUMMARY (ALL CATEGORIES)
+                    </div>
+                    <table class="table data-table mb-0">
+                        <thead>
+                            <tr>
+                                <th style="text-align: left;">BRANCH NAME</th>
+                                <th style="text-align: center;">TOTAL SALES</th>
+                                <th style="text-align: center;">TOTAL COST</th>
+                                <th style="text-align: center;">TOTAL PROFIT</th>
+                                <th style="text-align: center; width: 150px;">PROFIT MARGIN</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            let grandTotalSales = 0;
+            let grandTotalCost = 0;
+            let grandTotalProfit = 0;
+
+            Array.from(branchMap.keys()).sort().forEach(branchName => {
+                const data = branchMap.get(branchName);
+                const margin = data.sales > 0 ? (data.profit / data.sales * 100) : 0;
+
+                grandTotalSales += data.sales;
+                grandTotalCost += data.cost;
+                grandTotalProfit += data.profit;
+
+                summaryHtml += `
+                    <tr>
+                        <td style="text-align: left;"><i class="fas fa-building me-2 text-info"></i>${branchName}</td>
+                        <td style="text-align: center;">${formatCurrency(data.sales)}</td>
+                        <td style="text-align: center;">${formatCurrency(data.cost)}</td>
+                        <td style="text-align: center;">${formatCurrency(data.profit)}</td>
+                        <td style="text-align: center;"><span class="margin-badge">${margin.toFixed(1)}%</span></td>
                     </tr>
                 `;
             });
 
-            // Grand Total Row
-            html += `
-                <tr class="total-row">
-                    <td style="text-align: right;"><strong>GRAND TOTAL:</strong></td>
-                    <td style="text-align: center;"><strong>${formatCurrency(data.totalSales)}</strong></td>
-                    <td style="text-align: center;"><strong>${formatCurrency(data.totalCost)}</strong></td>
-                    <td style="text-align: center;"><strong>${formatCurrency(data.totalProfit)}</strong></td>
-                    <td style="text-align: center;"><span class="margin-badge" style="background: #28a745;">${data.profitMargin.toFixed(1)}%</span></td>
-                </tr>
-            `;
-
-            html += `
+            const grandMargin = grandTotalSales > 0 ? (grandTotalProfit / grandTotalSales * 100) : 0;
+            summaryHtml += `
+                        <tr class="total-row">
+                            <td style="text-align: right;"><strong>GRAND TOTAL:</strong></td>
+                            <td style="text-align: center;"><strong>${formatCurrency(grandTotalSales)}</strong></td>
+                            <td style="text-align: center;"><strong>${formatCurrency(grandTotalCost)}</strong></td>
+                            <td style="text-align: center;"><strong>${formatCurrency(grandTotalProfit)}</strong></td>
+                            <td style="text-align: center;"><span class="margin-badge" style="background: #28a745;">${grandMargin.toFixed(1)}%</span></td>
+                        </tr>
                     </tbody>
                 </table>
+            </div>
             `;
 
-            reportContent.innerHTML = html;
+            reportContent.innerHTML = html + summaryHtml;
         }
 
         // Print Report

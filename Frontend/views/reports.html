@@ -107,7 +107,8 @@
             </div>
             <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center;">
                 <div class="dropdown">
-                    <div class="d-flex align-items-center text-white" data-bs-toggle="dropdown" style="cursor: pointer;">
+                    <div class="d-flex align-items-center text-white" data-bs-toggle="dropdown"
+                        style="cursor: pointer;">
                         <i class="fas fa-user-circle me-2" style="font-size: 1.2rem;"></i>
                         <span id="userName" class="me-2">User</span>
                         <i class="fas fa-chevron-down" style="font-size: 0.7rem;"></i>
@@ -250,7 +251,7 @@
                 </div>
             </div>
 
-            <!-- New Reports Row 3 (Certificate) -->
+            <!-- New Reports Row 3 (Certificate & Warehouse) -->
             <div class="row mb-4">
                 <div class="col-md-4 mb-3">
                     <div class="card shadow h-100 report-card"
@@ -260,6 +261,16 @@
                             <i class="fas fa-certificate fa-3x text-dark mb-3"></i>
                             <h5 class="card-title">Supplier WHT Certificate</h5>
                             <p class="card-text">Generate Withholding Tax Certificate</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card shadow h-100 report-card" onclick="window.location.href='/payment-reports.html'"
+                        data-permission="payment_reports_link">
+                        <div class="card-body text-center">
+                            <i class="fas fa-file-invoice-dollar fa-3x text-primary mb-3"></i>
+                            <h5 class="card-title">Warehouse Payment Report</h5>
+                            <p class="card-text">View payments against category costs across branches</p>
                         </div>
                     </div>
                 </div>
