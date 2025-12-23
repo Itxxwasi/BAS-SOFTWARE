@@ -4,6 +4,14 @@ let currentFromDate = '';
 let currentToDate = '';
 let salesChart = null;
 
+// Helper: Format Currency
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(amount || 0);
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     // Check auth
     if (window.pageAccess && typeof window.pageAccess.checkAuthentication === 'function') {
@@ -498,7 +506,7 @@ function renderPaymentUI() {
 
             branchRows += `
                 <tr>
-                    <td class="text-center fw-bold">${idx + 1}</td>
+                    <td class="text-center fw-bold d-none d-md-table-cell">${idx + 1}</td>
                     <td>${b.branch}</td>
                     <td class="text-end">${formatCurrency(b.sale)}</td>
                     <td class="text-end">${formatCurrency(b.cost)}</td>
@@ -524,18 +532,25 @@ function renderPaymentUI() {
                         <table class="table table-hover table-sm mb-0">
                             <thead class="bg-light">
                                 <tr>
-                                    <th width="5%" class="text-center">Rank</th>
+                                    <th width="5%" class="text-center d-none d-md-table-cell">Rank</th>
                                     <th>Branch</th>
                                     <th class="text-end">Sale</th>
                                     <th class="text-end">Cost</th>
-                                    <th class="text-end">Category Payments</th>
-                                    <th class="text-end">Balance Payment</th>
+                                    <th class="text-end">
+                                        <span class="d-md-none">Paid</span>
+                                        <span class="d-none d-md-inline">Category Payments</span>
+                                    </th>
+                                    <th class="text-end">
+                                        <span class="d-md-none">Bal</span>
+                                        <span class="d-none d-md-inline">Balance Payment</span>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${branchRows}
                                 <tr class="grand-total-row">
-                                    <td colspan="2" class="text-center fw-bold">Grand Total</td>
+                                    <td colspan="2" class="text-center fw-bold d-none d-md-table-cell">Grand Total</td>
+                                    <td class="text-center d-md-none">Total</td>
                                     <td class="text-end fw-bold">${formatCurrency(catSale)}</td>
                                     <td class="text-end fw-bold">${formatCurrency(catCost)}</td>
                                     <td class="text-end fw-bold">${formatCurrency(catPayment)}</td>
@@ -707,6 +722,7 @@ function renderCategoryCards(categories) {
     });
 }
 
+// --- REPLACEMENT FOR renderCategoryBreakdown ---
 function renderCategoryBreakdown(categories) {
     const container = document.getElementById('categoryBreakdownContainer');
     if (!container) return;
@@ -736,11 +752,13 @@ function renderCategoryBreakdown(categories) {
 
             tableRows += `
                 <tr>
-                    <td class="text-center fw-bold">${rank++}</td>
-                    <td>${b.branch}</td>
+                    <td class="fw-bold">
+                        <span class="text-muted small me-1">#${rank++}</span>
+                        <span class="d-inline-block text-wrap" style="min-width: 80px;">${b.branch}</span>
+                    </td>
                     <td class="text-end">${formatCurrency(b.netSale)}</td>
                     <td class="text-end">${b.cost > 0 ? formatCurrency(b.cost) : '-'}</td>
-                    <td class="text-end text-success">${formatCurrency(b.netSale - b.cost)}</td>
+                    <td class="text-end text-success d-none d-md-table-cell">${formatCurrency(b.netSale - b.cost)}</td>
                     <td class="text-end"><span class="badge bg-success">${margin.toFixed(1)}%</span></td>
                 </tr>
             `;
@@ -758,21 +776,23 @@ function renderCategoryBreakdown(categories) {
                     <table class="table table-hover mb-0">
                         <thead class="bg-light">
                             <tr>
-                                <th width="5%" class="text-center">Rank</th>
                                 <th>Branch</th>
                                 <th class="text-end">Sales</th>
                                 <th class="text-end">Cost</th>
-                                <th class="text-end">Profit</th>
+                                <th class="text-end d-none d-md-table-cell">Profit</th>
                                 <th class="text-end">Margin</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${tableRows}
                             <tr class="grand-total-row">
-                                <td colspan="2" class="text-center">Grand Total</td>
+                                <td class="fw-bold ps-3">
+                                    <span class="d-md-none">Total</span>
+                                    <span class="d-none d-md-inline">Grand Total</span>
+                                </td>
                                 <td class="text-end">${formatCurrency(tSale)}</td>
                                 <td class="text-end">${tCost > 0 ? formatCurrency(tCost) : '-'}</td>
-                                <td class="text-end">${formatCurrency(tProfit)}</td>
+                                <td class="text-end d-none d-md-table-cell">${formatCurrency(tProfit)}</td>
                                 <td class="text-end"><span class="badge bg-success">${totalMargin.toFixed(1)}%</span></td>
                             </tr>
                         </tbody>
@@ -871,7 +891,9 @@ function renderSalesChart(data) {
         }
     });
 }
+// ----------------------------------------------------------------
 
+// --- REPLACEMENT FOR renderBranchTable ---
 function renderBranchTable(data) {
     const tbody = document.getElementById('branchTableBody');
     let html = '';
@@ -889,8 +911,10 @@ function renderBranchTable(data) {
 
         html += `
             <tr>
-                <td class="text-center fw-bold">${index + 1}</td>
-                <td class="fw-bold">${b.name}</td>
+                <td class="fw-bold">
+                    <span class="text-muted small me-1">#${index + 1}</span>
+                    <span class="d-inline-block text-wrap" style="min-width: 80px;">${b.name}</span>
+                </td>
                 <td class="text-end">${b.discPct.toFixed(2)}%</td>
                 <td class="text-end fw-bold text-success">${formatCurrency(b.netSale)}</td>
                 <td class="text-end fw-bold">${formatCurrency(b.avgDailySale)}</td>
@@ -903,23 +927,23 @@ function renderBranchTable(data) {
 
     html += `
         <tr class="grand-total-row">
-            <td colspan="2" class="text-center">Grand Total</td>
+            <td class="fw-bold ps-3">
+                <span class="d-md-none">Total</span>
+                <span class="d-none d-md-inline">Grand Total</span>
+            </td>
             <td class="text-end">${totalDiscPct.toFixed(2)}%</td>
-            <td class="text-end">${formatCurrency(tNet)}</td>
-            <td class="text-end">${formatCurrency(tAvg)}</td>
+            <td class="text-end fw-bold">${formatCurrency(tNet)}</td>
+            <td class="text-end fw-bold">${formatCurrency(tAvg)}</td>
         </tr>
     `;
 
     tbody.innerHTML = html;
 }
+// ----------------------------------------------------------------
 
-function formatCurrency(amount) {
-    return new Intl.NumberFormat('en-US', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    }).format(amount || 0);
-}
-
+// --- REPLACEMENT FOR processAndRenderBranchDeptBreakdown ---
+// --- REPLACEMENT FOR processAndRenderBranchDeptBreakdown ---
+// --- REPLACEMENT FOR processAndRenderBranchDeptBreakdown ---
 function processAndRenderBranchDeptBreakdown(sheets, branchNameMap, departmentsMap) {
     const container = document.getElementById('branchDeptBreakdownContainer');
     if (!container) return;
@@ -953,7 +977,7 @@ function processAndRenderBranchDeptBreakdown(sheets, branchNameMap, departmentsM
                 const disc = parseFloat(val.discountValue || 0);
                 const ret = parseFloat(val.returnAmount || val.returnVal || 0);
                 const gst = parseFloat(val.gst || val.gstValue || 0);
-                const net = parseFloat(val.netSale || 0);
+                const net = parseFloat(val.netSaleComputer || val.totalSaleComputer || val.netSale || 0);
 
                 dStat.gross += gross;
                 dStat.disc += disc;
@@ -973,6 +997,7 @@ function processAndRenderBranchDeptBreakdown(sheets, branchNameMap, departmentsM
         html = '<div class="text-center py-3 text-muted">No branch sales data available.</div>';
     } else {
         sortedBranches.forEach(b => {
+            // Main Card Container with Overflow Hidden
             html += `<div class="mb-5 bg-white shadow-sm" style="border-radius: 8px; overflow: hidden; border: 1px solid #dee2e6;">
                 <div class="p-2 text-white text-center fw-bold text-uppercase d-flex align-items-center justify-content-center" style="background-color: #2c5364; font-size: 1.1rem; letter-spacing: 0.5px;">${b.name}</div>
                 <div class="table-responsive">
@@ -980,14 +1005,15 @@ function processAndRenderBranchDeptBreakdown(sheets, branchNameMap, departmentsM
                         <thead class="bg-light">
                             <tr>
                                 <th class="ps-3">Department</th>
-                                <th class="text-end">Gross Sale</th>
-                                <th class="text-end">Discount Value</th>
-                                <th class="text-end">Discount %</th>
-                                <th class="text-end">Return</th>
-                                <th class="text-end">Sale Value</th>
-                                <th class="text-end">GST</th>
+                                <th class="text-end">
+                                    <span class="d-md-none">Disc%</span>
+                                    <span class="d-none d-md-inline">Discount %</span>
+                                </th>
                                 <th class="text-end fw-bold">Net Sale</th>
-                                <th class="text-end pe-3">Daily Sale Average</th>
+                                <th class="text-end pe-3">
+                                    <span class="d-md-none">Avg</span>
+                                    <span class="d-none d-md-inline">Daily Sale Average</span>
+                                </th>
                             </tr>
                         </thead>
                         <tbody>`;
@@ -1009,12 +1035,7 @@ function processAndRenderBranchDeptBreakdown(sheets, branchNameMap, departmentsM
 
                 html += `<tr>
                     <td class="ps-3 fw-bold text-secondary">${d.name}</td>
-                    <td class="text-end">${formatCurrency(d.gross)}</td>
-                    <td class="text-end">${formatCurrency(d.disc)}</td>
                     <td class="text-end">${discPct.toFixed(2)}%</td>
-                    <td class="text-end">${formatCurrency(d.ret)}</td>
-                    <td class="text-end">${formatCurrency(saleVal)}</td>
-                    <td class="text-end">${formatCurrency(d.gst)}</td>
                     <td class="text-end fw-bold text-dark">${formatCurrency(d.net)}</td>
                     <td class="text-end pe-3 text-muted">${formatCurrency(avg)}</td>
                 </tr>`;
@@ -1022,13 +1043,11 @@ function processAndRenderBranchDeptBreakdown(sheets, branchNameMap, departmentsM
 
             const tDiscPct = tGross > 0 ? (tDisc / tGross) * 100 : 0;
             html += `<tr class="fw-bold text-white shadow-sm" style="background-color: #2c5364;">
-                <td class="ps-3">${b.name} - Grand Total</td>
-                <td class="text-end">${formatCurrency(tGross)}</td>
-                <td class="text-end">${formatCurrency(tDisc)}</td>
+                <td class="ps-3 fw-bold">
+                    <span class="d-md-none">Total</span>
+                    <span class="d-none d-md-inline">${b.name} - Grand Total</span>
+                </td>
                 <td class="text-end">${tDiscPct.toFixed(2)}%</td>
-                <td class="text-end">${formatCurrency(tRet)}</td>
-                <td class="text-end">${formatCurrency(tSaleVal)}</td>
-                <td class="text-end">${formatCurrency(tGst)}</td>
                 <td class="text-end">${formatCurrency(tNet)}</td>
                 <td class="text-end pe-3">${formatCurrency(tAvgSum)}</td>
             </tr>`;

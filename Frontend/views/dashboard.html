@@ -458,28 +458,28 @@
                             <div class="card-body p-0">
                                 <!-- Payment Stats Cards -->
                                 <div class="row g-0 mb-0">
-                                    <div class="col-md-3">
+                                    <div class="col-6 col-md-3">
                                         <div
                                             class="card bg-success text-white text-center p-3 shadow-sm border-0 rounded-0">
                                             <small class="text-uppercase fw-bold opacity-75">Total Sales</small>
                                             <h3 class="fw-bold my-2" id="payStatSale">12,755,356</h3>
                                         </div>
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-6 col-md-3">
                                         <div class="card text-white text-center p-3 shadow-sm border-0 rounded-0"
                                             style="background-color: #00695c;">
                                             <small class="text-uppercase fw-bold opacity-75">Total Cost</small>
                                             <h3 class="fw-bold my-2" id="payStatCost">8,466,289</h3>
                                         </div>
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-6 col-md-3">
                                         <div class="card text-white text-center p-3 shadow-sm border-0 rounded-0"
                                             style="background-color: #6366f1;">
                                             <small class="text-uppercase fw-bold opacity-75">Category Payments</small>
                                             <h3 class="fw-bold my-2" id="payStatPayment">1,879,607</h3>
                                         </div>
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-6 col-md-3">
                                         <div
                                             class="card bg-danger text-white text-center p-3 shadow-sm border-0 rounded-0">
                                             <small class="text-uppercase fw-bold opacity-75">Balance Payment</small>
@@ -537,11 +537,16 @@
                                 <table class="table table-hover mb-0">
                                     <thead>
                                         <tr>
-                                            <th width="5%">Rank</th>
                                             <th>Branch</th>
-                                            <th class="text-end">Discount %</th>
+                                            <th class="text-end">
+                                                <span class="d-md-none">Disc%</span>
+                                                <span class="d-none d-md-inline">Discount %</span>
+                                            </th>
                                             <th class="text-end text-success">Net Sale</th>
-                                            <th class="text-end">Avg Daily Sale</th>
+                                            <th class="text-end">
+                                                <span class="d-md-none">Avg</span>
+                                                <span class="d-none d-md-inline">Avg Daily Sale</span>
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody id="branchTableBody">
