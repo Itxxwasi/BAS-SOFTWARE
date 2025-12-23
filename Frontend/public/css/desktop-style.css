@@ -771,6 +771,8 @@ body {
     .page-header {
         font-size: var(--font-xl);
         padding: 10px 15px;
+        height: auto;
+        min-height: 60px;
     }
 
     .desktop-container {
