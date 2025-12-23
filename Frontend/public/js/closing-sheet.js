@@ -348,7 +348,7 @@ async function loadSheet() {
 
                 // Note: Combine depts do NOT contribute to Department Total based on current understanding
 
-            } else if (d.name === 'MEDICINE') {
+            } else if (d.name.trim().toUpperCase() === 'MEDICINE') {
                 // Medicine Logic: Opening Only
                 netValue = openingAmount;
                 if (netValue < 0) {
@@ -366,9 +366,10 @@ async function loadSheet() {
                     netValue -= salesAsCounter;
                 }
 
-                if (d.name === 'PERCENTAGE CASH' && netValue > 0) {
+                if (d.name.trim().toUpperCase() === 'PERCENTAGE CASH' && netValue > 0) {
                     calculatedPercentageCashTotal += netValue;
                 }
+
 
                 if (netValue < 0) {
                     showInList = true;
@@ -378,15 +379,10 @@ async function loadSheet() {
             }
 
             // 5. Render to List if Negative (Shortfall)
+            // 5. Render to List if Negative (Shortfall)
             if (showInList) {
-                // For MEDICINE: Show the actual negative value, not absolute
-                // For other departments: Use absolute value (shortfall)
-                let finalAmount;
-                if (d.name === 'MEDICINE') {
-                    finalAmount = netValue; // Keep the actual negative value
-                } else {
-                    finalAmount = Math.abs(netValue);
-                }
+                // Show absolute value (positive) for all shortfalls, including MEDICINE
+                const finalAmount = Math.abs(netValue);
 
                 closing01DeptTotal += finalAmount;
 
