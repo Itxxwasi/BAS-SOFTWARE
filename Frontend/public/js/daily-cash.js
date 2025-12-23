@@ -56,7 +56,10 @@ async function loadBankList() {
             if (b.branch !== branch) return false;
             // If bank has department, must match selected department
             if (b.department && b.department !== deptId) return false;
-            // If department is selected, maybe we show only related banks + general branch banks?
+
+            // Filter: Hide banks of type 'Branch Bank' (only for Pending Chq)
+            if (b.bankType === 'Branch Bank') return false;
+
             return true;
         });
 
@@ -132,8 +135,18 @@ async function loadDepartments() {
         if (data.success) {
             const filtered = data.data
                 .filter(d => d.branch === branch && d.isActive)
-                .sort((a, b) => (parseInt(a.code) || 999999) - (parseInt(b.code) || 999999));
+                .sort((a, b) => {
+                    const codeA = parseInt(a.code) || 999999;
+                    const codeB = parseInt(b.code) || 999999;
+                    return codeA - codeB || a.name.localeCompare(b.name);
+                });
             filtered.forEach(d => {
+                // Filter: Hide specialized internal departments
+                if (d.name === 'PERCENTAGE CASH' || d.name === 'CASH REC FROM COUNTER') return;
+
+                // Filter: Hide if only 'Closing_2_Comp_Sale' is set
+                if (d.closing2CompSale && !d.closing2DeptDropDown) return;
+
                 const opt = document.createElement('option');
                 opt.value = d._id;
                 opt.text = d.name;

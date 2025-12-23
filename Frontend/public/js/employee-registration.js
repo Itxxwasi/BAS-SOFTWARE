@@ -20,10 +20,20 @@ async function loadDepartments() {
         const data = await response.json();
 
         if (data.success) {
-            departments = data.data;
+            departments = data.data.sort((a, b) => {
+                const codeA = parseInt(a.code) || 999999;
+                const codeB = parseInt(b.code) || 999999;
+                return codeA - codeB || a.name.localeCompare(b.name);
+            });
             const deptSelect = document.getElementById('department');
             deptSelect.innerHTML = '<option value="">Select Department</option>';
             departments.forEach(dept => {
+                // Filter: Hide specialized internal departments
+                if (dept.name === 'PERCENTAGE CASH' || dept.name === 'CASH REC FROM COUNTER') return;
+
+                // Filter: Hide if only 'Closing_2_Comp_Sale' is set
+                if (dept.closing2CompSale && !dept.closing2DeptDropDown) return;
+
                 const option = document.createElement('option');
                 option.value = dept._id;
                 option.textContent = dept.name;

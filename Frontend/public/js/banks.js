@@ -45,9 +45,19 @@ async function loadDepartments() {
         if (data.success) {
             const filtered = data.data
                 .filter(d => d.branch === branch && d.isActive)
-                .sort((a, b) => (parseInt(a.code) || 999999) - (parseInt(b.code) || 999999));
+                .sort((a, b) => {
+                    const codeA = parseInt(a.code) || 999999;
+                    const codeB = parseInt(b.code) || 999999;
+                    return codeA - codeB || a.name.localeCompare(b.name);
+                });
 
             filtered.forEach(d => {
+                // Filter: Hide specialized internal departments
+                if (d.name === 'PERCENTAGE CASH' || d.name === 'CASH REC FROM COUNTER') return;
+
+                // Filter: Hide if only 'Closing_2_Comp_Sale' is set
+                if (d.closing2CompSale && !d.closing2DeptDropDown) return;
+
                 const opt = document.createElement('option');
                 opt.value = d._id;
                 opt.text = d.name;
@@ -98,7 +108,9 @@ async function loadBanks() {
         const data = await response.json();
 
         if (data.success) {
-            renderTable(data.data);
+            // Filter: Hide 'Branch Bank' type from general list
+            const visibleBanks = data.data.filter(b => b.bankType !== 'Branch Bank');
+            renderTable(visibleBanks);
         }
     } catch (error) {
         console.error('Error loading banks:', error);

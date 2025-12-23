@@ -143,6 +143,10 @@ async function loadBankList() {
             if (b.branch !== branch) return false;
             // If bank is specific to department, check deptId
             if (b.department && b.department !== deptId) return false;
+
+            // Filter: Hide banks of type 'Branch Bank' (only for Pending Chq)
+            if (b.bankType === 'Branch Bank') return false;
+
             return true;
         });
 

@@ -186,9 +186,23 @@ async function loadDepartments(scopeElement) {
         const data = await response.json();
         if (data.success) {
             // Filter departments: Must be active, match branch, AND have at least one bank
-            const filtered = data.data.filter(d => {
+            // Sort departments first
+            const sorted = data.data.sort((a, b) => {
+                const codeA = parseInt(a.code) || 999999;
+                const codeB = parseInt(b.code) || 999999;
+                return codeA - codeB || a.name.localeCompare(b.name);
+            });
+
+            // Filter departments: Must be active, match branch, AND have at least one bank
+            const filtered = sorted.filter(d => {
                 const isActiveAndBranch = d.branch === branch && d.isActive;
                 if (!isActiveAndBranch) return false;
+
+                // Filter: Hide specialized internal departments
+                if (d.name === 'PERCENTAGE CASH' || d.name === 'CASH REC FROM COUNTER') return false;
+
+                // Filter: Hide if only 'Closing_2_Comp_Sale' is set
+                if (d.closing2CompSale && !d.closing2DeptDropDown) return false;
 
                 // Check if any bank belongs to this department
                 // Bank department field can be ID string or object
@@ -263,9 +277,13 @@ function filterBanks(scopeElement) {
                 if (bDeptId && bDeptId !== deptVal) return false;
             }
 
-            // Only Pending Chq tab should filter by "Branch Bank" type
+            // Rule: 'Branch Bank' type is specific to Pending Chq tab
             if (scopeElement.id === 'pending-chq') {
+                // Pending Chq: Show ONLY Branch Banks
                 if (b.bankType !== 'Branch Bank') return false;
+            } else {
+                // Other Tabs: Hide Branch Banks
+                if (b.bankType === 'Branch Bank') return false;
             }
 
             return true;

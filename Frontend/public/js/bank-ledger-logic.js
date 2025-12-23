@@ -131,6 +131,9 @@ function filterBanks() {
         });
     }
 
+    // Filter: Hide 'Branch Bank' type from this report
+    filteredBanks = filteredBanks.filter(b => b.bankType !== 'Branch Bank');
+
     populateBanks(filteredBanks);
 }
 
