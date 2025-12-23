@@ -24,7 +24,7 @@ exports.getCashSales = async (req, res) => {
         }
 
         // Branch Filter
-        if (req.query.branch && req.query.branch !== 'All Branches') {
+        if (req.query.branch && req.query.branch !== 'All Branches' && req.query.branch !== 'all') {
             query.branch = req.query.branch;
         }
 

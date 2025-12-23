@@ -185,6 +185,7 @@ async function loadMetadata() {
     const deptRes = await fetch('/api/v1/departments', { headers });
     const deptData = await deptRes.json();
     globalDepartmentsMap = {};
+    window.globalFullDepartments = deptData.data || [];
     (deptData.data || []).forEach(d => globalDepartmentsMap[d._id] = d.name);
 
     // 3. Fetch Warehouse Categories
@@ -315,8 +316,24 @@ async function loadSectionB() {
 }
 
 async function loadSectionC() {
-    // Process Branch Dept Breakdown (Uses Global Sheets, BranchMap, DeptMap)
-    processAndRenderBranchDeptBreakdown(globalSheets, globalBranchMap, globalDepartmentsMap);
+    // Fetch Cash Sales for "Cash Counter Tab" departments (Optics, Undergarments, etc.)
+    // These are not in closing02 usually.
+    const token = localStorage.getItem('token');
+    const headers = { 'Authorization': `Bearer ${token}` };
+
+    let cashSales = [];
+    try {
+        const csRes = await fetch(`/api/v1/cash-sales?startDate=${currentFromDate}&endDate=${currentToDate}&branch=all`, { headers });
+        const csData = await csRes.json();
+        if (csData.success) {
+            cashSales = csData.data || [];
+        }
+    } catch (err) {
+        console.error("Error fetching cash sales for dashboard:", err);
+    }
+
+    // Process Branch Dept Breakdown (Uses Global Sheets, Cash Sales, BranchMap, DeptMap)
+    processAndRenderBranchDeptBreakdown(globalSheets, cashSales, globalBranchMap, globalDepartmentsMap);
 }
 
 let paymentDataCache = []; // Store calculated data for filtering
@@ -549,7 +566,8 @@ function renderPaymentUI() {
                             <tbody>
                                 ${branchRows}
                                 <tr class="grand-total-row">
-                                    <td colspan="2" class="text-center fw-bold d-none d-md-table-cell">Grand Total</td>
+                                    <td class="d-none d-md-table-cell"></td>
+                                    <td class="text-end fw-bold d-none d-md-table-cell">Grand Total</td>
                                     <td class="text-center d-md-none">Total</td>
                                     <td class="text-end fw-bold">${formatCurrency(catSale)}</td>
                                     <td class="text-end fw-bold">${formatCurrency(catCost)}</td>
@@ -942,42 +960,90 @@ function renderBranchTable(data) {
 // ----------------------------------------------------------------
 
 // --- REPLACEMENT FOR processAndRenderBranchDeptBreakdown ---
-// --- REPLACEMENT FOR processAndRenderBranchDeptBreakdown ---
-// --- REPLACEMENT FOR processAndRenderBranchDeptBreakdown ---
-function processAndRenderBranchDeptBreakdown(sheets, branchNameMap, departmentsMap) {
+function processAndRenderBranchDeptBreakdown(sheets, cashSales, branchNameMap, departmentsMap) {
     const container = document.getElementById('branchDeptBreakdownContainer');
     if (!container) return;
 
     const normalize = (name) => (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const stats = {};
 
-    sheets.forEach(sheet => {
-        const rawName = sheet.branch || 'Unknown';
-        const targetBranchName = branchNameMap.get(normalize(rawName));
-        if (!targetBranchName) return;
-
+    // Helper to get or create branch stats
+    const getBStat = (branchName) => {
+        const targetBranchName = branchNameMap.get(normalize(branchName));
+        if (!targetBranchName) return null;
         if (!stats[targetBranchName]) {
             stats[targetBranchName] = { name: targetBranchName, totalNet: 0, depts: {} };
         }
+        return stats[targetBranchName];
+    };
 
-        const bStat = stats[targetBranchName];
+    // Helper to check filter logic (shared between Closing 2 and Cash Sales)
+    const shouldHideDept = (deptId, dName) => {
+        // Find configuration
+        const deptConfig = window.globalFullDepartments?.find(d => d._id === deptId) ||
+            window.globalFullDepartments?.find(d => d.name === dName);
+
+        if (deptConfig) {
+
+            // Explicitly FORCE SHOW for critical departments
+            if (deptConfig.combineDepSales) return false; // Always Show
+            if (deptConfig.isCashCounter) return false; // Always Show
+
+            const hasClosing2CompSale = deptConfig.closing2CompSale === true;
+
+            // Check if ANY other functional flag is true to determine if it's a "Only Closing 2" dept
+            const hasOtherChecks =
+                deptConfig.combineDepSales ||
+                deptConfig.receivingForward ||
+                deptConfig.deductUgSale ||
+                deptConfig.deductUgSaleFromAllDep ||
+                deptConfig.openingForward ||
+                deptConfig.bigCashForward ||
+                deptConfig.deductOptSale ||
+                deptConfig.closing ||
+                deptConfig.isCashCounter ||
+                deptConfig.closing2DeptDropDown;
+
+            // HIDE CONDITION:
+            // 1. It MUST have Closing_2_Comp_Sale
+            // 2. It must have NO other important checks.
+            // 3. Critically, we ensure we do NOT hide if it's explicitly one of the "Cash Counter Tab" depts (isCashCounter / deductUg / deductOpt)
+
+            if (hasClosing2CompSale && !hasOtherChecks) {
+                // console.log(`Hiding ${dName} because it is PURELY Closing 2 Comp Sale`);
+                return true; // HIDE
+            }
+        }
+        return false; // SHOW
+    };
+
+    sheets.forEach(sheet => {
+        const bStat = getBStat(sheet.branch || 'Unknown');
+        if (!bStat) return;
+
         const dData = sheet.closing02 && (sheet.closing02.data || sheet.closing02);
 
         if (dData && typeof dData === 'object') {
             Object.entries(dData).forEach(([key, val]) => {
                 if (!val || typeof val !== 'object') return;
                 const dName = departmentsMap[key] || val.name || val.deptName || 'Unknown Dept';
+                const deptId = key;
+
+                if (shouldHideDept(deptId, dName)) return;
+                if (shouldHideDept(deptId, dName)) return;
 
                 if (!bStat.depts[dName]) {
                     bStat.depts[dName] = { name: dName, gross: 0, disc: 0, ret: 0, gst: 0, net: 0, days: new Set() };
                 }
                 const dStat = bStat.depts[dName];
 
+                // Data Extraction based on Closing Sheet 2
+                const net = parseFloat(val.totalSaleComputer || val.netSale || 0);
                 const gross = parseFloat(val.grossSale || val.totalSaleComputer || 0);
                 const disc = parseFloat(val.discountValue || 0);
+
                 const ret = parseFloat(val.returnAmount || val.returnVal || 0);
                 const gst = parseFloat(val.gst || val.gstValue || 0);
-                const net = parseFloat(val.netSaleComputer || val.totalSaleComputer || val.netSale || 0);
 
                 dStat.gross += gross;
                 dStat.disc += disc;
@@ -989,6 +1055,37 @@ function processAndRenderBranchDeptBreakdown(sheets, branchNameMap, departmentsM
             });
         }
     });
+
+    // 2. Process Cash Sales (Manual / Cash Counter Sales e.g. Optics, Undergarments)
+    if (cashSales && Array.isArray(cashSales)) {
+        cashSales.forEach(sale => {
+            const bStat = getBStat(sale.branch || 'Unknown');
+            if (!bStat) return;
+
+            // Sale object structure: { branch, department: ID/Obj, amount, date, ... }
+            const deptId = (sale.department && sale.department._id) ? sale.department._id : sale.department;
+            const dName = departmentsMap[deptId] || 'Unknown Dept';
+
+            if (shouldHideDept(deptId, dName)) return;
+
+            if (!bStat.depts[dName]) {
+                bStat.depts[dName] = { name: dName, gross: 0, disc: 0, ret: 0, gst: 0, net: 0, days: new Set() };
+            }
+            const dStat = bStat.depts[dName];
+
+            const amount = parseFloat(sale.sales || sale.totalAmount || sale.amount || 0); // "sales" or "totalAmount" in CashSale model
+
+            // Cash Sales usually don't have separate discount/gross fields in this simple model, 
+            // but if they do, map them. Assuming 'amount' is the Net Sale.
+
+            dStat.net += amount;
+            dStat.gross += amount; // Assuming gross = net for simple cash sales if no disc
+            // If cash sale has discount, handle it. Usually it's just 'amount'.
+
+            dStat.days.add(sale.date ? sale.date.split('T')[0] : 'UnknownDate');
+            bStat.totalNet += amount;
+        });
+    }
 
     const sortedBranches = Object.values(stats).sort((a, b) => b.totalNet - a.totalNet);
     let html = '';
@@ -1025,13 +1122,12 @@ function processAndRenderBranchDeptBreakdown(sheets, branchNameMap, departmentsM
 
             deptList.forEach(d => {
                 const discPct = d.gross > 0 ? (d.disc / d.gross) * 100 : 0;
-                const saleVal = d.gross - d.disc - d.ret;
 
-                // Filter out Unknown Dept or empty rows
-                if (d.name === 'Unknown Dept' && d.gross === 0 && d.net === 0) return;
+                // Filter 0 sales?
+                if (d.net === 0 && d.gross === 0) return;
 
                 const avg = d.net / (d.days.size || 1);
-                tGross += d.gross; tDisc += d.disc; tRet += d.ret; tSaleVal += saleVal; tGst += d.gst; tNet += d.net; tAvgSum += avg;
+                tGross += d.gross; tDisc += d.disc; tRet += d.ret; tNet += d.net; tAvgSum += avg;
 
                 html += `<tr>
                     <td class="ps-3 fw-bold text-secondary">${d.name}</td>
@@ -1043,10 +1139,7 @@ function processAndRenderBranchDeptBreakdown(sheets, branchNameMap, departmentsM
 
             const tDiscPct = tGross > 0 ? (tDisc / tGross) * 100 : 0;
             html += `<tr class="fw-bold text-white shadow-sm" style="background-color: #2c5364;">
-                <td class="ps-3 fw-bold">
-                    <span class="d-md-none">Total</span>
-                    <span class="d-none d-md-inline">${b.name} - Grand Total</span>
-                </td>
+                <td class="ps-3 fw-bold">Grand Total</td>
                 <td class="text-end">${tDiscPct.toFixed(2)}%</td>
                 <td class="text-end">${formatCurrency(tNet)}</td>
                 <td class="text-end pe-3">${formatCurrency(tAvgSum)}</td>
@@ -1056,4 +1149,3 @@ function processAndRenderBranchDeptBreakdown(sheets, branchNameMap, departmentsM
     }
     container.innerHTML = html;
 }
-
