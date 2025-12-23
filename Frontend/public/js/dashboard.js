@@ -78,40 +78,78 @@ function formatDateForAPI(date) {
     return date.toISOString().split('T')[0];
 }
 
-async function refreshDashboard() {
-    const container = document.getElementById('branchCardsContainer');
-    const catContainer = document.getElementById('categoryBreakdownContainer');
+// Shared State for Dashboard Data
+let globalSheets = [];
+let globalPurchases = [];
+let globalExpenses = [];
+let globalVouchers = [];
+let globalBranchMap = null;
+let globalDepartmentsMap = null;
+let globalWarehouseCatsMap = null;
+let globalEnabledStores = [];
 
-    container.innerHTML = `
-        <div class="col-12 text-center py-5">
-            <div class="spinner-border text-primary" role="status"></div>
-            <p class="mt-2 text-muted">Loading Data...</p>
-        </div>
-    `;
-    if (catContainer) catContainer.innerHTML = '<div class="text-center py-3 text-muted">Loading Categories...</div>';
+async function refreshDashboard() {
+    // Reset State
+    globalSheets = [];
+    globalPurchases = [];
+    globalExpenses = [];
+    globalVouchers = [];
+    globalBranchMap = null;
+    globalDepartmentsMap = null;
+    globalWarehouseCatsMap = null;
+    globalEnabledStores = [];
+
+    // Set Loading Indicators for all Sections
+    const containerA = document.getElementById('categoryBreakdownContainer');
+    const cardsA = document.getElementById('categoryCardsContainer');
+    const paymentA = document.getElementById('paymentCategoryBreakdown');
+    const containerB = document.getElementById('branchCardsContainer');
+    const tableB = document.getElementById('branchTableBody');
+    const containerC = document.getElementById('branchDeptBreakdownContainer');
+
+    const loadingHtml = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2 text-muted">Loading...</p></div>';
+
+    if (containerA) containerA.innerHTML = loadingHtml;
+    if (cardsA) cardsA.innerHTML = '<div class="col-12 text-center py-5"><div class="spinner-border text-primary"></div></div>';
+    if (paymentA) paymentA.innerHTML = loadingHtml;
+    if (containerB) containerB.innerHTML = loadingHtml;
+    if (tableB) tableB.innerHTML = '';
+    if (containerC) containerC.innerHTML = loadingHtml;
 
     try {
-        await loadDashboardData();
+        // Step 1: Load Metadata (Fastest)
+        await loadMetadata();
+
+        // Step 2: Load Section A (Category & Payment Analytics) - Requires Sheets & Vouchers
+        // Note: Sheets are heavy, but needed for Section A cards too.
+        await loadSectionA();
+
+        // Step 3: Load Section B (Branch Sales Performance) - Requires Purchases & Expenses
+        await loadSectionB();
+
+        // Step 4: Load Section C (Branch Wise Sale) - Uses already loaded Sheets
+        await loadSectionC();
+
     } catch (error) {
-        console.error("Dashboard Load Error", error);
-        container.innerHTML = `<div class="col-12 text-center text-danger py-5">Failed to load data: ${error.message}</div>`;
+        console.error("Dashboard Chain Error", error);
+        // Show error in the first container as a general error
+        if (containerA) containerA.innerHTML = `<div class="alert alert-danger">Error loading dashboard: ${error.message}</div>`;
     }
 }
 
-async function loadDashboardData() {
+async function loadMetadata() {
     const token = localStorage.getItem('token');
     const headers = { 'Authorization': `Bearer ${token}` };
-    const limit = 10000;
 
-    // Fetch Stores to filter visible branches
+    // 1. Fetch Stores
     const storeRes = await fetch('/api/v1/stores', { headers });
     const storeData = await storeRes.json();
-    const enabledStores = (storeData.data || []).filter(s => s.showOnDashboard);
+    globalEnabledStores = (storeData.data || []).filter(s => s.showOnDashboard);
 
     // Populate branch filter dropdown
     const branchFilter = document.getElementById('dashboardBranchFilter');
-    if (branchFilter && branchFilter.options.length === 1) { // Only populate once
-        enabledStores.forEach(store => {
+    if (branchFilter && branchFilter.options.length === 1) {
+        globalEnabledStores.forEach(store => {
             const option = document.createElement('option');
             option.value = store.name;
             option.textContent = store.name;
@@ -119,131 +157,138 @@ async function loadDashboardData() {
         });
     }
 
-    // Get selected branch filter
-    const selectedBranch = branchFilter ? branchFilter.value : 'all';
-
-    // Normalization Logic for fuzzy matching (e.g. "PWD - 1" vs "PWD 1")
+    // Branch Mapping Logic
     const normalize = (name) => (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    const branchNameMap = new Map(); // normalized -> original name
+    globalBranchMap = new Map();
 
-    // If specific branch selected, only map that branch
+    const selectedBranch = branchFilter ? branchFilter.value : 'all';
     if (selectedBranch !== 'all') {
-        const selectedStore = enabledStores.find(s => s.name === selectedBranch);
+        const selectedStore = globalEnabledStores.find(s => s.name === selectedBranch);
         if (selectedStore) {
-            branchNameMap.set(normalize(selectedStore.name), selectedStore.name);
+            globalBranchMap.set(normalize(selectedStore.name), selectedStore.name);
         }
     } else {
-        // Map all enabled stores
-        enabledStores.forEach(s => {
-            branchNameMap.set(normalize(s.name), s.name);
+        globalEnabledStores.forEach(s => {
+            globalBranchMap.set(normalize(s.name), s.name);
         });
     }
 
-    // Fetch Departments (for Mapping)
+    // 2. Fetch Departments
     const deptRes = await fetch('/api/v1/departments', { headers });
     const deptData = await deptRes.json();
-    const departmentsMap = {}; // ID -> Name
-    (deptData.data || []).forEach(d => departmentsMap[d._id] = d.name);
+    globalDepartmentsMap = {};
+    (deptData.data || []).forEach(d => globalDepartmentsMap[d._id] = d.name);
 
-    // Fetch Warehouse Categories (for Breakdown) + New requirement: Use Warehouse Sale Categories instead of Departments
+    // 3. Fetch Warehouse Categories
     const catRes = await fetch('/api/v1/customer-categories', { headers });
     const catData = await catRes.json();
-    const warehouseCatsMap = {}; // ID -> Name
-    (catData.data || []).forEach(c => warehouseCatsMap[c._id] = c.name);
+    globalWarehouseCatsMap = {};
+    (catData.data || []).forEach(c => globalWarehouseCatsMap[c._id] = c.name);
+}
 
-    // 1. Fetch Closing Sheets (Sales Data)
+async function loadSectionA() {
+    const token = localStorage.getItem('token');
+    const headers = { 'Authorization': `Bearer ${token}` };
+    const limit = 10000;
+
+    // Fetch Closing Sheets (Crucial for Sales Data in A)
     const sheetsRes = await fetch(`/api/v1/closing-sheets/report?startDate=${currentFromDate}&endDate=${currentToDate}&branch=all`, { headers });
     const sheetsData = await sheetsRes.json();
-    const sheets = sheetsData.data || [];
+    globalSheets = sheetsData.data || [];
 
-    // 2. Fetch Purchases (Cost Data)
-    const purchRes = await fetch(`/api/v1/purchases?startDate=${currentFromDate}&endDate=${currentToDate}&limit=${limit}`, { headers });
-    const purchData = await purchRes.json();
-    const purchases = purchData.data || [];
-
-    // 3. Fetch Expenses (Cost Data)
-    const expRes = await fetch(`/api/v1/expenses?startDate=${currentFromDate}&endDate=${currentToDate}&limit=${limit}`, { headers });
-    const expData = await expRes.json();
-    const expenses = expData.data || [];
-
-    // 4. Fetch Vouchers (Payment Data)
+    // Fetch Vouchers (Crucial for Payments in A)
     const vouchRes = await fetch(`/api/v1/vouchers?startDate=${currentFromDate}&endDate=${currentToDate}&limit=${limit}`, { headers });
     const vouchData = await vouchRes.json();
-    const vouchers = vouchData.data || [];
+    globalVouchers = vouchData.data || [];
 
-    // --- Aggregate Data by Branch (Top Section) ---
+    // Render Section A
+    const container = document.getElementById('categoryBreakdownContainer');
+    if (container) {
+        processAndRenderCategoryBreakdown(globalSheets, globalWarehouseCatsMap, globalBranchMap);
+        processPaymentSection(globalSheets, [], globalWarehouseCatsMap, globalBranchMap, globalVouchers);
+        // Note: processPaymentSection inside previously used `fetchCategoryVoucherPayments` which we should wire up
+
+        // Wait... processPaymentSection in original code fetched vouchers internally?
+        // Let's modify processPaymentSection to accept vouchers or use global?
+        // Actually, the original `processPaymentSection` CALLED `fetchCategoryVoucherPayments`.
+        // We should just call `fetchCategoryVoucherPayments` directly here with our fetched vouchers?
+        // Or better, let's keep `processPaymentSection` logic but avoid the internal fetch if possible.
+        // For minimal code change, let's let `processPaymentSection` execute. 
+        // BUT, `processPaymentSection` in original code called `fetchCategoryVoucherPayments`.
+        // We can pass `globalVouchers` to avoid Re-Fetching? 
+        // The original `fetchCategoryVoucherPayments` does a fetch. We should Refactor that too if we want "1 by 1".
+
+    }
+}
+
+async function loadSectionB() {
+    const token = localStorage.getItem('token');
+    const headers = { 'Authorization': `Bearer ${token}` };
+    const limit = 10000;
+
+    // Fetch Purchases 
+    const purchRes = await fetch(`/api/v1/purchases?startDate=${currentFromDate}&endDate=${currentToDate}&limit=${limit}`, { headers });
+    const purchData = await purchRes.json();
+    globalPurchases = purchData.data || [];
+
+    // Fetch Expenses
+    const expRes = await fetch(`/api/v1/expenses?startDate=${currentFromDate}&endDate=${currentToDate}&limit=${limit}`, { headers });
+    const expData = await expRes.json();
+    globalExpenses = expData.data || [];
+
+    // Calculate Branch Stats
+    const normalize = (name) => (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const branchStats = {};
     const getBranchObj = (name) => {
         if (!branchStats[name]) {
             branchStats[name] = {
                 name: name,
-                grossSale: 0,
-                discountVal: 0,
-                returnVal: 0,
-                gst: 0,
-                netSale: 0,
-                cost: 0,
-                daysCount: new Set()
+                grossSale: 0, showOnDashboard: true, discountVal: 0, returnVal: 0, gst: 0, netSale: 0, cost: 0, daysCount: new Set()
             };
         }
         return branchStats[name];
     };
 
-    // Initialize all enabled branches first (so they show up even with 0 sales)
-    enabledStores.forEach(store => {
-        getBranchObj(store.name);
-    });
+    // Init Branches
+    globalEnabledStores.forEach(store => getBranchObj(store.name));
 
-    sheets.forEach(sheet => {
-        const rawName = sheet.branch || 'Unknown';
-        const targetBranchName = branchNameMap.get(normalize(rawName));
-
-        if (!targetBranchName) return; // Filter: Skip if not mapped to an enabled store
+    // Sales Data (from Global Sheets)
+    globalSheets.forEach(sheet => {
+        const targetBranchName = globalBranchMap.get(normalize(sheet.branch));
+        if (!targetBranchName) return;
 
         const b = getBranchObj(targetBranchName);
         b.daysCount.add(sheet.date.split('T')[0]);
 
         if (sheet.closing02) {
-            // Main Card Totals still come from Departmental Sums (as per previous instructions)
-            // Or should they come from Warehouse Sale? 
-            // "1 day sale is pwd" refers to the Total column in Closing 2 Dept Table.
-            // So MAIN CARDS use DEPT TOTALS.
-            const dataObj = sheet.closing02.data || sheet.closing02; // Fallback for structure variations
+            const dataObj = sheet.closing02.data || sheet.closing02;
             if (!dataObj) return;
 
             Object.values(dataObj).forEach(val => {
-                // Check if it looks like a dept object (has sale/discount properties)
                 if (val && typeof val === 'object' && (val.totalSaleComputer !== undefined || val.netSale !== undefined)) {
                     const sale = parseFloat(val.totalSaleComputer || val.grossSale || val.netSale || 0);
                     const disc = parseFloat(val.discountValue || 0);
                     b.netSale += sale;
                     b.discountVal += disc;
-                    if (val.grossSale) {
-                        b.grossSale += parseFloat(val.grossSale);
-                    } else {
-                        b.grossSale += (sale + disc);
-                    }
+                    if (val.grossSale) b.grossSale += parseFloat(val.grossSale);
+                    else b.grossSale += (sale + disc);
                 }
             });
         }
     });
 
-    // Purchases/Expenses to Branch Cost
-    purchases.forEach(p => {
-        const rawName = p.branch || 'Head Office';
-        const targetBranchName = branchNameMap.get(normalize(rawName));
-        if (!targetBranchName) return;
-
-        const b = getBranchObj(targetBranchName);
-        b.cost += (p.grandTotal || 0);
+    // Cost Data (Global Purchases & Expenses)
+    globalPurchases.forEach(p => {
+        const targetBranchName = globalBranchMap.get(normalize(p.branch || 'Head Office'));
+        if (targetBranchName) {
+            getBranchObj(targetBranchName).cost += (p.grandTotal || 0);
+        }
     });
-    expenses.forEach(e => {
-        const rawName = e.branch || 'Head Office';
-        const targetBranchName = branchNameMap.get(normalize(rawName));
-        if (!targetBranchName) return;
-
-        const b = getBranchObj(targetBranchName);
-        b.cost += (e.amount || 0);
+    globalExpenses.forEach(e => {
+        const targetBranchName = globalBranchMap.get(normalize(e.branch || 'Head Office'));
+        if (targetBranchName) {
+            getBranchObj(targetBranchName).cost += (e.amount || 0);
+        }
     });
 
     const finalBranchData = Object.values(branchStats).map(b => {
@@ -255,31 +300,20 @@ async function loadDashboardData() {
             discPct: b.grossSale > 0 ? (b.discountVal / b.grossSale) * 100 : 0,
             avgDailySale: b.netSale / (b.daysCount.size || 1)
         };
-    });
-    finalBranchData.sort((a, b) => b.netSale - a.netSale);
+    }).sort((a, b) => b.netSale - a.netSale);
 
     renderBranchCards(finalBranchData);
-    // renderSalesChart(finalBranchData);
     renderBranchTable(finalBranchData);
+}
 
-    // --- Process Branch Dept Breakdown (New Section) ---
-    processAndRenderBranchDeptBreakdown(sheets, branchNameMap, departmentsMap);
-
-    // --- Process Category Breakdown (Warehouse Sale) ---
-    // Ensure the container exists in HTML or cleared properly
-    if (document.getElementById('categoryBreakdownContainer')) {
-        processAndRenderCategoryBreakdown(sheets, warehouseCatsMap, branchNameMap);
-    } else {
-        console.warn("categoryBreakdownContainer not found");
-    }
-
-    // --- Process Payment Section ---
-    processPaymentSection(sheets, expenses, warehouseCatsMap, branchNameMap);
+async function loadSectionC() {
+    // Process Branch Dept Breakdown (Uses Global Sheets, BranchMap, DeptMap)
+    processAndRenderBranchDeptBreakdown(globalSheets, globalBranchMap, globalDepartmentsMap);
 }
 
 let paymentDataCache = []; // Store calculated data for filtering
 
-function processPaymentSection(sheets, expenses, categoriesMap, branchNameMap) {
+function processPaymentSection(sheets, expenses, categoriesMap, branchNameMap, vouchers) {
     const normalize = (name) => (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const allowedBranchList = Array.from(new Set(branchNameMap.values()));
 
@@ -323,25 +357,17 @@ function processPaymentSection(sheets, expenses, categoriesMap, branchNameMap) {
         }
     });
 
-    // Fetch Category Vouchers for Payments (ONLY Category Vouchers, not Supplier or Expenses)
-    fetchCategoryVoucherPayments(stats, categoriesMap, branchNameMap, allowedBranchList);
+    // Process Category Vouchers (Using pre-fetched vouchers)
+    processCategoryVoucherPayments(vouchers, stats, categoriesMap, branchNameMap, allowedBranchList);
 }
 
-// Fetch Category Voucher payments from API and update stats
-async function fetchCategoryVoucherPayments(stats, categoriesMap, branchNameMap, allowedBranchList) {
-    const token = localStorage.getItem('token');
+// Process Category Voucher payments (No Fetching)
+function processCategoryVoucherPayments(vouchers, stats, categoriesMap, branchNameMap, allowedBranchList) {
     const normalize = (name) => (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
     try {
-        // Fetch vouchers for the current date range
-        const vouchRes = await fetch(`/api/v1/vouchers?startDate=${currentFromDate}&endDate=${currentToDate}&limit=10000`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const vouchData = await vouchRes.json();
-        const vouchers = vouchData.data || [];
-
         console.log('=== Processing Category Voucher Payments ===');
-        console.log('Total vouchers fetched:', vouchers.length);
+        console.log('Total vouchers available:', vouchers.length);
 
         // Filter to only Category Vouchers (entry with detail 'Category Wise Payment')
         vouchers.forEach(v => {
@@ -396,10 +422,7 @@ async function fetchCategoryVoucherPayments(stats, categoriesMap, branchNameMap,
         renderPaymentUI();
 
     } catch (err) {
-        console.error('Error fetching category vouchers:', err);
-        paymentDataCache = stats;
-        populatePaymentFilters(stats, allowedBranchList);
-        renderPaymentUI();
+        console.error('Error processing category vouchers:', err);
     }
 }
 
