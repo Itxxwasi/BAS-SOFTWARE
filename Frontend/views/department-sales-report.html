@@ -97,14 +97,86 @@
 
         /* Print Styles */
         @media print {
-
-            /* ... */
             .data-table th {
                 background: black !important;
                 color: white !important;
                 border: 1px solid white !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+            }
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .report-container {
+                padding: 5px;
+                height: auto;
+                display: block;
+            }
+
+            .filter-panel {
+                padding: 15px;
+            }
+
+            .data-panel {
+                box-shadow: none;
+                border: 1px solid #eee;
+            }
+
+            .data-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            #topSummary {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+                padding: 10px !important;
+                background-color: #f1f3f4 !important;
+            }
+
+            #topSummary>div {
+                text-align: center;
+                background: white;
+                padding: 8px;
+                border-radius: 6px;
+                border: 1px solid #e0e0e0;
+            }
+
+            .table-container {
+                overflow-x: auto;
+            }
+
+            .data-table {
+                min-width: 800px;
+                /* Force horizontal scroll */
+                table-layout: auto !important;
+            }
+
+            .data-table th,
+            .data-table td {
+                padding: 6px 8px;
+                font-size: 11px;
+                white-space: normal;
+                /* Allow wrapping if needed */
+            }
+
+            /* Responsive Dept Header */
+            .dept-header-row {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 5px;
+            }
+
+            /* Full width buttons */
+            .filter-panel .d-flex {
+                width: 100%;
+            }
+
+            .filter-panel .btn {
+                flex: 1;
             }
         }
     </style>
@@ -398,7 +470,7 @@
 
                 // Department Header with Target Info
                 const headerHtml = `
-                    <div class="d-flex justify-content-between align-items-center mb-2 px-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2 px-3 dept-header-row">
                          <h5 class="fw-bold m-0" style="color: black; text-transform:uppercase;">${deptName}</h5>
                          <div class="text-muted small">Target Sale: <span class="fw-bold text-dark">${formatCurrency(targetSale)}</span> | Commission: <span class="fw-bold text-dark">${formatCurrency(commissionRate)}</span></div>
                     </div>
@@ -406,7 +478,7 @@
 
                 // Table
                 let tableHtml = `
-                <table class="data-table" style="table-layout: fixed; width: 100%;">
+                <table class="data-table" style="width: 100%;">
                     ${colGroupHtml}
                     <thead>
                         <tr>
@@ -521,7 +593,7 @@
             // Append Grand Total Row
             const grandTotalTable = document.createElement('table');
             grandTotalTable.className = 'data-table mt-3';
-            grandTotalTable.style.tableLayout = 'fixed';
+            // grandTotalTable.style.tableLayout = 'fixed';
             grandTotalTable.style.width = '100%';
             grandTotalTable.innerHTML = `
                 ${colGroupHtml}
