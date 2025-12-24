@@ -36,9 +36,53 @@ exports.getDailyCash = async (req, res) => {
             query.bank = { $exists: true, $ne: null };
         }
 
-        const records = await DailyCash.find(query).populate('department').populate('bank').sort({ createdAt: -1 });
+        // Use lean() to get plain objects, sort by createdAt
+        let records = await DailyCash.find(query).sort({ createdAt: -1 }).lean();
+
+        // --- Manual Population Start ---
+        // Extract unique IDs
+        const departmentIds = [...new Set(records.map(r => r.department && r.department.toString()).filter(Boolean))];
+        const bankIds = [...new Set(records.map(r => r.bank && r.bank.toString()).filter(Boolean))];
+
+        // Fetch related data from Core DB (Department and Bank models are on Core Connection)
+        // We need to require the models here or at top level. Let's assume top level import, but for safety I'll dynamic import or rely on top level. 
+        // Better to add imports at top of file interactively next step.
+        // But for this block, I will assume Department and Bank are available.
+        // Wait, I need to add the imports first before I can use them.
+        // I will do two edits. One to add imports, one to change this function.
+        // Actually I can do it all here if I assume imports are there, but I need to be safe.
+        // I'll return the modified code assuming imports will be added.
+        
+        // Since I can't guarantee imports are there yet, I will use mongoose.models to access them if they are registered globally on default connection? 
+        // No, 'require' is safer.
+        const Department = require('../models/Department');
+        const Bank = require('../models/Bank');
+
+        const departments = await Department.find({ _id: { $in: departmentIds } }).lean();
+        const banks = await Bank.find({ _id: { $in: bankIds } }).lean();
+
+        // Create lookups
+        const deptMap = {};
+        departments.forEach(d => deptMap[d._id.toString()] = d);
+
+        const bankMap = {};
+        banks.forEach(b => bankMap[b._id.toString()] = b);
+
+        // Merge data
+        records = records.map(record => {
+             if (record.department) {
+                 record.department = deptMap[record.department.toString()] || null;
+             }
+             if (record.bank) {
+                 record.bank = bankMap[record.bank.toString()] || null;
+             }
+             return record;
+        });
+        // --- Manual Population End ---
+
         res.status(200).json({ success: true, count: records.length, data: records });
     } catch (err) {
+        console.error('getDailyCash Error:', err); // Log the error
         res.status(500).json({ success: false, message: err.message });
     }
 };
