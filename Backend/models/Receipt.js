@@ -58,9 +58,9 @@ const receiptSchema = new mongoose.Schema({
 });
 
 // Generate receipt number before saving
-receiptSchema.pre('save', async function(next) {
+receiptSchema.pre('save', async function (next) {
   if (!this.isNew || this.receiptNo) return next();
-  
+
   try {
     const count = await this.constructor.countDocuments();
     const date = new Date();
@@ -74,7 +74,7 @@ receiptSchema.pre('save', async function(next) {
 });
 
 // Update party balance after receipt
-receiptSchema.post('save', async function(doc) {
+receiptSchema.post('save', async function (doc) {
   if (doc.status === 'completed') {
     const Party = mongoose.model('Party');
     const party = await Party.findById(doc.party);
@@ -91,4 +91,5 @@ receiptSchema.index({ paymentMode: 1 });
 receiptSchema.index({ status: 1 });
 receiptSchema.index({ createdBy: 1 });
 
-module.exports = mongoose.model('Receipt', receiptSchema);
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('Receipt', receiptSchema);

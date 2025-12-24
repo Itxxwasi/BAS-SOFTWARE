@@ -92,4 +92,5 @@ salesReturnSchema.pre('save', async function () {
 salesReturnSchema.index({ customerId: 1, date: -1 });
 salesReturnSchema.index({ status: 1 });
 
-module.exports = mongoose.model('SalesReturn', salesReturnSchema);
+const { transConnection } = require('../config/db');
+module.exports = transConnection.model('SalesReturn', salesReturnSchema);

@@ -87,7 +87,7 @@ customerPaymentSchema.index({ createdBy: 1 });
 // Pre-save hook to generate receipt number
 customerPaymentSchema.pre('save', async function (next) {
     if (!this.receiptNo) {
-        const count = await mongoose.model('CustomerPayment').countDocuments();
+        const count = await this.constructor.countDocuments();
         this.receiptNo = `CR-${String(count + 1).padStart(5, '0')}`;
     }
 
@@ -97,4 +97,5 @@ customerPaymentSchema.pre('save', async function (next) {
     next();
 });
 
-module.exports = mongoose.model('CustomerPayment', customerPaymentSchema);
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('CustomerPayment', customerPaymentSchema);

@@ -99,4 +99,5 @@ const customerDemandSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-module.exports = mongoose.model('CustomerDemand', customerDemandSchema);
+const { transConnection } = require('../config/db');
+module.exports = transConnection.model('CustomerDemand', customerDemandSchema);

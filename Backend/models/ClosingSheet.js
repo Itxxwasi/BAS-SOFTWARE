@@ -63,4 +63,5 @@ const ClosingSheetSchema = new mongoose.Schema({
 // index to ensure unique closing sheet per branch per date
 ClosingSheetSchema.index({ date: 1, branch: 1 }, { unique: true });
 
-module.exports = mongoose.model('ClosingSheet', ClosingSheetSchema);
+const { transConnection } = require('../config/db');
+module.exports = transConnection.model('ClosingSheet', ClosingSheetSchema);

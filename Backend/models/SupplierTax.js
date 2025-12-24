@@ -50,4 +50,5 @@ const SupplierTaxSchema = new mongoose.Schema({
 // Unique compound index on branch + date?
 SupplierTaxSchema.index({ branch: 1, date: 1 }, { unique: false });
 
-module.exports = mongoose.model('SupplierTax', SupplierTaxSchema);
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('SupplierTax', SupplierTaxSchema);

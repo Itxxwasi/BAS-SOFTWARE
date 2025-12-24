@@ -36,4 +36,5 @@ const DailyCashSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model('DailyCash', DailyCashSchema);
+const { transConnection } = require('../config/db');
+module.exports = transConnection.model('DailyCash', DailyCashSchema);

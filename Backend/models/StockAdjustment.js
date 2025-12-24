@@ -86,9 +86,9 @@ const stockAdjustmentSchema = new mongoose.Schema({
 });
 
 // Generate adjustment number before saving
-stockAdjustmentSchema.pre('save', async function(next) {
+stockAdjustmentSchema.pre('save', async function (next) {
   if (!this.isNew || this.adjustmentNo) return next();
-  
+
   try {
     const count = await this.constructor.countDocuments();
     const date = new Date();
@@ -102,10 +102,10 @@ stockAdjustmentSchema.pre('save', async function(next) {
 });
 
 // Update item stock after approval
-stockAdjustmentSchema.post('save', async function(doc) {
+stockAdjustmentSchema.post('save', async function (doc) {
   if (doc.status === 'approved') {
     const Item = mongoose.model('Item');
-    
+
     for (const item of doc.items) {
       await Item.findByIdAndUpdate(
         item.item,
@@ -121,4 +121,5 @@ stockAdjustmentSchema.index({ adjustmentType: 1 });
 stockAdjustmentSchema.index({ status: 1 });
 stockAdjustmentSchema.index({ createdBy: 1 });
 
-module.exports = mongoose.model('StockAdjustment', stockAdjustmentSchema);
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('StockAdjustment', stockAdjustmentSchema);

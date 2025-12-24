@@ -106,4 +106,5 @@ expenseSchema.index({ head: 1 });
 expenseSchema.index({ status: 1 });
 expenseSchema.index({ createdBy: 1 });
 
-module.exports = mongoose.model('Expense', expenseSchema);
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('Expense', expenseSchema);

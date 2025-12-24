@@ -97,4 +97,5 @@ bankTransactionSchema.statics.createWithLedger = async function (transactionData
   return transaction;
 };
 
-module.exports = mongoose.model('BankTransaction', bankTransactionSchema);
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('BankTransaction', bankTransactionSchema);

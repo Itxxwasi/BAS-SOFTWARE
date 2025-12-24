@@ -73,4 +73,5 @@ const EmployeeCommissionSchema = new mongoose.Schema({
 // Compound index to ensure uniqueness per type/period/branch/dept
 EmployeeCommissionSchema.index({ monthYear: 1, branch: 1, department: 1, subBranch: 1, type: 1 }, { unique: true });
 
-module.exports = mongoose.model('EmployeeCommission', EmployeeCommissionSchema);
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('EmployeeCommission', EmployeeCommissionSchema);

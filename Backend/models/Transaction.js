@@ -61,37 +61,38 @@ transactionSchema.index({ referenceType: 1, referenceId: 1 });
 transactionSchema.index({ 'entries.ledger': 1 });
 
 // Update ledger balances after saving transaction
-transactionSchema.post('save', async function(doc) {
+transactionSchema.post('save', async function (doc) {
   const Ledger = mongoose.model('Ledger');
-  
+
   for (const entry of doc.entries) {
     await Ledger.findByIdAndUpdate(
       entry.ledger,
-      { 
-        $inc: { 
-          currentBalance: entry.type === 'debit' ? entry.amount : -entry.amount 
-        } 
+      {
+        $inc: {
+          currentBalance: entry.type === 'debit' ? entry.amount : -entry.amount
+        }
       }
     );
   }
 });
 
 // Revert ledger balances if transaction is deleted
-transactionSchema.pre('remove', async function(next) {
+transactionSchema.pre('remove', async function (next) {
   const Ledger = mongoose.model('Ledger');
-  
+
   for (const entry of this.entries) {
     await Ledger.findByIdAndUpdate(
       entry.ledger,
-      { 
-        $inc: { 
-          currentBalance: entry.type === 'debit' ? -entry.amount : entry.amount 
-        } 
+      {
+        $inc: {
+          currentBalance: entry.type === 'debit' ? -entry.amount : entry.amount
+        }
       }
     );
   }
-  
+
   next();
 });
 
-module.exports = mongoose.model('Transaction', transactionSchema);
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('Transaction', transactionSchema);

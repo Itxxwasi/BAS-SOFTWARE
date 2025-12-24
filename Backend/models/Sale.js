@@ -16,12 +16,23 @@ const saleSchema = new mongoose.Schema({
         ref: 'Party',
         required: true
     },
+    // Snapshot of customer details (for cross-DB integrity and history)
+    customerDetails: {
+        name: String,
+        phone: String,
+        address: String,
+        city: String
+    },
     items: [{
         item: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Item',
             required: true
         },
+        // Snapshot item details
+        name: String,
+        code: String,
+
         quantity: {
             type: Number,
             required: true,
@@ -51,6 +62,7 @@ const saleSchema = new mongoose.Schema({
         required: true,
         min: 0
     },
+
     taxAmount: {
         type: Number,
         default: 0
@@ -137,4 +149,62 @@ saleSchema.pre('save', async function () {
     }
 });
 
-module.exports = mongoose.model('Sale', saleSchema);
+// Cross-DB Snapshot Hook: Ensures Party and Item names are stored for 10-year integrity
+saleSchema.pre('save', async function (next) {
+    // Only run if necessary
+    if (!this.isModified('party') && !this.isModified('items') && !this.isNew) return next();
+
+    try {
+        const mongoose = require('mongoose'); // Access Default (Core) Connection
+
+        // 1. Snapshot Party Details
+        if (this.isModified('party') || (this.isNew && !this.customerDetails?.name)) {
+            let Party;
+            try { Party = mongoose.model('Party'); } catch (e) { /* model might not be registered if server.js didn't load it */ }
+
+            if (Party && this.party) {
+                const partyData = await Party.findById(this.party).select('name phone address city').lean();
+                if (partyData) {
+                    this.customerDetails = {
+                        name: partyData.name,
+                        phone: partyData.phone,
+                        address: partyData.address,
+                        city: partyData.city
+                    };
+                }
+            }
+        }
+
+        // 2. Snapshot Item Names
+        if (this.isModified('items') || this.isNew) {
+            let Item;
+            try { Item = mongoose.model('Item'); } catch (e) { }
+
+            if (Item && this.items && this.items.length > 0) {
+                const itemIds = this.items.filter(i => i.item && !i.name).map(i => i.item);
+                if (itemIds.length > 0) {
+                    const itemsData = await Item.find({ _id: { $in: itemIds } }).select('name code').lean();
+                    const itemMap = new Map(itemsData.map(i => [i._id.toString(), i]));
+
+                    for (const lineItem of this.items) {
+                        if (lineItem.item && itemMap.has(lineItem.item.toString())) {
+                            const data = itemMap.get(lineItem.item.toString());
+                            lineItem.name = data.name;
+                            lineItem.code = data.code;
+                        }
+                    }
+                }
+            }
+        }
+        next();
+    } catch (err) {
+        console.error('Snapshot Warning:', err);
+        next(); // Proceed anyway
+    }
+});
+
+const { transConnection } = require('../config/db');
+
+// Register model on the Transactions Database Connection
+module.exports = transConnection.model('Sale', saleSchema);
+

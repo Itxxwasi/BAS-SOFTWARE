@@ -178,52 +178,58 @@ app.use(express.static(path.join(__dirname, '../Frontend/views'), {
 // ... [skipping db connection] ...
 
 // Database connection
-mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/sales-inventory')
-  .then(async () => {
-    console.log('Connected to MongoDB');
+const { connectDB } = require('./config/db');
 
-    try {
-      // Migration: Generate codes for parties that don't have one
-      const Party = require('./models/Party');
-      const partiesWithoutCode = await Party.find({ code: { $exists: false } });
+connectDB().then(() => {
+  // Database connection successful
 
-      if (partiesWithoutCode.length > 0) {
-        console.log(`Found ${partiesWithoutCode.length} parties without code. Generating codes...`);
-        let nextCode = 1;
+  // Run Migration Logic after connection
+  runMigrations();
+});
 
-        // Find highest existing code to start from
-        const lastParty = await Party.findOne({ code: { $exists: true } }).sort({ code: -1 });
-        if (lastParty && lastParty.code) {
-          const parts = lastParty.code.split('-');
-          if (parts.length > 1 && !isNaN(parts[1])) {
-            nextCode = parseInt(parts[1]) + 1;
-          }
+// Separated migration logic for clarity
+async function runMigrations() {
+  try {
+    // Migration: Generate codes for parties that don't have one
+    const Party = require('./models/Party');
+    const partiesWithoutCode = await Party.find({ code: { $exists: false } });
+
+    if (partiesWithoutCode.length > 0) {
+      console.log(`Found ${partiesWithoutCode.length} parties without code. Generating codes...`);
+      let nextCode = 1;
+
+      // Find highest existing code to start from
+      const lastParty = await Party.findOne({ code: { $exists: true } }).sort({ code: -1 });
+      if (lastParty && lastParty.code) {
+        const parts = lastParty.code.split('-');
+        if (parts.length > 1 && !isNaN(parts[1])) {
+          nextCode = parseInt(parts[1]) + 1;
         }
-
-        for (const party of partiesWithoutCode) {
-          let newCode = '';
-          let isUnique = false;
-          while (!isUnique) {
-            newCode = `CUST-${String(nextCode).padStart(3, '0')}`;
-            const exists = await Party.findOne({ code: newCode });
-            if (!exists) {
-              isUnique = true;
-            } else {
-              nextCode++;
-            }
-          }
-          party.code = newCode;
-          await party.save();
-          console.log(`Assigned code ${newCode} to party ${party.name}`);
-          nextCode++;
-        }
-        console.log('Party code migration completed.');
       }
-    } catch (err) {
-      console.error('Migration error:', err);
+
+      for (const party of partiesWithoutCode) {
+        let newCode = '';
+        let isUnique = false;
+        while (!isUnique) {
+          newCode = `CUST-${String(nextCode).padStart(3, '0')}`;
+          const exists = await Party.findOne({ code: newCode });
+          if (!exists) {
+            isUnique = true;
+          } else {
+            nextCode++;
+          }
+        }
+        party.code = newCode;
+        await party.save();
+        console.log(`Assigned code ${newCode} to party ${party.name}`);
+        nextCode++;
+      }
+      console.log('Party code migration completed.');
     }
-  })
-  .catch(err => console.error('MongoDB connection error:', err));
+  } catch (err) {
+    console.error('Migration error:', err);
+  }
+}
 
 // Health check
 app.get('/api/v1/ping', (req, res) => {

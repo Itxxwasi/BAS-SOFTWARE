@@ -38,4 +38,5 @@ const SupplierTaxCPRSchema = new mongoose.Schema({
     }
 });
 
-module.exports = mongoose.model('SupplierTaxCPR', SupplierTaxCPRSchema);
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('SupplierTaxCPR', SupplierTaxCPRSchema);

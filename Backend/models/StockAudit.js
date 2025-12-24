@@ -85,4 +85,5 @@ stockAuditSchema.pre('save', async function (next) {
     next();
 });
 
-module.exports = mongoose.model('StockAudit', stockAuditSchema);
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('StockAudit', stockAuditSchema);

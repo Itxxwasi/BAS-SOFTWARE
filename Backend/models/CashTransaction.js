@@ -54,9 +54,9 @@ cashTransactionSchema.index({ type: 1, date: -1 });
 cashTransactionSchema.index({ refType: 1, refId: 1 });
 
 // Static method to create cash transaction and corresponding ledger entries
-cashTransactionSchema.statics.createWithLedger = async function(transactionData, session) {
+cashTransactionSchema.statics.createWithLedger = async function (transactionData, session) {
   const transaction = new this(transactionData);
-  
+
   // Create ledger entry for cash account
   const ledgerEntry = {
     ledgerId: null, // Will be set to cash ledger ID
@@ -68,15 +68,16 @@ cashTransactionSchema.statics.createWithLedger = async function(transactionData,
     refId: transaction._id,
     createdBy: transaction.createdBy
   };
-  
+
   if (session) {
     await transaction.save({ session });
     // Ledger entry will be created by the calling function with proper ledger ID
   } else {
     await transaction.save();
   }
-  
+
   return transaction;
 };
 
-module.exports = mongoose.model('CashTransaction', cashTransactionSchema);
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('CashTransaction', cashTransactionSchema);

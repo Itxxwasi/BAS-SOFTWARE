@@ -16,6 +16,7 @@ const PayrollSchema = new mongoose.Schema({
     },
 
     // Employee Profile Info
+    employeeName: String, // Added for snapshot
     code: String,
     bank: String,
     department: String,
@@ -78,4 +79,28 @@ const PayrollSchema = new mongoose.Schema({
 // Compound index for employee and month
 PayrollSchema.index({ employee: 1, monthYear: 1 }, { unique: true });
 
-module.exports = mongoose.model('Payroll', PayrollSchema);
+// Snapshot Hook
+PayrollSchema.pre('save', async function (next) {
+    if (this.isModified('employee') || (this.isNew && !this.employeeName)) {
+        try {
+            const mongoose = require('mongoose');
+            const Employee = mongoose.model('Employee');
+            if (Employee && this.employee) {
+                const emp = await Employee.findById(this.employee).lean();
+                if (emp) {
+                    this.employeeName = emp.name;
+                    // Other fields might be set by controller but we ensure name here
+                    if (!this.code) this.code = emp.code;
+                    if (!this.department) this.department = emp.department;
+                    if (!this.designation) this.designation = emp.designation;
+                }
+            }
+        } catch (e) {
+            console.error('Payroll Snapshot Error:', e);
+        }
+    }
+    next();
+});
+
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('Payroll', PayrollSchema);

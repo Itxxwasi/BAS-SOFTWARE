@@ -58,9 +58,9 @@ const paymentSchema = new mongoose.Schema({
 });
 
 // Generate payment number before saving
-paymentSchema.pre('save', async function(next) {
+paymentSchema.pre('save', async function (next) {
   if (!this.isNew || this.paymentNo) return next();
-  
+
   try {
     const count = await this.constructor.countDocuments();
     const date = new Date();
@@ -74,7 +74,7 @@ paymentSchema.pre('save', async function(next) {
 });
 
 // Update party balance after payment
-paymentSchema.post('save', async function(doc) {
+paymentSchema.post('save', async function (doc) {
   if (doc.status === 'completed') {
     const Party = mongoose.model('Party');
     const party = await Party.findById(doc.party);
@@ -91,4 +91,5 @@ paymentSchema.index({ paymentMode: 1 });
 paymentSchema.index({ status: 1 });
 paymentSchema.index({ createdBy: 1 });
 
-module.exports = mongoose.model('Payment', paymentSchema);
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('Payment', paymentSchema);

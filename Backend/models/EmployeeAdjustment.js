@@ -31,4 +31,5 @@ const EmployeeAdjustmentSchema = new mongoose.Schema({
     timestamps: true
 });
 
-module.exports = mongoose.model('EmployeeAdjustment', EmployeeAdjustmentSchema);
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('EmployeeAdjustment', EmployeeAdjustmentSchema);

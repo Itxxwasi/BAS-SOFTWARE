@@ -63,7 +63,7 @@ const referenceImageSchema = new mongoose.Schema({
 });
 
 // Indexes
-referenceImageSchema.index({ imageCode: 1 });
+
 referenceImageSchema.index({ category: 1 });
 referenceImageSchema.index({ isActive: 1 });
 referenceImageSchema.index({ uploadedBy: 1 });

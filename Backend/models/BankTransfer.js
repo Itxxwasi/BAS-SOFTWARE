@@ -46,4 +46,5 @@ const bankTransferSchema = new mongoose.Schema({
     timestamps: true
 });
 
-module.exports = mongoose.model('BankTransfer', bankTransferSchema);
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('BankTransfer', bankTransferSchema);

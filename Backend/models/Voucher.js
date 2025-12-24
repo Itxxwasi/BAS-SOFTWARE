@@ -74,7 +74,7 @@ voucherSchema.index({ createdBy: 1 });
 // Combined Pre-save hook for Voucher No generation and totals calculation
 voucherSchema.pre('save', async function () {
     if (!this.voucherNo) {
-        const count = await mongoose.model('Voucher').countDocuments({ voucherType: this.voucherType });
+        const count = await this.constructor.countDocuments({ voucherType: this.voucherType });
         const prefix = this.voucherType.toUpperCase();
         this.voucherNo = `${prefix}-${String(count + 1).padStart(2, '0')}`;
     }
@@ -89,4 +89,5 @@ voucherSchema.pre('save', async function () {
     }
 });
 
-module.exports = mongoose.model('Voucher', voucherSchema);
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('Voucher', voucherSchema);

@@ -23,4 +23,5 @@ CashSaleSchema.index({ date: 1 });
 CashSaleSchema.index({ branch: 1 });
 CashSaleSchema.index({ date: 1, branch: 1 });
 
-module.exports = mongoose.model('CashSale', CashSaleSchema);
+const { transConnection } = require('../config/db');
+module.exports = transConnection.model('CashSale', CashSaleSchema);

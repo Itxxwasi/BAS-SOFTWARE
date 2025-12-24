@@ -49,4 +49,5 @@ const employeeAdvanceSchema = new mongoose.Schema({
     timestamps: true
 });
 
-module.exports = mongoose.model('EmployeeAdvance', employeeAdvanceSchema);
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('EmployeeAdvance', employeeAdvanceSchema);

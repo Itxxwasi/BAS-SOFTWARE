@@ -32,4 +32,5 @@ const EmployeePenaltySchema = new mongoose.Schema({
     timestamps: true
 });
 
-module.exports = mongoose.model('EmployeePenalty', EmployeePenaltySchema);
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('EmployeePenalty', EmployeePenaltySchema);

@@ -87,7 +87,7 @@ supplierPaymentSchema.index({ createdBy: 1 });
 // Pre-save hook to generate payment number
 supplierPaymentSchema.pre('save', async function (next) {
     if (!this.paymentNo) {
-        const count = await mongoose.model('SupplierPayment').countDocuments();
+        const count = await this.constructor.countDocuments();
         this.paymentNo = `SP-${String(count + 1).padStart(5, '0')}`;
     }
 
@@ -97,4 +97,5 @@ supplierPaymentSchema.pre('save', async function (next) {
     next();
 });
 
-module.exports = mongoose.model('SupplierPayment', supplierPaymentSchema);
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('SupplierPayment', supplierPaymentSchema);

@@ -10,7 +10,7 @@ const auditLogSchema = new mongoose.Schema({
     type: String,
     required: true,
     enum: [
-      'user', 'item', 'party', 'sale', 'purchase', 'payment', 'receipt', 
+      'user', 'item', 'party', 'sale', 'purchase', 'payment', 'receipt',
       'expense', 'income', 'stock_adjustment', 'company', 'settings', 'other'
     ]
   },
@@ -53,7 +53,7 @@ auditLogSchema.index({ action: 1, entity: 1 });
 auditLogSchema.index({ performedBy: 1 });
 
 // Static method to log an action
-auditLogSchema.statics.log = async function(data) {
+auditLogSchema.statics.log = async function (data) {
   try {
     const log = new this({
       action: data.action || 'other',
@@ -73,4 +73,5 @@ auditLogSchema.statics.log = async function(data) {
   }
 };
 
-module.exports = mongoose.model('AuditLog', auditLogSchema);
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('AuditLog', auditLogSchema);

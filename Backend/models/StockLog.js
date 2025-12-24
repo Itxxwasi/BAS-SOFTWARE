@@ -60,28 +60,28 @@ stockLogSchema.index({ refType: 1, refId: 1 });
 stockLogSchema.index({ type: 1, date: -1 });
 
 // Static method to create stock log
-stockLogSchema.statics.createLog = async function(logData, session) {
+stockLogSchema.statics.createLog = async function (logData, session) {
   const stockLog = new this(logData);
-  
+
   if (session) {
     await stockLog.save({ session });
   } else {
     await stockLog.save();
   }
-  
+
   return stockLog;
 };
 
 // Static method to get stock movement summary for an item
-stockLogSchema.statics.getMovementSummary = async function(itemId, startDate, endDate) {
+stockLogSchema.statics.getMovementSummary = async function (itemId, startDate, endDate) {
   const matchCondition = { itemId };
-  
+
   if (startDate || endDate) {
     matchCondition.date = {};
     if (startDate) matchCondition.date.$gte = startDate;
     if (endDate) matchCondition.date.$lte = endDate;
   }
-  
+
   const summary = await this.aggregate([
     { $match: matchCondition },
     {
@@ -92,8 +92,9 @@ stockLogSchema.statics.getMovementSummary = async function(itemId, startDate, en
       }
     }
   ]);
-  
+
   return summary;
 };
 
-module.exports = mongoose.model('StockLog', stockLogSchema);
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('StockLog', stockLogSchema);

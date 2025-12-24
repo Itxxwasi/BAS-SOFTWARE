@@ -53,7 +53,7 @@ const ledgerEntrySchema = new mongoose.Schema({
 
 // Validation: Either debit or credit must be zero (not both)
 // Note: Using async function to avoid next parameter issues
-ledgerEntrySchema.pre('save', async function() {
+ledgerEntrySchema.pre('save', async function () {
   // Validate that both debit and credit are not positive
   if (this.debit > 0 && this.credit > 0) {
     throw new Error('Both debit and credit cannot be positive in the same entry');
@@ -70,14 +70,14 @@ ledgerEntrySchema.index({ refType: 1, refId: 1 });
 ledgerEntrySchema.index({ date: -1 });
 
 // Static method to create double entry
-ledgerEntrySchema.statics.createDoubleEntry = async function(entries, session) {
+ledgerEntrySchema.statics.createDoubleEntry = async function (entries, session) {
   const ledgerEntries = [];
-  
+
   for (const entry of entries) {
     const ledgerEntry = new this(entry);
     ledgerEntries.push(ledgerEntry);
   }
-  
+
   if (session) {
     return await this.insertMany(ledgerEntries, { session });
   } else {
@@ -85,4 +85,5 @@ ledgerEntrySchema.statics.createDoubleEntry = async function(entries, session) {
   }
 };
 
-module.exports = mongoose.model('LedgerEntry', ledgerEntrySchema);
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('LedgerEntry', ledgerEntrySchema);

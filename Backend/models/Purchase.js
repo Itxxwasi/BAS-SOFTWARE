@@ -12,6 +12,13 @@ const purchaseSchema = new mongoose.Schema({
     ref: 'Party',
     required: [true, 'Please select a supplier']
   },
+  // Snapshot for Cross-DB Integrity
+  supplierDetails: {
+    name: String,
+    phone: String,
+    address: String,
+    city: String
+  },
   date: {
     type: Date,
     default: Date.now,
@@ -124,5 +131,29 @@ purchaseSchema.index({ date: -1 });
 purchaseSchema.index({ paymentStatus: 1 });
 purchaseSchema.index({ status: 1 });
 purchaseSchema.index({ createdBy: 1 });
+
+// Snapshot Hook
+purchaseSchema.pre('save', async function (next) {
+  if (this.isModified('supplier') || (this.isNew && !this.supplierDetails?.name)) {
+    try {
+      const mongoose = require('mongoose');
+      const Party = mongoose.model('Party');
+      if (Party && this.supplier) {
+        const supplierData = await Party.findById(this.supplier).lean();
+        if (supplierData) {
+          this.supplierDetails = {
+            name: supplierData.name,
+            phone: supplierData.phone,
+            address: supplierData.address,
+            city: supplierData.city
+          };
+        }
+      }
+    } catch (e) {
+      console.error('Purchase Snapshot Error:', e);
+    }
+  }
+  next();
+});
 
 module.exports = mongoose.model('Purchase', purchaseSchema);

@@ -36,4 +36,5 @@ const EmployeeClearanceSchema = new mongoose.Schema({
     timestamps: true
 });
 
-module.exports = mongoose.model('EmployeeClearance', EmployeeClearanceSchema);
+const { logsConnection } = require('../config/db');
+module.exports = logsConnection.model('EmployeeClearance', EmployeeClearanceSchema);
