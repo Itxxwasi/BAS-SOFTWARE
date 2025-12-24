@@ -1638,6 +1638,16 @@ async function generateReport(reportType) {
                     recCash = 0;
                 }
 
+                // Check for CASH REC FROM COUNTER (Report fix)
+                // "VALUE SHOW IN RECEIVED CASH FIELD WITH - SIGN AND LESS FRON REC CASH TOTAL"
+                if (dName.toUpperCase() === 'CASH REC FROM COUNTER') {
+                    // Move Opening Amount (which acts as the positive balance from opening) to Received Cash as NEGATIVE
+                    // This implies we are deducting this amount from the total received cash.
+                    // Assuming opAmt holds the value (754k in example)
+                    recCash = -Math.abs(opAmt);
+                    opAmt = 0; // Clear opening so it's not double counted or shown in wrong column
+                }
+
                 // GrandTotal: Only PERCENTAGE CASH dept includes the % Cash Rec amount in its total. Exception: CASH REC FROM COUNTER is always 0.
                 let grandTotal = Math.round(opAmt + recCash + (dName.toUpperCase() === 'PERCENTAGE CASH' ? percCashRec : 0));
                 if (dName.toUpperCase() === 'CASH REC FROM COUNTER') grandTotal = 0;
