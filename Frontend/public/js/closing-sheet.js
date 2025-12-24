@@ -737,7 +737,9 @@ function updateClosing02Derived(deptId) {
         ((r.department && r.department._id === deptId) || r.department === deptId) &&
         r.mode === 'Cash'
     );
-    dailyCashTotal = deptCashRecords.reduce((sum, r) => sum + (r.totalAmount || 0), 0);
+    dailyCashTotal = deptCashRecords.reduce((sum, r) => {
+        return sum + (Number(r.bigCash) || 0) + (parseFloat(r.slip) || 0);
+    }, 0);
     document.getElementById('counterClosing').value = dailyCashTotal;
 
     // 2. Bank Total
@@ -774,7 +776,9 @@ async function loadClosing02DeptData(deptId) {
     const dateStr = document.getElementById('date').value;
 
     // 1. Calculate Counter Closing from Daily Cash (Cash Mode Only)
+    // 1. Calculate Counter Closing from Daily Cash (Cash Mode Only)
     // User Request: Match "Daily Cash List" Department Total for Cash entries.
+    // Also user specifically asked for BigCash + Slip sum logic for "Counter Closing"
     let dailyCashTotal = 0;
     if (currentDailyCashData) {
         // Filter for this Dept AND mode='Cash'
@@ -782,7 +786,10 @@ async function loadClosing02DeptData(deptId) {
             ((r.department && r.department._id === deptId) || r.department === deptId) &&
             r.mode === 'Cash'
         );
-        dailyCashTotal = deptCashRecords.reduce((sum, r) => sum + (r.totalAmount || 0), 0);
+        // Use BigCash + Slip logic
+        dailyCashTotal = deptCashRecords.reduce((sum, r) => {
+            return sum + (Number(r.bigCash) || 0) + (parseFloat(r.slip) || 0);
+        }, 0);
     }
 
     // 2. Fetch Previous Day's Closing for Opening (-)
@@ -800,16 +807,8 @@ async function loadClosing02DeptData(deptId) {
         if (json.success && json.data && json.data.closing02 && json.data.closing02.data) {
             const prevData = json.data.closing02.data[deptId];
             if (prevData) {
-                // The previous day's "Counter Closing" (or Balance?) 
-                // User Request: "today counter closing... next day closing 2 will show opening (-)"
-                // This implies Previous Counter Closing -> Current Opening Minus
-                // But typically Opening comes from Closing Balance. 
-                // Let's assume 'counterClosing' field of previous day.
+                // The previous day's "Counter Closing" becomes "Opening (-)"
                 prevOpening = prevData.counterClosing || 0;
-
-                // OR if they meant the Difference/Balance:
-                // prevOpening = prevData.difference || 0;
-                // Based on phrasing "today counter closing ... will show opening", I stick to counterClosing.
             }
         }
     } catch (e) {

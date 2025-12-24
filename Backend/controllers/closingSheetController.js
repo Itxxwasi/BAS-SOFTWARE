@@ -16,16 +16,60 @@ exports.getClosingSheet = async (req, res) => {
         const end = new Date(date);
         end.setHours(23, 59, 59, 999);
 
+        // Use lean() to get plain JS object, remove populate
         const sheet = await ClosingSheet.findOne({
             date: { $gte: start, $lte: end },
             branch: branch || 'F-6'
-        }).populate('departmentOpening.department').populate('closing01.departments.department');
+        }).lean();
 
         if (!sheet) {
-            return res.status(200).json({ success: true, data: null }); // Return null if not found
+            return res.status(200).json({ success: true, data: null });
         }
+
+        // --- Manual Population of Departments (Cross-DB Fix) ---
+        const deptIds = new Set();
+
+        // Collect IDs from Department Opening
+        if (sheet.departmentOpening) {
+            sheet.departmentOpening.forEach(item => {
+                if (item.department) deptIds.add(item.department.toString());
+            });
+        }
+
+        // Collect IDs from Closing 01
+        if (sheet.closing01 && sheet.closing01.departments) {
+            sheet.closing01.departments.forEach(item => {
+                if (item.department) deptIds.add(item.department.toString());
+            });
+        }
+
+        if (deptIds.size > 0) {
+            const Department = require('../models/Department');
+            const departments = await Department.find({ _id: { $in: Array.from(deptIds) } }).lean();
+            const deptMap = {};
+            departments.forEach(d => { deptMap[d._id.toString()] = d; });
+
+            // Assign Department Objects back to Sheet
+            if (sheet.departmentOpening) {
+                sheet.departmentOpening.forEach(item => {
+                    if (item.department && deptMap[item.department.toString()]) {
+                        item.department = deptMap[item.department.toString()];
+                    }
+                });
+            }
+            if (sheet.closing01 && sheet.closing01.departments) {
+                sheet.closing01.departments.forEach(item => {
+                    if (item.department && deptMap[item.department.toString()]) {
+                        item.department = deptMap[item.department.toString()];
+                    }
+                });
+            }
+        }
+        // -----------------------------------------------------
+
         res.status(200).json({ success: true, data: sheet });
     } catch (err) {
+        console.error('getClosingSheet Error:', err);
         res.status(500).json({ success: false, message: err.message });
     }
 };

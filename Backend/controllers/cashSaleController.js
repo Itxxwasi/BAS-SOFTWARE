@@ -1,5 +1,6 @@
 const CashSale = require('../models/CashSale');
 const Bank = require('../models/Bank');
+const Department = require('../models/Department');
 
 // @desc    Get cash sales
 // @route   GET /api/v1/cash-sales
@@ -28,14 +29,42 @@ exports.getCashSales = async (req, res) => {
             query.branch = req.query.branch;
         }
 
+        // Use lean() so we can modify the result
         const sales = await CashSale.find(query)
-            .populate('department', '_id name')
-            .populate('bank') // Populate full bank object to ensure bankName is available
-            .sort({ date: -1, createdAt: -1 });
+            .sort({ date: -1, createdAt: -1 })
+            .lean(); // REMOVED POPULATE
 
+        // --- Manual Population (Cross-DB Fix) ---
+        const deptIds = new Set();
+        const bankIds = new Set();
+
+        sales.forEach(s => {
+            if (s.department) deptIds.add(s.department.toString());
+            if (s.bank) bankIds.add(s.bank.toString());
+        });
+
+        const departments = await Department.find({ _id: { $in: Array.from(deptIds) } }).lean();
+        const banks = await Bank.find({ _id: { $in: Array.from(bankIds) } }).lean();
+
+        const deptMap = {};
+        departments.forEach(d => deptMap[d._id.toString()] = d);
+
+        const bankMap = {};
+        banks.forEach(b => bankMap[b._id.toString()] = b);
+
+        sales.forEach(s => {
+            if (s.department && deptMap[s.department.toString()]) {
+                s.department = deptMap[s.department.toString()]; // Populate Dept
+            }
+            if (s.bank && bankMap[s.bank.toString()]) {
+                s.bank = bankMap[s.bank.toString()]; // Populate Bank
+            }
+        });
+        // ----------------------------------------
 
         res.status(200).json({ success: true, count: sales.length, data: sales });
     } catch (err) {
+        console.error('getCashSales Error:', err);
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -45,10 +74,23 @@ exports.getCashSales = async (req, res) => {
 // @access  Private
 exports.getCashSale = async (req, res) => {
     try {
-        const sale = await CashSale.findById(req.params.id).populate('department').populate('bank');
+        const sale = await CashSale.findById(req.params.id).lean(); // Remove populate, add lean
         if (!sale) return res.status(404).json({ success: false, message: 'Sale not found' });
+
+        // --- Manual Population ---
+        if (sale.department) {
+            const dept = await Department.findById(sale.department).lean();
+            if (dept) sale.department = dept;
+        }
+        if (sale.bank) {
+            const bank = await Bank.findById(sale.bank).lean();
+            if (bank) sale.bank = bank;
+        }
+        // -------------------------
+
         res.status(200).json({ success: true, data: sale });
     } catch (err) {
+        console.error('getCashSale Error:', err);
         res.status(500).json({ success: false, message: err.message });
     }
 };

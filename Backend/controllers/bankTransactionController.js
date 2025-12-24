@@ -4,6 +4,9 @@ const BankTransaction = require('../models/BankTransaction');
 const Bank = require('../models/Bank');
 const LedgerEntry = require('../models/LedgerEntry');
 const Ledger = require('../models/Ledger');
+const User = require('../models/User');
+const Party = require('../models/Party');
+const Department = require('../models/Department');
 
 // @desc    Get all bank transactions
 // @route   GET /api/v1/bank-transactions
@@ -71,12 +74,38 @@ exports.getBankTransactions = asyncHandler(async (req, res) => {
   }
 
   const transactions = await BankTransaction.find(query)
-    .populate('partyId', 'name email phone')
-    .populate('createdBy', 'name')
-    .populate('department', 'name')
     .sort({ date: -1 })
     .skip(skip)
-    .limit(limit);
+    .limit(limit)
+    .lean(); // Using lean instead of populate
+
+  // --- Manual Population ---
+  if (transactions.length > 0) {
+    const partyIds = new Set();
+    const userIds = new Set();
+    const deptIds = new Set();
+
+    transactions.forEach(t => {
+      if (t.partyId) partyIds.add(t.partyId.toString());
+      if (t.createdBy) userIds.add(t.createdBy.toString());
+      if (t.department) deptIds.add(t.department.toString());
+    });
+
+    const parties = await Party.find({ _id: { $in: Array.from(partyIds) } }).select('name email phone').lean();
+    const users = await User.find({ _id: { $in: Array.from(userIds) } }).select('name').lean();
+    const depts = await Department.find({ _id: { $in: Array.from(deptIds) } }).select('name').lean();
+
+    const partyMap = {}; parties.forEach(p => partyMap[p._id.toString()] = p);
+    const userMap = {}; users.forEach(u => userMap[u._id.toString()] = u);
+    const deptMap = {}; depts.forEach(d => deptMap[d._id.toString()] = d);
+
+    transactions.forEach(t => {
+      if (t.partyId && partyMap[t.partyId.toString()]) t.partyId = partyMap[t.partyId.toString()];
+      if (t.createdBy && userMap[t.createdBy.toString()]) t.createdBy = userMap[t.createdBy.toString()];
+      if (t.department && deptMap[t.department.toString()]) t.department = deptMap[t.department.toString()];
+    });
+  }
+  // -------------------------
 
   const total = await BankTransaction.countDocuments(query);
 
@@ -98,15 +127,27 @@ exports.getBankTransactions = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/bank-transactions/:id
 // @access  Private (accounts access)
 exports.getBankTransaction = asyncHandler(async (req, res) => {
-  const transaction = await BankTransaction.findById(req.params.id)
-    .populate('partyId', 'name email phone address')
-    .populate('createdBy', 'name');
+  const transaction = await BankTransaction.findById(req.params.id).lean();
 
   if (!transaction) {
     return res.status(404).json({
       success: false,
       message: 'Bank transaction not found'
     });
+  }
+
+  // Manual Population
+  if (transaction.partyId) {
+    const p = await Party.findById(transaction.partyId).select('name email phone address').lean();
+    if (p) transaction.partyId = p;
+  }
+  if (transaction.createdBy) {
+    const u = await User.findById(transaction.createdBy).select('name').lean();
+    if (u) transaction.createdBy = u;
+  }
+  if (transaction.department) {
+    const d = await Department.findById(transaction.department).select('name').lean();
+    if (d) transaction.department = d;
   }
 
   res.status(200).json({
@@ -334,9 +375,19 @@ exports.updateBankTransaction = asyncHandler(async (req, res) => {
 
     await session.commitTransaction();
 
-    const populatedTransaction = await BankTransaction.findById(updatedTransaction._id)
-      .populate('partyId', 'name email phone')
-      .populate('createdBy', 'name');
+    // Fetch manually again to populate
+    const populatedTransaction = await BankTransaction.findById(updatedTransaction._id).lean();
+
+    if (populatedTransaction) {
+      if (populatedTransaction.partyId) {
+        const p = await Party.findById(populatedTransaction.partyId).select('name email phone').lean();
+        if (p) populatedTransaction.partyId = p;
+      }
+      if (populatedTransaction.createdBy) {
+        const u = await User.findById(populatedTransaction.createdBy).select('name').lean();
+        if (u) populatedTransaction.createdBy = u;
+      }
+    }
 
     res.status(200).json({
       success: true,

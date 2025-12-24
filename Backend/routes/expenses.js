@@ -36,10 +36,7 @@ router
 // Main CRUD routes
 router
   .route('/')
-  .get(protect, advancedResults(Expense, [
-    { path: 'createdBy', select: 'name' },
-    { path: 'approvedBy', select: 'name' }
-  ]), getExpenses)
+  .get(protect, advancedResults(Expense), getExpenses)
   .post(protect, createExpense);
 
 // Dynamic routes with :id AFTER static routes

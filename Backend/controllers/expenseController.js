@@ -1,11 +1,44 @@
 const Expense = require('../models/Expense');
 const asyncHandler = require('../middleware/async');
 const ErrorResponse = require('../utils/errorResponse');
+const User = require('../models/User');
 
 // @desc    Get all expenses
 // @route   GET /api/v1/expenses
 // @access  Private
 const getExpenses = asyncHandler(async (req, res, next) => {
+  // Manual Population for Cross-DB Support
+  let expenses = res.advancedResults.data;
+
+  if (expenses && expenses.length > 0) {
+    // Convert to plain objects if they are mongoose documents
+    if (expenses[0].toObject) {
+      expenses = expenses.map(doc => doc.toObject());
+    }
+
+    const userIds = new Set();
+    expenses.forEach(e => {
+      if (e.createdBy) userIds.add(e.createdBy.toString());
+      if (e.approvedBy) userIds.add(e.approvedBy.toString());
+    });
+
+    if (userIds.size > 0) {
+      const users = await User.find({ _id: { $in: Array.from(userIds) } }).select('name email').lean();
+      const userMap = {};
+      users.forEach(u => userMap[u._id.toString()] = u);
+
+      expenses.forEach(e => {
+        if (e.createdBy && userMap[e.createdBy.toString()]) {
+          e.createdBy = userMap[e.createdBy.toString()];
+        }
+        if (e.approvedBy && userMap[e.approvedBy.toString()]) {
+          e.approvedBy = userMap[e.approvedBy.toString()];
+        }
+      });
+    }
+    res.advancedResults.data = expenses;
+  }
+
   res.status(200).json(res.advancedResults);
 });
 
@@ -13,12 +46,20 @@ const getExpenses = asyncHandler(async (req, res, next) => {
 // @route   GET /api/v1/expenses/:id
 // @access  Private
 const getExpense = asyncHandler(async (req, res, next) => {
-  const expense = await Expense.findById(req.params.id)
-    .populate('createdBy', 'name email')
-    .populate('approvedBy', 'name email');
+  const expense = await Expense.findById(req.params.id).lean();
 
   if (!expense) {
     return next(new ErrorResponse(`Expense not found with id of ${req.params.id}`, 404));
+  }
+
+  // Manual Population
+  if (expense.createdBy) {
+    const user = await User.findById(expense.createdBy).select('name email').lean();
+    if (user) expense.createdBy = user;
+  }
+  if (expense.approvedBy) {
+    const user = await User.findById(expense.approvedBy).select('name email').lean();
+    if (user) expense.approvedBy = user;
   }
 
   res.status(200).json({ success: true, data: expense });

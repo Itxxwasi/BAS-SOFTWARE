@@ -103,16 +103,27 @@ async function loadBranches() {
         const data = await response.json();
         if (data.success) {
             const select = document.getElementById('branch');
-            select.innerHTML = '<option value="">Select Branch</option>'; // Clear default options
+
+            // If user has only one branch, don't show "Select Branch" placeholder
+            if (data.data.length === 1) {
+                select.innerHTML = '';
+            } else {
+                select.innerHTML = '<option value="">Select Branch</option>';
+            }
+
             data.data.forEach(store => {
                 const option = document.createElement('option');
                 option.value = store.name;
                 option.textContent = store.name;
                 select.appendChild(option);
             });
+
             // Trigger change to load departments for first branch only if single branch
             if (data.data.length === 1) {
                 select.value = data.data[0].name;
+                // Manually trigger updates since programmatic change doesn't fire event
+                loadDepartments();
+                loadBankList();
             }
         }
     } catch (e) {
