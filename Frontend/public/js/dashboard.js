@@ -130,16 +130,16 @@ async function refreshDashboard() {
         const limit = 10000;
 
         console.time('Dashboard Parallel Fetch');
-        
+
         // Initiate all requests in parallel
         const [
-            storeRes, 
-            deptRes, 
-            catRes, 
-            sheetsRes, 
-            vouchRes, 
-            purchRes, 
-            expRes, 
+            storeRes,
+            deptRes,
+            catRes,
+            sheetsRes,
+            vouchRes,
+            purchRes,
+            expRes,
             csRes
         ] = await Promise.all([
             fetch('/api/v1/stores', { headers }),
@@ -155,22 +155,22 @@ async function refreshDashboard() {
 
         // Parse all responses
         const [
-            storeData, 
-            deptData, 
-            catData, 
-            sheetsData, 
-            vouchData, 
-            purchData, 
-            expData, 
+            storeData,
+            deptData,
+            catData,
+            sheetsData,
+            vouchData,
+            purchData,
+            expData,
             csData
         ] = await Promise.all([
-            storeRes.json(), 
-            deptRes.json(), 
-            catRes.json(), 
-            sheetsRes.json(), 
-            vouchRes.json(), 
-            purchRes.json(), 
-            expRes.json(), 
+            storeRes.json(),
+            deptRes.json(),
+            catRes.json(),
+            sheetsRes.json(),
+            vouchRes.json(),
+            purchRes.json(),
+            expRes.json(),
             csRes.json()
         ]);
 
@@ -178,7 +178,7 @@ async function refreshDashboard() {
 
         // Process Metadata
         globalEnabledStores = (storeData.data || []).filter(s => s.showOnDashboard);
-        
+
         // Populate branch filter if empty
         const branchFilter = document.getElementById('dashboardBranchFilter');
         if (branchFilter && branchFilter.options.length === 1) {
@@ -704,6 +704,7 @@ function renderCategoryCards(categories) {
 }
 
 // --- REPLACEMENT FOR renderCategoryBreakdown ---
+// --- REPLACEMENT FOR renderCategoryBreakdown ---
 function renderCategoryBreakdown(categories) {
     const container = document.getElementById('categoryBreakdownContainer');
     if (!container) return;
@@ -719,69 +720,127 @@ function renderCategoryBreakdown(categories) {
         const branchList = Object.values(cat.branches).sort((a, b) => b.netSale - a.netSale);
 
         let tableRows = '';
+        let mobileCards = '';
         let tSale = 0, tCost = 0, tProfit = 0;
 
         let rank = 1;
         branchList.forEach((b) => {
             if (b.netSale === 0 && b.cost === 0) return; // Skip empty rows
 
-            const margin = b.netSale > 0 ? ((b.netSale - b.cost) / b.netSale) * 100 : 0;
+            const profit = b.netSale - b.cost;
+            const margin = b.netSale > 0 ? (profit / b.netSale) * 100 : 0;
 
             tSale += b.netSale;
             tCost += b.cost;
-            tProfit += (b.netSale - b.cost);
+            tProfit += profit;
 
+            // Desktop Table Row
             tableRows += `
                 <tr>
-                    <td class="fw-bold">
-                        <span class="text-muted small me-1">#${rank++}</span>
-                        <span class="d-inline-block text-wrap" style="min-width: 80px;">${b.branch}</span>
-                    </td>
+                    <td class="fw-bold text-center">${rank}</td>
+                    <td>${b.branch}</td>
                     <td class="text-end">${formatCurrency(b.netSale)}</td>
                     <td class="text-end">${b.cost > 0 ? formatCurrency(b.cost) : '-'}</td>
-                    <td class="text-end text-success d-none d-md-table-cell">${formatCurrency(b.netSale - b.cost)}</td>
+                    <td class="text-end text-success">${formatCurrency(profit)}</td>
                     <td class="text-end"><span class="badge bg-success">${margin.toFixed(1)}%</span></td>
                 </tr>
             `;
+
+            // Mobile Card View
+            mobileCards += `
+                <div class="p-3 border-bottom bg-white">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="fw-bold text-dark">
+                            <span class="badge bg-secondary me-2">#${rank}</span> ${b.branch}
+                        </div>
+                        <span class="badge bg-success">${margin.toFixed(1)}%</span>
+                    </div>
+                    <div class="row g-2 text-center">
+                        <div class="col-4">
+                            <div class="small text-muted text-uppercase" style="font-size: 10px;">Sales</div>
+                            <div class="fw-bold text-dark" style="font-size: 12px;">${formatCurrency(b.netSale)}</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="small text-muted text-uppercase" style="font-size: 10px;">Cost</div>
+                            <div class="fw-bold text-dark" style="font-size: 12px;">${b.cost > 0 ? formatCurrency(b.cost) : '-'}</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="small text-muted text-uppercase" style="font-size: 10px;">Profit</div>
+                            <div class="fw-bold text-success" style="font-size: 12px;">${formatCurrency(profit)}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            rank++;
         });
 
         // Grand total for Category
         const totalMargin = tSale > 0 ? (tProfit / tSale) * 100 : 0;
 
-        const cardHtml = `
-            <div class="category-detail-card">
-                <div class="category-header">
-                     <i class="fas fa-cubes"></i> ${cat.name}
+        // Combined Container
+        const sectionHtml = `
+            <div class="category-detail-card mb-4 shadow-sm border-0" style="overflow: hidden; border-radius: 8px;">
+                <!-- Category Title Bar (Professional Teal Theme) -->
+                <div class="category-title-bar" style="background: linear-gradient(135deg, #17a2b8, #138496); color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: center; font-weight: 700;">
+                     <i class="fas fa-folder me-2"></i> ${cat.name}
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="bg-light">
-                            <tr>
-                                <th>Branch</th>
-                                <th class="text-end">Sales</th>
-                                <th class="text-end">Cost</th>
-                                <th class="text-end d-none d-md-table-cell">Profit</th>
-                                <th class="text-end">Margin</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${tableRows}
-                            <tr class="grand-total-row">
-                                <td class="fw-bold ps-3">
-                                    <span class="d-md-none">Total</span>
-                                    <span class="d-none d-md-inline">Grand Total</span>
-                                </td>
-                                <td class="text-end">${formatCurrency(tSale)}</td>
-                                <td class="text-end">${tCost > 0 ? formatCurrency(tCost) : '-'}</td>
-                                <td class="text-end d-none d-md-table-cell">${formatCurrency(tProfit)}</td>
-                                <td class="text-end"><span class="badge bg-success">${totalMargin.toFixed(1)}%</span></td>
-                            </tr>
-                        </tbody>
-                    </table>
+
+                <!-- Desktop Table View (Hidden on Mobile) -->
+                <div class="d-none d-md-block">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 align-middle">
+                            <thead class="bg-light text-dark">
+                                <tr>
+                                    <th style="width: 60px;" class="text-center">RANK</th>
+                                    <th>BRANCH</th>
+                                    <th class="text-end">TOTAL SALES</th>
+                                    <th class="text-end">TOTAL COST</th>
+                                    <th class="text-end">TOTAL PROFIT</th>
+                                    <th class="text-end" style="width: 120px;">PROFIT MARGIN</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tableRows}
+                                <tr class="grand-total-row" style="background-color: #343a40 !important; color: white;">
+                                    <td colspan="2" class="text-end fw-bold text-white ps-3">CATEGORY TOTAL:</td>
+                                    <td class="text-end fw-bold text-white">${formatCurrency(tSale)}</td>
+                                    <td class="text-end fw-bold text-white">${tCost > 0 ? formatCurrency(tCost) : '-'}</td>
+                                    <td class="text-end fw-bold text-white">${formatCurrency(tProfit)}</td>
+                                    <td class="text-end"><span class="badge bg-success">${totalMargin.toFixed(1)}%</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Mobile List View (Hidden on Desktop) -->
+                <div class="d-md-none">
+                    ${mobileCards}
+                    <div class="p-3" style="background-color: #343a40; color: white;">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                             <div class="fw-bold">CATEGORY TOTAL</div>
+                             <span class="badge bg-success">${totalMargin.toFixed(1)}%</span>
+                        </div>
+                         <div class="row g-2 text-center">
+                            <div class="col-4">
+                                <div class="small text-white-50 text-uppercase" style="font-size: 10px;">Sales</div>
+                                <div class="fw-bold text-white" style="font-size: 12px;">${formatCurrency(tSale)}</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="small text-white-50 text-uppercase" style="font-size: 10px;">Cost</div>
+                                <div class="fw-bold text-white" style="font-size: 12px;">${formatCurrency(tCost)}</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="small text-white-50 text-uppercase" style="font-size: 10px;">Profit</div>
+                                <div class="fw-bold text-white" style="font-size: 12px;">${formatCurrency(tProfit)}</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
-        container.innerHTML += cardHtml;
+        container.innerHTML += sectionHtml;
     });
 }
 

@@ -223,21 +223,24 @@
             overflow: hidden;
         }
 
+        .category-title-bar {
+            background: linear-gradient(135deg, #17a2b8, #138496);
+            color: white;
+            padding: 12px 20px;
+            font-weight: 700;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         .category-section .data-table {
             margin-top: 0;
         }
 
         .category-header {
-            background: linear-gradient(135deg, #17a2b8, #138496) !important;
-            color: white !important;
-            font-weight: 600 !important;
-            font-size: 0.9rem !important;
-        }
-
-        .category-header td {
-            padding: 10px 15px !important;
-            color: white !important;
-            border: none !important;
+            /* Legacy support or removal */
+            display: none;
         }
 
         .category-total-row {
@@ -246,6 +249,9 @@
         }
 
         .category-total-row td {
+            background-color: #343a40 !important;
+            color: white !important;
+            font-weight: 700;
             border-top: 2px solid #dee2e6 !important;
             border-bottom: 2px solid #dee2e6 !important;
             padding: 12px 15px !important;
@@ -411,18 +417,23 @@
                 padding: 8px 12px;
             }
 
-            .category-header {
+            .category-title-bar {
                 background: linear-gradient(135deg, #17a2b8, #138496) !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
                 page-break-after: avoid;
             }
 
-            .category-header td {
-                color: white !important;
-                background: transparent !important;
+            .category-header {
+                display: none !important;
             }
 
-            .category-total-row {
-                background: #e9ecef !important;
+            .category-total-row td {
+                background-color: #343a40 !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
 
             .margin-badge {
@@ -895,6 +906,9 @@
                 // Start category section with its own table
                 html += `
                     <div class="category-section">
+                        <div class="category-title-bar">
+                            <i class="fas fa-folder me-2"></i>${categoryName}
+                        </div>
                         <table class="table data-table mb-0">
                             <thead>
                                 <tr>
@@ -907,11 +921,6 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr class="category-header">
-                                    <td colspan="6">
-                                        <i class="fas fa-folder me-2"></i>(${categoryName})
-                                    </td>
-                                </tr>
                 `;
 
                 // Branch rows (already sorted by sales)
