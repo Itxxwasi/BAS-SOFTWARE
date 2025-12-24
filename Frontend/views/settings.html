@@ -122,6 +122,24 @@
                 padding: 10px !important;
             }
         }
+
+        /* Fix Tab Switching: Force hide inactive tabs */
+        /* Fix Tab Switching: Force hide inactive tabs */
+        .tab-content>.tab-pane {
+            display: none !important;
+            opacity: 0;
+        }
+
+        .tab-content>.active {
+            display: block !important;
+            opacity: 1;
+        }
+
+        /* Ensure fade transitions don't break display */
+        .tab-content>.tab-pane.fade.show.active {
+            display: block !important;
+            opacity: 1 !important;
+        }
     </style>
 </head>
 

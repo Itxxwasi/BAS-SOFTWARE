@@ -512,15 +512,15 @@ function renderPaymentUI() {
                         <table class="table table-hover table-sm mb-0">
                             <thead class="bg-light">
                                 <tr>
-                                    <th width="5%" class="text-center d-none d-md-table-cell">Rank</th>
-                                    <th>Branch</th>
-                                    <th class="text-end">Sale</th>
-                                    <th class="text-end">Cost</th>
-                                    <th class="text-end">
+                                    <th style="width: 5%;" class="text-center d-none d-md-table-cell">Rank</th>
+                                    <th style="width: 25%;">Branch</th>
+                                    <th style="width: 17.5%;" class="text-end">Sale</th>
+                                    <th style="width: 17.5%;" class="text-end">Cost</th>
+                                    <th style="width: 17.5%;" class="text-end">
                                         <span class="d-md-none">Paid</span>
                                         <span class="d-none d-md-inline">Category Payments</span>
                                     </th>
-                                    <th class="text-end">
+                                    <th style="width: 17.5%;" class="text-end">
                                         <span class="d-md-none">Bal</span>
                                         <span class="d-none d-md-inline">Balance Payment</span>
                                     </th>
@@ -1160,7 +1160,7 @@ function processAndRenderBranchDeptBreakdown(sheets, cashSales, branchNameMap, d
             });
 
             const tDiscPct = tGross > 0 ? (tDisc / tGross) * 100 : 0;
-            html += `<tr class="fw-bold text-white shadow-sm" style="background-color: #2c5364;">
+            html += `<tr class="grand-total-row fw-bold shadow-sm">
                 <td class="ps-3 fw-bold">Grand Total</td>
                 <td class="text-end">${tDiscPct.toFixed(2)}%</td>
                 <td class="text-end">${formatCurrency(tNet)}</td>

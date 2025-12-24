@@ -394,8 +394,8 @@ async function createBackup() {
         showLoading();
 
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/v1/settings/backup', {
-            method: 'POST',
+        const response = await fetch('/api/v1/backup/export', {
+            method: 'GET',
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -443,7 +443,7 @@ async function restoreBackup() {
         const formData = new FormData();
         formData.append('backup', file);
 
-        const response = await fetch('/api/v1/settings/restore', {
+        const response = await fetch('/api/v1/backup/import', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` },
             body: formData
