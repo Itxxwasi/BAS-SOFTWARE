@@ -699,7 +699,14 @@ function calcClosing01Totals() {
 // --- Closing 02 Logic ---
 
 // Helper to refresh Daily Cash AND Cash Sales Data globally
-async function refreshDailyCashData() {
+async function refreshDailyCashData(force = false) {
+    // Throttle: Don't refresh if updated less than 30 seconds ago, unless forced
+    const now = Date.now();
+    if (!force && window.lastRefreshTime && (now - window.lastRefreshTime < 30000)) {
+        console.log('Skipping refresh (throttled)');
+        return;
+    }
+
     const branch = document.getElementById('branch').value;
     const date = document.getElementById('date').value;
     const token = localStorage.getItem('token');
@@ -724,6 +731,7 @@ async function refreshDailyCashData() {
             currentCashSalesData = csJson.data;
             console.log('Cash Sales Data Refreshed');
         }
+        window.lastRefreshTime = now;
     } catch (e) { console.error('Error refreshing data:', e); }
 }
 
@@ -738,7 +746,11 @@ function updateClosing02Derived(deptId) {
         r.mode === 'Cash'
     );
     dailyCashTotal = deptCashRecords.reduce((sum, r) => {
-        return sum + (Number(r.bigCash) || 0) + (parseFloat(r.slip) || 0);
+        const total = r.totalAmount || 0;
+        const exp = r.expense || 0;
+        const big = Number(r.bigCash) || 0;
+        const slip = parseFloat(r.slip) || 0;
+        return sum + (total - exp) + big + slip;
     }, 0);
     document.getElementById('counterClosing').value = dailyCashTotal;
 
@@ -786,9 +798,15 @@ async function loadClosing02DeptData(deptId) {
             ((r.department && r.department._id === deptId) || r.department === deptId) &&
             r.mode === 'Cash'
         );
-        // Use BigCash + Slip logic
+        // Calculate Counter Closing
+        // Formula: (TotalAmount - Expense) + BigCash + Slip
+        // This covers both Denominations entry (TotalAmount includes Denoms + Expense) and direct BigCash/Slip entry.
         dailyCashTotal = deptCashRecords.reduce((sum, r) => {
-            return sum + (Number(r.bigCash) || 0) + (parseFloat(r.slip) || 0);
+            const total = r.totalAmount || 0;
+            const exp = r.expense || 0;
+            const big = Number(r.bigCash) || 0;
+            const slip = parseFloat(r.slip) || 0;
+            return sum + (total - exp) + big + slip;
         }, 0);
     }
 
@@ -799,11 +817,22 @@ async function loadClosing02DeptData(deptId) {
         dateObj.setDate(dateObj.getDate() - 1);
         const prevDateStr = dateObj.toISOString().split('T')[0];
 
-        const token = localStorage.getItem('token');
-        const resp = await fetch(`/api/v1/closing-sheets?date=${prevDateStr}&branch=${branch}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const json = await resp.json();
+        const cacheKey = `${prevDateStr}_${branch}`;
+        let json;
+
+        if (window.cachedPrevSheetKey === cacheKey && window.cachedPrevSheet) {
+            json = window.cachedPrevSheet; // Use Cache
+        } else {
+            const token = localStorage.getItem('token');
+            const resp = await fetch(`/api/v1/closing-sheets?date=${prevDateStr}&branch=${branch}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            json = await resp.json();
+            // Update Cache
+            window.cachedPrevSheetKey = cacheKey;
+            window.cachedPrevSheet = json;
+        }
+
         if (json.success && json.data && json.data.closing02 && json.data.closing02.data) {
             const prevData = json.data.closing02.data[deptId];
             if (prevData) {

@@ -52,7 +52,7 @@ exports.getDailyCash = async (req, res) => {
         // I will do two edits. One to add imports, one to change this function.
         // Actually I can do it all here if I assume imports are there, but I need to be safe.
         // I'll return the modified code assuming imports will be added.
-        
+
         // Since I can't guarantee imports are there yet, I will use mongoose.models to access them if they are registered globally on default connection? 
         // No, 'require' is safer.
         const Department = require('../models/Department');
@@ -70,13 +70,15 @@ exports.getDailyCash = async (req, res) => {
 
         // Merge data
         records = records.map(record => {
-             if (record.department) {
-                 record.department = deptMap[record.department.toString()] || null;
-             }
-             if (record.bank) {
-                 record.bank = bankMap[record.bank.toString()] || null;
-             }
-             return record;
+            if (record.department) {
+                // Fallback to original ID if not found in map
+                record.department = deptMap[record.department.toString()] || record.department;
+            }
+            if (record.bank) {
+                // Fallback to original ID if not found in map
+                record.bank = bankMap[record.bank.toString()] || record.bank;
+            }
+            return record;
         });
         // --- Manual Population End ---
 
