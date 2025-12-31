@@ -209,7 +209,7 @@ async function loadSheet() {
             tr.innerHTML = `
                 <td>${d.code || (index + 1)}</td>
                 <td>${d.name}</td>
-                <td class="p-1">
+                <td class="p-1 text-end">
                     <input type="number" class="form-control form-control-sm text-end dept-opening-input border-0 bg-transparent" 
                         data-dept-id="${d._id}" value="${amount}" onchange="calcDeptOpeningTotal()">
                 </td>
@@ -389,7 +389,7 @@ async function loadSheet() {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                      <td class="small align-middle">${d.name}</td>
-                     <td class="p-1">
+                     <td class="p-1 text-end">
                          <input type="number" class="form-control form-control-sm text-end closing01-dept-input border-0 bg-transparent" 
                               data-dept-id="${d._id}" value="${finalAmount}" onchange="calcClosing01Totals()" readonly>
                      </td>
@@ -1153,12 +1153,19 @@ async function saveSheet() {
 }
 
 function printSheet(type) {
-    if (type === 'income') {
+    if (type === 'opening') {
+        printOpeningSheet();
+    } else if (type === 'closing01') {
+        printClosing01Sheet();
+    } else if (type === 'closing02') {
+        printClosing02Sheet();
+    } else if (type === 'reporting') {
+        printReportingSheet();
+    } else if (type === 'income') {
         printIncomeStatement(false);
     } else if (type === 'dayWisePrint') {
         printIncomeStatement(true);
     } else {
-        // Use browser's native print dialog
         window.print();
     }
 }
@@ -1235,215 +1242,87 @@ async function printIncomeStatement(isDayWise = false) {
 
     const diffBalance = totalIncome - totalExpense;
 
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>${isDayWise ? 'Day Wise' : 'Monthly'} Income Statement - ${date}</title>
-            <style>
-                @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
-                
-                body { 
-                    font-family: 'Roboto', sans-serif; 
-                    padding: 20px; 
-                    color: #2c3e50; 
-                    line-height: 1.4;
-                    max-width: 900px;
-                    margin: 0 auto;
-                }
-                
-                .report-header { 
-                    text-align: center; 
-                    margin-bottom: 25px; 
-                    border-bottom: 4px solid #1a5f7a; 
-                    padding-bottom: 15px;
-                }
-                
-                .report-header h1 { 
-                    margin: 0; 
-                    font-size: 26px; 
-                    color: #1a5f7a; 
-                    text-transform: uppercase;
-                }
-                
-                .report-meta { 
-                    display: flex; 
-                    justify-content: space-between; 
-                    margin-top: 10px;
-                    font-weight: 500;
-                    color: #555;
-                }
+    const content = `
+        <div class="section-title">Income Sources & Daily Collection</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 70%">Source</th>
+                    <th class="text-end">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Opening Balance</td>
+                    <td class="text-end fw-bold">${opening.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                </tr>
+                <tr>
+                    <td>Cash Sale ${isDayWise ? '' : '(Monthly Total)'}</td>
+                    <td class="text-end fw-bold">${cashSale.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                </tr>
+                <tr>
+                    <td>Bank Sale ${isDayWise ? '' : '(Monthly Total)'}</td>
+                    <td class="text-end fw-bold">${bankSale.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                </tr>
+            </tbody>
+        </table>
 
-                .section-title { 
-                    background: #1a5f7a;
-                    color: white;
-                    padding: 6px 12px;
-                    font-size: 15px;
-                    font-weight: 700;
-                    text-transform: uppercase;
-                    margin: 20px 0 10px 0;
-                    border-radius: 4px;
-                }
+        <div class="section-title">Income Details (Other Receipts)</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:12%">Date</th>
+                    <th style="width:18%">Detail</th>
+                    <th style="width:15%">Head</th>
+                    <th style="width:15%">Sub Head</th>
+                    <th>Remarks</th>
+                    <th class="text-end" style="width:15%">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${incomeRows || '<tr><td colspan="6" class="text-center">No income records</td></tr>'}
+            </tbody>
+        </table>
 
-                table { 
-                    width: 100%; 
-                    border-collapse: collapse; 
-                    margin-bottom: 15px;
-                    font-size: 11px;
-                }
+        <div class="section-title">Expense Details (Payments)</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:12%">Date</th>
+                    <th style="width:18%">Detail</th>
+                    <th style="width:15%">Head</th>
+                    <th style="width:15%">Sub Head</th>
+                    <th>Remarks</th>
+                    <th class="text-end" style="width:15%">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${payRows || '<tr><td colspan="6" class="text-center">No expense records</td></tr>'}
+            </tbody>
+        </table>
 
-                th { 
-                    background-color: #f8f9fa;
-                    color: #333;
-                    text-align: left;
-                    padding: 8px;
-                    border: 1px solid #dee2e6;
-                    font-weight: 700;
-                }
-
-                td { 
-                    padding: 7px 8px;
-                    border: 1px solid #dee2e6;
-                }
-
-                .text-end { text-align: right; }
-                .fw-bold { font-weight: 700; }
-                
-                /* Summary Styling */
-                .summary-table {
-                    width: 320px;
-                    margin-left: auto;
-                    border: 2px solid #1a5f7a;
-                }
-                .summary-table td {
-                    padding: 10px;
-                    font-size: 14px;
-                }
-                .closing-row {
-                    background-color: #e8f4fd;
-                    color: #1a5f7a;
-                    font-size: 16px !important;
-                }
-
-                @media print {
-                    .no-print { display: none; }
-                    body { padding: 0; margin: 0; }
-                    .report-header { -webkit-print-color-adjust: exact; }
-                    .section-title { -webkit-print-color-adjust: exact; background: #1a5f7a !important; color: white !important; }
-                    .closing-row { -webkit-print-color-adjust: exact; background-color: #e8f4fd !important; }
-                }
-
-                .footer {
-                    margin-top: 40px;
-                    text-align: right;
-                    font-size: 10px;
-                    color: #999;
-                    border-top: 1px solid #eee;
-                    padding-top: 10px;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="report-header">
-                <h1>Income Statement ${isDayWise ? '(Day Wise)' : '(Monthly View)'}</h1>
-                <div class="report-meta">
-                    <span>Branch: <strong>${branch}</strong></span>
-                    <span>For Date: <strong>${date}</strong></span>
-                </div>
-            </div>
-
-            <div class="section-title">Income Sources & Daily Collection</div>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 70%">Source</th>
-                        <th class="text-end">Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Opening Balance</td>
-                        <td class="text-end fw-bold">${opening.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    </tr>
-                    <tr>
-                        <td>Cash Sale ${isDayWise ? '' : '(Monthly Total)'}</td>
-                        <td class="text-end fw-bold">${cashSale.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    </tr>
-                    <tr>
-                        <td>Bank Sale ${isDayWise ? '' : '(Monthly Total)'}</td>
-                        <td class="text-end fw-bold">${bankSale.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    </tr>
-                </tbody>
+        <div class="totals-box">
+            <table style="margin-bottom:0;">
+                <tr>
+                    <td>Total Income (A)</td>
+                    <td class="text-end fw-bold">${totalIncome.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                </tr>
+                <tr>
+                    <td>Total Expense (B)</td>
+                    <td class="text-end fw-bold" style="color: #c00;">${totalExpense.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                </tr>
+                <tr class="grand-total">
+                    <td style="font-size: 16px;">NET CLOSING BALANCE (A - B)</td>
+                    <td class="text-end" style="font-size: 18px;">${diffBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                </tr>
             </table>
+        </div>
+    `;
 
-            <div class="section-title">Income / Receipts</div>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 12%">Date</th>
-                        <th style="width: 18%">Detail</th>
-                        <th style="width: 15%">Head</th>
-                        <th style="width: 15%">Sub Head</th>
-                        <th style="width: 25%">Remarks</th>
-                        <th class="text-end" style="width: 15%">Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${incomeRows}
-                </tbody>
-            </table>
-
-            <div class="section-title">Expenses / Payments</div>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 12%">Date</th>
-                        <th style="width: 18%">Detail</th>
-                        <th style="width: 15%">Head</th>
-                        <th style="width: 15%">Sub Head</th>
-                        <th style="width: 25%">Remarks</th>
-                        <th class="text-end" style="width: 15%">Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${payRows}
-                </tbody>
-            </table>
-
-            <div style="margin-top: 30px;">
-                <table class="summary-table">
-                    <tr>
-                        <td class="fw-bold">Total Income (Cr)</td>
-                        <td class="text-end fw-bold">${totalIncome.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    </tr>
-                    <tr>
-                        <td class="fw-bold text-danger">Total Expense (Dr)</td>
-                        <td class="text-end fw-bold text-danger">${totalExpense.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    </tr>
-                    <tr class="closing-row fw-bold">
-                        <td>Closing Balance</td>
-                        <td class="text-end">${diffBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    </tr>
-                </table>
-            </div>
-
-            <div class="footer">
-                Printed by BAS Software | ${new Date().toLocaleString()}
-            </div>
-
-            <script>
-                window.onload = function() {
-                    setTimeout(() => {
-                        window.print();
-                        // window.close(); // Uncomment if you want auto-close
-                    }, 500);
-                }
-            </script>
-        </body>
-        </html>
-    `);
-    printWindow.document.close();
+    const win = window.open('', '_blank');
+    win.document.write(getPrintTemplate(isDayWise ? 'Day Wise Income Statement' : 'Monthly Income Statement', content));
+    win.document.close();
+    win.print();
 }
 
 // SMS Sending Functions
@@ -2925,4 +2804,240 @@ async function loadCashSalesData() {
             window.currentCashSalesData = csJson.data;
         }
     } catch (e) { console.error('Error loading cash sales', e); }
+}
+
+// --- UNIFIED PRINT LOGIC ---
+
+function getPrintTemplate(title, content) {
+    const date = document.getElementById('date').value;
+    const branch = document.getElementById('branch').value;
+
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>${title} - ${branch} - ${date}</title>
+            <style>
+                body { font-family: 'Segoe UI', Arial, sans-serif; padding: 30px; color: #333; line-height: 1.4; }
+                .report-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+                .report-header h1 { margin: 0; font-size: 24px; text-transform: uppercase; }
+                .report-meta { display: flex; justify-content: space-between; margin-top: 10px; font-weight: bold; }
+                
+                .section-title { background: #f4f4f4; padding: 8px 12px; margin: 20px 0 10px 0; font-weight: bold; border: 1px solid #ddd; text-transform: uppercase; font-size: 14px; }
+                
+                table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; }
+                th { background-color: #f8f8f8; text-align: left; padding: 10px; border: 1px solid #ddd; font-weight: bold; }
+                td { padding: 8px 10px; border: 1px solid #ddd; }
+                
+                .text-end { text-align: right !important; }
+                .fw-bold { font-weight: bold; }
+                .bg-light { background-color: #f9f9f9; }
+                
+                .totals-box { border: 2px solid #333; margin-top: 20px; }
+                .totals-box td { padding: 8px; font-size: 13px; }
+                .grand-total { background: #eee; font-weight: bold; border-top: 2px solid #333; }
+                
+                .row { display: flex; flex-wrap: wrap; margin: 0 -15px; }
+                .col-6 { width: 50%; padding: 0 15px; box-sizing: border-box; }
+                
+                @media print {
+                    body { padding: 0; margin: 0; }
+                    .no-print { display: none; }
+                    button { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="report-header">
+                <h1>${title}</h1>
+                <div class="report-meta">
+                    <span>Branch: ${branch}</span>
+                    <span>Date: ${date}</span>
+                </div>
+            </div>
+            ${content}
+            <div style="margin-top: 60px; display: flex; justify-content: space-between; font-size: 12px;">
+                <div>Printed at: ${new Date().toLocaleString()}</div>
+                <div style="border-top: 1px solid #000; width: 180px; text-align: center; padding-top: 5px;">Manager Signature</div>
+            </div>
+        </body>
+        </html>
+    `;
+}
+
+function printOpeningSheet() {
+    const tableHtml = document.querySelector('#dept-opening table').cloneNode(true);
+    // Remove inputs, keep text
+    tableHtml.querySelectorAll('input').forEach(inp => {
+        const val = inp.value;
+        const span = document.createElement('span');
+        span.textContent = parseFloat(val).toLocaleString(undefined, { minimumFractionDigits: 2 });
+        inp.parentNode.replaceChild(span, inp);
+    });
+
+    const content = `
+        <div class="section-title">Department Opening Balances</div>
+        ${tableHtml.outerHTML}
+    `;
+
+    const win = window.open('', '_blank');
+    win.document.write(getPrintTemplate('Department Opening Sheet', content));
+    win.document.close();
+    win.print();
+}
+
+function printClosing01Sheet() {
+    // Get fields
+    const openingCash = document.getElementById('openingCash').value;
+    const receivedCash = document.getElementById('receivedCash').value;
+    const deptTotal = document.getElementById('departmentTotal').value;
+    const counterTotal = document.getElementById('counterCashTotal').value;
+    const percTotal = document.getElementById('percentageCashTotal').value;
+    const totalC02 = document.getElementById('totalClosing02').value;
+
+    const totalC01 = document.getElementById('totalClosing01').textContent;
+    const grandTotal = document.getElementById('grandTotal').textContent;
+
+    // Clone listing table
+    const tableClone = document.querySelector('#closing01 table').cloneNode(true);
+    tableClone.querySelectorAll('input').forEach(inp => {
+        const val = inp.value;
+        const span = document.createElement('span');
+        span.textContent = parseFloat(val).toLocaleString();
+        inp.parentNode.replaceChild(span, inp);
+    });
+
+    const content = `
+        <div class="row">
+            <div class="col-6">
+                <div class="section-title">Collection & Shortfalls</div>
+                <table>
+                    <tr><td>Opening Cash</td><td class="text-end fw-bold">${openingCash}</td></tr>
+                    <tr><td>Received Cash (Big Cash Forward)</td><td class="text-end fw-bold">${receivedCash}</td></tr>
+                </table>
+                <div style="margin-top: 10px; font-size: 10px;">
+                    ${tableClone.outerHTML}
+                </div>
+                <div class="totals-box" style="width: 100%;">
+                    <table>
+                        <tr class="grand-total"><td>Total Closing 01 (Left Side)</td><td class="text-end">${totalC01}</td></tr>
+                    </table>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="section-title">Forwarded Totals (Right Side)</div>
+                <table>
+                    <tr><td>Department Total</td><td class="text-end">${deptTotal}</td></tr>
+                    <tr><td>Counter Cash Total</td><td class="text-end">${counterTotal}</td></tr>
+                    <tr><td>Percentage Cash Total</td><td class="text-end">${percTotal}</td></tr>
+                    <tr class="fw-bold bg-light">
+                        <td>Total Closing 02</td>
+                        <td class="text-end">${totalC02}</td>
+                    </tr>
+                </table>
+                
+                <div class="totals-box" style="width: 100%; margin-top: 40px; border-color: #333;">
+                    <table style="margin-bottom: 0;">
+                        <tr style="background: #f9f9f9; font-size: 18px; font-weight: bold;">
+                            <td>GRAND TOTAL / DIFF</td>
+                            <td class="text-end">${grandTotal}</td>
+                        </tr>
+                    </table>
+                </div>
+                <p style="font-size: 10px; color: #666; margin-top: 5px;">* Formula: (Total Closing 01) - (Total Closing 02)</p>
+            </div>
+        </div>
+    `;
+
+    const win = window.open('', '_blank');
+    win.document.write(getPrintTemplate('Closing 01 Statement', content));
+    win.document.close();
+    win.print();
+}
+
+function printClosing02Sheet() {
+    const deptSelect = document.getElementById('closing02Dept');
+    const deptName = deptSelect.options[deptSelect.selectedIndex]?.text || 'No Department';
+
+    const fields = [
+        { l: 'Counter Closing', v: document.getElementById('counterClosing').value },
+        { l: 'Bank Total', v: document.getElementById('bankTotal').value },
+        { l: 'Closing 02 Total', v: document.getElementById('closing02Total').value, b: true },
+        { l: 'LP', v: document.getElementById('lp').value },
+        { l: 'Coin', v: document.getElementById('coin').value },
+        { l: 'Misc (-)', v: document.getElementById('misc').value },
+        { l: 'Dis & C.S', v: document.getElementById('divCS').value },
+        { l: 'Grand Total', v: document.getElementById('closing02GrandTotal').value, b: true },
+        { l: 'Received Cash', v: document.getElementById('receivedCashC02').value },
+        { l: 'Total', v: document.getElementById('totalC02').value, b: true },
+        { l: 'Opening (-)', v: document.getElementById('openingMinus').value },
+        { l: 'T.Sale Manual', v: document.getElementById('tSaleManual').value },
+        { l: 'Total Sale Computer', v: document.getElementById('totalSaleComputer').value },
+        { l: 'Difference', v: document.getElementById('difference').value, b: true, red: true },
+        { l: 'Gross Sale', v: document.getElementById('grossSale').value },
+        { l: 'Discount Value', v: document.getElementById('discountValue').value },
+        { l: 'Discount %', v: document.getElementById('discountPer').value }
+    ];
+
+    let fieldHtml = '<table style="width: 100%;">';
+    fields.forEach(f => {
+        const style = f.b ? 'font-weight: bold; background: #f4f4f4;' : '';
+        const color = f.red ? 'color: #c00;' : '';
+        fieldHtml += `<tr style="${style} ${color}"><td>${f.l}</td><td class="text-end">${parseFloat(f.v || 0).toLocaleString()}</td></tr>`;
+    });
+    fieldHtml += '</table>';
+
+    const deptTable = document.getElementById('closing02DeptTable').innerHTML;
+    const bankTable = document.getElementById('closing02BankTable').innerHTML;
+    const deptTotal = document.getElementById('closing02DeptTotal').textContent;
+    const bankTotal = document.getElementById('closing02BankTotal').textContent;
+
+    const content = `
+        <div class="row">
+            <div class="col-6">
+                <div class="section-title">Calculations: ${deptName}</div>
+                ${fieldHtml}
+            </div>
+            <div class="col-6">
+                <div class="section-title">Department Sales Summary</div>
+                <table>
+                    <thead><tr><th>Department</th><th class="text-end">Sale</th></tr></thead>
+                    <tbody>${deptTable}</tbody>
+                    <tfoot><tr class="fw-bold bg-light"><td>Total</td><td class="text-end">${deptTotal}</td></tr></tfoot>
+                </table>
+
+                <div class="section-title">Bank Deposits</div>
+                <table>
+                    <thead><tr><th>Bank</th><th class="text-end">Amount</th></tr></thead>
+                    <tbody>${bankTable}</tbody>
+                    <tfoot><tr class="fw-bold bg-light"><td>Total</td><td class="text-end">${bankTotal}</td></tr></tfoot>
+                </table>
+            </div>
+        </div>
+    `;
+
+    const win = window.open('', '_blank');
+    win.document.write(getPrintTemplate('Closing 02 Details', content));
+    win.document.close();
+    win.print();
+}
+
+function printReportingSheet() {
+    const reportOutput = document.getElementById('reportOutput');
+    if (!reportOutput || reportOutput.innerText.includes('Select a report type')) {
+        alert('Please generate a report first.');
+        return;
+    }
+
+    const content = `
+        <div class="section-title">Report Results</div>
+        <div style="background: white;">
+            ${reportOutput.innerHTML}
+        </div>
+    `;
+
+    const win = window.open('', '_blank');
+    win.document.write(getPrintTemplate('Closing Sheet Report', content));
+    win.document.close();
+    win.print();
 }

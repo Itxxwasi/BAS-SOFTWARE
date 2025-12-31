@@ -70,10 +70,11 @@
         .data-table th {
             background-color: #0d6efd !important;
             color: white;
-            font-size: 12px;
+            font-size: 11px;
             text-align: center;
             white-space: nowrap;
             padding: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
         }
 
         .data-table td {
@@ -193,10 +194,6 @@
                                 <input type="text" id="phoneNo" class="form-control">
                             </div>
                             <div class="form-group">
-                                <label>Email</label>
-                                <input type="email" id="email" class="form-control">
-                            </div>
-                            <div class="form-group">
                                 <label>STRN</label>
                                 <input type="text" id="strn" class="form-control">
                             </div>
@@ -301,21 +298,19 @@
                         <thead>
                             <tr>
                                 <th>Sr. No.</th>
-                                <th>Supplier Name</th>
-                                <th>Category</th>
-                                <th>Sub Category</th>
-                                <th>Phone No</th>
-                                <th>Mobile No</th>
-                                <th>NTN</th>
-                                <th>STRN</th>
-                                <th>Email</th>
-                                <th>WHT Type</th>
-                                <th>WHT Per</th>
-                                <th>ADV Tax Per</th>
-                                <th>Address</th>
+                                <th class="text-start">Supplier Name</th>
+                                <th class="text-start">Category</th>
+                                <th class="text-start">Sub Category</th>
+                                <th class="text-start">Phone No</th>
+                                <th class="text-start">Mobile No</th>
+                                <th class="text-start">NTN</th>
+                                <th class="text-start">STRN</th>
+                                <th class="text-start">WHT Type</th>
+                                <th class="text-end">WHT Per</th>
+                                <th class="text-end">ADV Tax Per</th>
                                 <th>Active</th>
-                                <th>City Name</th>
-                                <th>Branch Name</th>
+                                <th class="text-start">City Name</th>
+                                <th class="text-start">Branch Name</th>
                                 <th>Finished</th>
                                 <th>Actions</th>
                             </tr>
